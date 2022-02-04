@@ -54,3 +54,71 @@ fn files_under(path: &PathBuf) -> io::Result<Vec<PathBuf>> {
     }
     Ok(sub_files)
 }
+
+
+#[cfg(test)]
+mod tests {
+    use std::{fs, io};
+    use std::path::{Path, PathBuf};
+    use std::fs::OpenOptions;
+    use tempfile::{TempDir, NamedTempFile};
+    use crate::upload::files_under;
+
+    #[test]
+    #[allow(unused_must_use)]
+    fn test_files_under_dir() -> io::Result<()> {
+        let tmp_dir = TempDir::new()?;
+        let tmp_path = tmp_dir.path();
+        let nested_dir = tmp_path.join(Path::new("bento/box"));
+        let nested_file1_parent = tmp_path.join(Path::new("seaweed/rice"));
+        let nested_file1 = nested_file1_parent.join(Path::new("tuna"));
+        let nested_file2_parent = tmp_path.join(Path::new("oxygen"));
+        let nested_file2 = nested_file2_parent.join(Path::new("o2"));
+
+        fs::create_dir_all(&nested_file1_parent)?;
+        fs::create_dir_all(&nested_file2_parent)?;
+        fs::create_dir_all(&nested_dir);
+        touch(&nested_file1)?;
+        touch(&nested_file2)?;
+
+        let actual = files_under(&tmp_path.to_path_buf())?;
+        assert_eq!(actual.len(), 2);
+        assert!(actual.contains(&nested_file1));
+        assert!(actual.contains(&nested_file2));
+        assert!(!actual.contains(&nested_dir));
+        Ok(())
+    }
+
+    #[test]
+    fn test_files_under_file() -> io::Result<()> {
+        let tmp_file = NamedTempFile::new()?;
+        let path = tmp_file.path();
+        assert_eq!(
+            vec![path.to_path_buf()],
+            files_under(&path.to_path_buf())?
+        );
+        Ok(())
+    }
+
+    #[test]
+    fn test_files_under_dne() -> io::Result<()> {
+        let path = &PathBuf::from("tomato");
+        let result = files_under(path);
+        assert!(result.is_err());
+        let e = result.unwrap_err();
+        assert_eq!(io::ErrorKind::NotFound, e.kind());
+        assert_eq!(
+            format!("File not found: {:?}", path),
+            e.to_string()
+        );
+        Ok(())
+    }
+
+    /// Create file if it does not exist.
+    fn touch(path: &Path) -> io::Result<()> {
+        match OpenOptions::new().create(true).write(true).open(path) {
+            Ok(_) => Ok(()),
+            Err(e) => Err(e)
+        }
+    }
+}

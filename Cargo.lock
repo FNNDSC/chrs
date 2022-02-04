@@ -63,6 +63,7 @@ dependencies = [
  "lazy_static",
  "reqwest",
  "serde",
+ "tempfile",
 ]
 
 [[package]]
