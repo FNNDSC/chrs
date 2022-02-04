@@ -61,7 +61,7 @@ Relative path structures are preserved, so the following upload paths will be cr
 
 - `chrisuser/uploads/my-data/file1.nii`
 - `chrisuser/uploads/my-data/nested/file2.nii`
-- `chrisuser/folder_of_stuff/...`
+- `chrisuser/uploads/my-data/folder_of_stuff/...`
 
 ## Known Problems
 
