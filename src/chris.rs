@@ -1,20 +1,19 @@
 use lazy_static::lazy_static;
-use reqwest::header::{HeaderMap};
 use reqwest::blocking::multipart;
+use reqwest::header::HeaderMap;
+use serde::Deserialize;
 use std::collections::HashMap;
 use std::path::Path;
-use serde::Deserialize;
 
 lazy_static! {
     static ref CLIENT: reqwest::blocking::Client = reqwest::blocking::Client::new();
 }
 
-
 #[derive(Debug)]
 pub struct ChrisClient {
     username: String,
     token: String,
-    links: CUBELinks
+    links: CUBELinks,
 }
 
 #[derive(Debug)]
@@ -25,7 +24,7 @@ struct CUBELinks {
 
 #[derive(Deserialize)]
 struct AuthTokenResponse {
-    token: String
+    token: String,
 }
 
 #[derive(Deserialize)]
@@ -40,26 +39,26 @@ struct UploadedFilesResponse {
     // owner: String
 }
 
-
 impl ChrisClient {
-    pub fn new (address: &String, username: &String, password: &String) -> ChrisClient {
-        if ! address.starts_with("http") {
+    pub fn new(address: &String, username: &String, password: &String) -> ChrisClient {
+        if !address.starts_with("http") {
             panic!("address must start with http");
         }
 
         let login_uri = format!("{}auth-token/", address);
 
         let mut headers = HeaderMap::new();
-        headers.insert(reqwest::header::CONTENT_TYPE, "application/json".parse().unwrap());
+        headers.insert(
+            reqwest::header::CONTENT_TYPE,
+            "application/json".parse().unwrap(),
+        );
         headers.insert(reqwest::header::ACCEPT, "application/json".parse().unwrap());
 
         let mut payload = HashMap::new();
         payload.insert("username", username);
         payload.insert("password", password);
 
-        let req = CLIENT.post(login_uri)
-            .headers(headers)
-            .json(&payload);
+        let req = CLIENT.post(login_uri).headers(headers).json(&payload);
 
         let res = req.send();
 
@@ -73,7 +72,7 @@ impl ChrisClient {
             links: CUBELinks {
                 uploadedfiles: format!("{}uploadedfiles/", address),
                 // user: format!("{}user/", address),
-            }
+            },
         }
     }
 
@@ -86,7 +85,8 @@ impl ChrisClient {
             .file("fname", local_file)
             .unwrap();
 
-        let req = CLIENT.post(&self.links.uploadedfiles)
+        let req = CLIENT
+            .post(&self.links.uploadedfiles)
             .header("accept", "application/json")
             .header("Authorization", format!("token {}", &self.token))
             .multipart(form);

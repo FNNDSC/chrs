@@ -1,7 +1,6 @@
+use crate::ChrisClient;
 use std::io;
 use std::path::PathBuf;
-use crate::ChrisClient;
-
 
 /// Upload local files and directories to my ChRIS Library
 pub fn upload(client: &ChrisClient, files: &Vec<PathBuf>, path: &String) -> io::Result<()> {
@@ -15,7 +14,6 @@ pub fn upload(client: &ChrisClient, files: &Vec<PathBuf>, path: &String) -> io::
     Ok(())
 }
 
-
 /// Given a list of files and directories, traverse every directory
 /// to obtain just a list of files.
 /// Produces Err if any paths are invalid.
@@ -28,16 +26,16 @@ fn discover_input_files(paths: &Vec<PathBuf>) -> io::Result<Vec<PathBuf>> {
     Ok(all_files)
 }
 
-
 /// Get all files under a path, whether the given path is a file or directory.
 fn files_under(path: &PathBuf) -> io::Result<Vec<PathBuf>> {
     if path.is_file() {
-        return Ok(vec![path.to_path_buf()])
+        return Ok(vec![path.to_path_buf()]);
     }
     if !path.is_dir() {
         return Err(io::Error::new(
             io::ErrorKind::NotFound,
-            format!("File not found: {:?}", path)))
+            format!("File not found: {:?}", path),
+        ));
     }
 
     let mut sub_files: Vec<PathBuf> = Vec::new();
@@ -46,8 +44,7 @@ fn files_under(path: &PathBuf) -> io::Result<Vec<PathBuf>> {
         let sub_path = entry.path();
         if sub_path.is_file() {
             sub_files.push(sub_path)
-        }
-        else if sub_path.is_dir() {
+        } else if sub_path.is_dir() {
             let mut nested_files = files_under(&sub_path)?;
             sub_files.append(&mut nested_files);
         }
@@ -55,14 +52,13 @@ fn files_under(path: &PathBuf) -> io::Result<Vec<PathBuf>> {
     Ok(sub_files)
 }
 
-
 #[cfg(test)]
 mod tests {
-    use std::{fs, io};
-    use std::path::{Path, PathBuf};
-    use std::fs::OpenOptions;
-    use tempfile::{TempDir, NamedTempFile};
     use crate::upload::files_under;
+    use std::fs::OpenOptions;
+    use std::path::{Path, PathBuf};
+    use std::{fs, io};
+    use tempfile::{NamedTempFile, TempDir};
 
     #[test]
     #[allow(unused_must_use)]
@@ -93,10 +89,7 @@ mod tests {
     fn test_files_under_file() -> io::Result<()> {
         let tmp_file = NamedTempFile::new()?;
         let path = tmp_file.path();
-        assert_eq!(
-            vec![path.to_path_buf()],
-            files_under(&path.to_path_buf())?
-        );
+        assert_eq!(vec![path.to_path_buf()], files_under(&path.to_path_buf())?);
         Ok(())
     }
 
@@ -107,10 +100,7 @@ mod tests {
         assert!(result.is_err());
         let e = result.unwrap_err();
         assert_eq!(io::ErrorKind::NotFound, e.kind());
-        assert_eq!(
-            format!("File not found: {:?}", path),
-            e.to_string()
-        );
+        assert_eq!(format!("File not found: {:?}", path), e.to_string());
         Ok(())
     }
 
@@ -118,7 +108,7 @@ mod tests {
     fn touch(path: &Path) -> io::Result<()> {
         match OpenOptions::new().create(true).write(true).open(path) {
             Ok(_) => Ok(()),
-            Err(e) => Err(e)
+            Err(e) => Err(e),
         }
     }
 }

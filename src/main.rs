@@ -1,12 +1,12 @@
-mod upload;
 mod chris;
+mod upload;
 
 use std::path::PathBuf;
 use std::process;
 
-use clap::{AppSettings, Parser, Subcommand};
 use crate::chris::ChrisClient;
 use crate::upload::upload;
+use clap::{AppSettings, Parser, Subcommand};
 
 #[derive(Parser)]
 #[clap(author, version, about, long_about = None)]
@@ -26,7 +26,7 @@ struct Cli {
     password: String,
 
     #[clap(subcommand)]
-    command: Commands
+    command: Commands,
 }
 
 #[derive(Subcommand)]
@@ -39,7 +39,7 @@ enum Commands {
 
         /// Path in swift to upload to
         #[clap(short, long, default_value_t=String::from(""))]
-        path: String
+        path: String,
     },
 }
 
@@ -48,14 +48,12 @@ fn main() {
     let client = ChrisClient::new(&args.address, &args.username, &args.password);
 
     match &args.command {
-        Commands::Upload { files , path} => {
-            match upload(&client, files, path) {
-                Err(e) => {
-                    eprintln!("{}", e);
-                    process::exit(1)
-                }
-                _ => {}
+        Commands::Upload { files, path } => match upload(&client, files, path) {
+            Err(e) => {
+                eprintln!("{}", e);
+                process::exit(1)
             }
-        }
+            _ => {}
+        },
     }
 }
