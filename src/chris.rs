@@ -40,7 +40,7 @@ struct UploadedFilesResponse {
 }
 
 impl ChrisClient {
-    pub fn new(address: &String, username: &String, password: &String) -> ChrisClient {
+    pub fn new(address: &str, username: &str, password: &str) -> ChrisClient {
         if !address.starts_with("http") {
             panic!("address must start with http");
         }
@@ -76,12 +76,12 @@ impl ChrisClient {
         }
     }
 
-    pub fn upload(&self, local_file: &Path, upload_path: &String) -> String {
+    pub fn upload(&self, local_file: &Path, upload_path: &str) -> String {
         // TODO async
         let swift_path = format!("{}/uploads/{}", self.username, upload_path);
 
         let form = multipart::Form::new()
-            .text("upload_path", swift_path.to_string())
+            .text("upload_path", swift_path)
             .file("fname", local_file)
             .unwrap();
 

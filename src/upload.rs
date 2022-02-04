@@ -1,9 +1,9 @@
 use crate::ChrisClient;
 use std::io;
-use std::path::PathBuf;
+use std::path::{Path, PathBuf};
 
 /// Upload local files and directories to my ChRIS Library
-pub fn upload(client: &ChrisClient, files: &Vec<PathBuf>, path: &String) -> io::Result<()> {
+pub fn upload(client: &ChrisClient, files: &[PathBuf], path: &str) -> io::Result<()> {
     let prefix = PathBuf::from(path);
     let all_files = discover_input_files(files)?;
     for file in all_files {
@@ -17,7 +17,7 @@ pub fn upload(client: &ChrisClient, files: &Vec<PathBuf>, path: &String) -> io::
 /// Given a list of files and directories, traverse every directory
 /// to obtain just a list of files.
 /// Produces Err if any paths are invalid.
-fn discover_input_files(paths: &Vec<PathBuf>) -> io::Result<Vec<PathBuf>> {
+fn discover_input_files(paths: &[PathBuf]) -> io::Result<Vec<PathBuf>> {
     let mut all_files: Vec<PathBuf> = Vec::new();
     for path in paths {
         let mut sub_files = files_under(path)?;
@@ -27,7 +27,7 @@ fn discover_input_files(paths: &Vec<PathBuf>) -> io::Result<Vec<PathBuf>> {
 }
 
 /// Get all files under a path, whether the given path is a file or directory.
-fn files_under(path: &PathBuf) -> io::Result<Vec<PathBuf>> {
+fn files_under(path: &Path) -> io::Result<Vec<PathBuf>> {
     if path.is_file() {
         return Ok(vec![path.to_path_buf()]);
     }
@@ -56,7 +56,7 @@ fn files_under(path: &PathBuf) -> io::Result<Vec<PathBuf>> {
 mod tests {
     use crate::upload::files_under;
     use std::fs::OpenOptions;
-    use std::path::{Path, PathBuf};
+    use std::path::{Path};
     use std::{fs, io};
     use tempfile::{NamedTempFile, TempDir};
 
@@ -77,7 +77,7 @@ mod tests {
         touch(&nested_file1)?;
         touch(&nested_file2)?;
 
-        let actual = files_under(&tmp_path.to_path_buf())?;
+        let actual = files_under(&tmp_path)?;
         assert_eq!(actual.len(), 2);
         assert!(actual.contains(&nested_file1));
         assert!(actual.contains(&nested_file2));
@@ -89,13 +89,13 @@ mod tests {
     fn test_files_under_file() -> io::Result<()> {
         let tmp_file = NamedTempFile::new()?;
         let path = tmp_file.path();
-        assert_eq!(vec![path.to_path_buf()], files_under(&path.to_path_buf())?);
+        assert_eq!(vec![path.to_path_buf()], files_under(&path)?);
         Ok(())
     }
 
     #[test]
     fn test_files_under_dne() -> io::Result<()> {
-        let path = &PathBuf::from("tomato");
+        let path = Path::new("tomato");
         let result = files_under(path);
         assert!(result.is_err());
         let e = result.unwrap_err();

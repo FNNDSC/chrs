@@ -48,12 +48,11 @@ fn main() {
     let client = ChrisClient::new(&args.address, &args.username, &args.password);
 
     match &args.command {
-        Commands::Upload { files, path } => match upload(&client, files, path) {
-            Err(e) => {
+        Commands::Upload { files, path } => {
+            if let Err(e) = upload(&client, files, path) {
                 eprintln!("{}", e);
                 process::exit(1)
             }
-            _ => {}
         },
     }
 }
