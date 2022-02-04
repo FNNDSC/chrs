@@ -1,20 +1,12 @@
+use std::path::PathBuf;
 use crate::ChrisClient;
 
 
-pub fn upload(client: &ChrisClient, files: &Vec<String>, path: &String) {
-    let prefix = path2prefix(path);
-
+pub fn upload(client: &ChrisClient, files: &Vec<PathBuf>, path: &String) {
+    let prefix = PathBuf::from(path);
     for file in files {
-        let upload_path = format!("{}{}", prefix, file);
+        let upload_path = prefix.join(file).to_string_lossy().into_owned();
         let url = client.upload(file, &upload_path);
         println!("{}", url);
     }
-}
-
-
-fn path2prefix(path: &String) -> String {
-    if path.is_empty() {
-        return String::new()
-    }
-    format!("{}/", path)
 }

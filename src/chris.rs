@@ -2,6 +2,7 @@ use lazy_static::lazy_static;
 use reqwest::header::{HeaderMap};
 use reqwest::blocking::multipart;
 use std::collections::HashMap;
+use std::path::Path;
 use serde::Deserialize;
 
 lazy_static! {
@@ -76,13 +77,13 @@ impl ChrisClient {
         }
     }
 
-    pub fn upload(&self, local_file: &String, upload_path: &String) -> String {
+    pub fn upload(&self, local_file: &Path, upload_path: &String) -> String {
         // TODO async
         let swift_path = format!("{}/uploads/{}", self.username, upload_path);
 
         let form = multipart::Form::new()
             .text("upload_path", swift_path.to_string())
-            .file("fname", local_file.to_string())
+            .file("fname", local_file)
             .unwrap();
 
         let req = CLIENT.post(&self.links.uploadedfiles)

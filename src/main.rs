@@ -1,6 +1,8 @@
 mod upload;
 mod chris;
 
+use std::path::PathBuf;
+
 use clap::{AppSettings, Parser, Subcommand};
 use crate::chris::ChrisClient;
 use crate::upload::upload;
@@ -32,7 +34,7 @@ enum Commands {
     Upload {
         /// Files and directories to upload
         #[clap(required = true)]
-        files: Vec<String>, // todo validate paths exist?
+        files: Vec<PathBuf>,
 
         /// Path in swift to upload to
         #[clap(short, long, default_value_t=String::from(""))]
