@@ -2,6 +2,7 @@ mod upload;
 mod chris;
 
 use std::path::PathBuf;
+use std::process;
 
 use clap::{AppSettings, Parser, Subcommand};
 use crate::chris::ChrisClient;
@@ -48,7 +49,13 @@ fn main() {
 
     match &args.command {
         Commands::Upload { files , path} => {
-            upload(&client, files, path)
+            match upload(&client, files, path) {
+                Err(e) => {
+                    eprintln!("{}", e);
+                    process::exit(1)
+                }
+                _ => {}
+            }
         }
     }
 }
