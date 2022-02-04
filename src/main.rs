@@ -44,7 +44,7 @@ enum Commands {
 }
 
 fn main() {
-    let args = Cli::parse();
+    let args: Cli = Cli::parse();
     let client = ChrisClient::new(&args.address, &args.username, &args.password);
 
     match &args.command {
