@@ -63,6 +63,18 @@ Relative path structures are preserved, so the following upload paths will be cr
 - `chrisuser/uploads/my-data/nested/file2.nii`
 - `chrisuser/uploads/my-data/folder_of_stuff/...`
 
+### Fancy Upload
+
+`chrs upload f0 f1 f2...` is implemented with a for loop and blocking requests.
+You can use `parallel` to add a progress bar, and in some cases, improve performance.
+
+```shell
+find data_dir/ -type f | parallel --bar --eta      \
+    'chrs --address http://localhost:8000/api/v1/  \
+          --username chris --password chris1234    \
+            upload {} > /dev/null'
+```
+
 ## Known Problems
 
 Relative paths to parent directories, e.g. `../filename`, are not supported.
