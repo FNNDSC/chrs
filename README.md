@@ -2,8 +2,8 @@
 
 [![crates.io version](https://img.shields.io/crates/v/chrs?label=version)](https://crates.io/crates/chrs)
 [![MIT License](https://img.shields.io/github/license/FNNDSC/chrs)](https://github.com/FNNDSC/chrs/blob/master/LICENSE)
+[![Test](https://github.com/FNNDSC/chrs/actions/workflows/test.yml/badge.svg)](https://github.com/FNNDSC/chrs/actions/workflows/test.yml)
 [![Publish](https://github.com/FNNDSC/chrs/actions/workflows/release.yml/badge.svg)](https://github.com/FNNDSC/chrs/actions/workflows/release.yml)
-[![test](https://github.com/FNNDSC/chrs/actions/workflows/test.yml/badge.svg)](https://github.com/FNNDSC/chrs/actions/workflows/test.yml)
 
 `chrs` is a (_fast_) command-line client for
 [_ChRIS_](https://chrisproject.org/).
