@@ -5,15 +5,8 @@
 [![Test](https://github.com/FNNDSC/chrs/actions/workflows/test.yml/badge.svg)](https://github.com/FNNDSC/chrs/actions/workflows/test.yml)
 [![Publish](https://github.com/FNNDSC/chrs/actions/workflows/release.yml/badge.svg)](https://github.com/FNNDSC/chrs/actions/workflows/release.yml)
 
-`chrs` is a (_fast_) command-line client for
+`chrs` is a _(fast)_ command-line client for
 [_ChRIS_](https://chrisproject.org/).
-
-> Rewrite it in Rust.
-
-`chrs` succeeds [caw](https://github.com/FNNDSC/caw)
-
-Well, there's hope. Right now, the only thing `chrs` can do is upload files.
-
 
 ## Installation
 
@@ -65,7 +58,6 @@ Relative path structures are preserved, so the following upload paths will be cr
 
 ### Fancy Upload
 
-`chrs upload f0 f1 f2...` is implemented with a for loop and blocking requests.
 You can use `parallel` to add a progress bar, and in some cases, improve performance.
 
 ```shell
@@ -81,7 +73,12 @@ Relative paths to parent directories, e.g. `../filename`, are not supported.
 
 ## Roadmap
 
-- [ ] fix known problems
-- [ ] move `chris.rs` client library to its own crate, `chrust`
-- [ ] `chrs login`: securely save ChRIS authentication and CUBE URL
-- [ ] `chrs download`: download files from any CUBE URL, in batch, _very fast_
+See https://github.com/FNNDSC/chrs/projects/1
+
+> Rewrite it in Rust.
+
+`chrs` succeeds [caw](https://github.com/FNNDSC/caw).
+Well, I mean there's hope at least.
+Right now, the only thing `chrs` can do is upload files.
+
+https://github.com/FNNDSC/chrs/wiki/Feature-Table
