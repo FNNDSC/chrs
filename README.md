@@ -79,10 +79,9 @@ find data_dir/ -type f | parallel --bar --eta      \
 
 Relative paths to parent directories, e.g. `../filename`, are not supported.
 
-## TODO
+## Roadmap
 
 - [ ] fix known problems
-- [ ] tests
-- [ ] async functions
-- [ ] `chrs login`
-- [ ] choose between showing progress bar v.s. printing out URLs
+- [ ] move `chris.rs` client library to its own crate, `chrust`
+- [ ] `chrs login`: securely save ChRIS authentication and CUBE URL
+- [ ] `chrs download`: download files from any CUBE URL, in batch, _very fast_
