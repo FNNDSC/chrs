@@ -21,6 +21,7 @@ jobs:
         uses: actions-rs/cargo@v1
         with:
           command: publish
+          args: --manifest-path chrs/Cargo.toml
         env:
           CARGO_REGISTRY_TOKEN: ${{ secrets.CARGO_REGISTRY_TOKEN }}
   build:
@@ -43,7 +44,9 @@ jobs:
         uses: actions-rs/cargo@v1
         with:
           command: build
-          args: --release
+          args: --manifest-path chrs/Cargo.toml --release
+      - name: Strip
+        run: strip target/release/chrs
       - name: Create release
         uses: softprops/action-gh-release@v1
         with:

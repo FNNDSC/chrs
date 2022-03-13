@@ -1,12 +1,14 @@
-# chrs: _ChRIS_ CLI Client
+# _ChRIS_ Client (Rust)
 
 [![crates.io version](https://img.shields.io/crates/v/chrs?label=version)](https://crates.io/crates/chrs)
 [![MIT License](https://img.shields.io/github/license/FNNDSC/chrs)](https://github.com/FNNDSC/chrs/blob/master/LICENSE)
 [![Test](https://github.com/FNNDSC/chrs/actions/workflows/test.yml/badge.svg)](https://github.com/FNNDSC/chrs/actions/workflows/test.yml)
 [![Publish](https://github.com/FNNDSC/chrs/actions/workflows/release.yml/badge.svg)](https://github.com/FNNDSC/chrs/actions/workflows/release.yml)
 
-`chrs` is a _(fast)_ command-line client for
-[_ChRIS_](https://chrisproject.org/).
+This project provides:
+
+- `chrs`, a command-line client for [_ChRIS_](https://chrisproject.org/)
+- `chrust`, a [Rust](https://www.rust-lang.org/) client library for _ChRIS_
 
 ## Installation
 
