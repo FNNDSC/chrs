@@ -1,5 +1,8 @@
 name: Test
 
+env:
+  CARGO_TERM_COLOR: always
+
 on:
   push:
     branches: [ master ]
@@ -11,6 +14,10 @@ jobs:
     name: Unit tests
     runs-on: ubuntu-latest
     steps:
+      - name: Keyring dependencies
+        run: |
+          sudo apt update -y
+          sudo apt install -y gnome-keyring
       - name: Git checkout
         uses: actions/checkout@v2
       - name: Cache target
@@ -24,7 +31,12 @@ jobs:
           toolchain: stable
           profile: minimal
       - name: Cargo test
-        uses: actions-rs/cargo@v1
-        with:
-          command: test
-          args: --manifest-path chrs/Cargo.toml
+        working-directory: chrs
+        # https://github.com/hwchen/keyring-rs/blob/4297618e0cf061eacedf6d7c3f164ee4074a3c5d/linux-test.sh
+        run: |
+          cat > test.sh << EOF
+          rm -f $HOME/.local/share/keyrings/*
+          echo -n "test" | gnome-keyring-daemon --unlock
+          cargo test
+          EOF
+          dbus-run-session -- bash test.sh
