@@ -6,12 +6,13 @@ use std::process;
 
 use crate::chris::ChrisClient;
 use crate::upload::upload;
-use clap::{AppSettings, Parser, Subcommand};
+use clap::{Parser, Subcommand};
 
 #[derive(Parser)]
-#[clap(author, version, about, long_about = None)]
-#[clap(global_setting(AppSettings::PropagateVersion))]
-#[clap(global_setting(AppSettings::DisableHelpSubcommand))]
+#[clap(
+    author, version, about, long_about = None,
+    propagate_version = true, disable_help_subcommand = true
+)]
 struct Cli {
     /// CUBE address
     #[clap(short, long)]
@@ -53,6 +54,6 @@ fn main() {
                 eprintln!("{}", e);
                 process::exit(1)
             }
-        },
+        }
     }
 }

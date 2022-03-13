@@ -56,7 +56,7 @@ fn files_under(path: &Path) -> io::Result<Vec<PathBuf>> {
 mod tests {
     use crate::upload::files_under;
     use std::fs::OpenOptions;
-    use std::path::{Path};
+    use std::path::Path;
     use std::{fs, io};
     use tempfile::{NamedTempFile, TempDir};
 
