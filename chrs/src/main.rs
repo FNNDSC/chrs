@@ -1,4 +1,6 @@
 mod chris;
+mod config;
+mod login;
 mod upload;
 
 use std::path::PathBuf;
