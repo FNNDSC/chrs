@@ -20,16 +20,12 @@ jobs:
           sudo apt install -y gnome-keyring
       - name: Git checkout
         uses: actions/checkout@v2
-      - name: Cache target
-        uses: actions/cache@v2
-        with:
-          path: target
-          key: ${{ runner.os }}-rust
       - name: Setup rust
         uses: actions-rs/toolchain@v1
         with:
           toolchain: stable
           profile: minimal
+      - uses: Swatinem/rust-cache@v1
       - name: Cargo test
         working-directory: chrs
         # https://github.com/hwchen/keyring-rs/blob/4297618e0cf061eacedf6d7c3f164ee4074a3c5d/linux-test.sh

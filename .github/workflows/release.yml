@@ -30,16 +30,12 @@ jobs:
     steps:
       - name: Git checkout
         uses: actions/checkout@v2
-      - name: Cache target
-        uses: actions/cache@v2
-        with:
-          path: target
-          key: ${{ runner.os }}-rust
       - name: Setup rust
         uses: actions-rs/toolchain@v1
         with:
           toolchain: stable
           profile: minimal
+      - uses: Swatinem/rust-cache@v1
       - name: Cargo build
         uses: actions-rs/cargo@v1
         with:
