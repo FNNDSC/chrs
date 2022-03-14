@@ -4,3 +4,7 @@ members = [
     "chrs",
     "chrust"
 ]
+
+
+[profile.release]
+strip = "symbols"
