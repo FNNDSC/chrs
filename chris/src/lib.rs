@@ -1,6 +1,6 @@
-mod auth;
+pub mod auth;
 mod base;
-mod types;
+pub mod types;
 
 #[cfg(test)]
 mod tests {

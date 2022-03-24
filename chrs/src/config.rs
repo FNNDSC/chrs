@@ -1,7 +1,7 @@
 //! chrs application configuration --- mainly just saving
 //! the login token for CUBE, or possibly multiple CUBEs.
 
-use crate::login::{Login, SavedCubeAuth};
+use crate::login::saved::{Login, SavedCubeAuth};
 use anyhow::{Ok, Result};
 use serde::{Deserialize, Serialize};
 
@@ -58,7 +58,7 @@ impl ChrsConfig {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::login::StoredToken;
+    use crate::login::saved::StoredToken;
     use lazy_static::lazy_static;
 
     const EXAMPLE_ADDRESS: &str = "https://example.com/api/v1/";

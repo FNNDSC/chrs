@@ -1,15 +1,13 @@
-use crate::ChrisClient;
 use std::io;
 use std::path::{Path, PathBuf};
 
 /// Upload local files and directories to my ChRIS Library
-pub fn upload(client: &ChrisClient, files: &[PathBuf], path: &str) -> io::Result<()> {
+pub fn upload(files: &[PathBuf], path: &str) -> io::Result<()> {
     let prefix = PathBuf::from(path);
     let all_files = discover_input_files(files)?;
     for file in all_files {
-        let upload_path = prefix.join(&file).to_string_lossy().into_owned();
-        let url = client.upload(&file, &upload_path);
-        println!("{}", url);
+        let _upload_path = prefix.join(&file).to_string_lossy().into_owned();
+        println!("DID NOTHING");
     }
     Ok(())
 }

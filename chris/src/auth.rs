@@ -30,7 +30,7 @@ struct CreateUserData<'a> {
     email: &'a str
 }
 
-pub(crate) struct CUBEAuth<'a> {
+pub struct CUBEAuth<'a> {
     pub client: &'a reqwest::Client,
     pub url: &'a CUBEApiUrl,
     pub username: &'a Username,
@@ -106,7 +106,7 @@ mod tests {
 
         let account_creator = CUBEAuth {
             username: &Username::from_str(username.as_str())?,
-            password: "chris1234",
+            password: &*format!("{}1234", username.chars().rev().collect::<String>()),
             url: &CUBE_API_URL,
             client: &CLIENT
         };
