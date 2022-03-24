@@ -1,3 +1,7 @@
+mod auth;
+mod base;
+mod types;
+
 #[cfg(test)]
 mod tests {
     #[test]
