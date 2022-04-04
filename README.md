@@ -8,7 +8,7 @@
 This project provides:
 
 - `chrs`, a command-line client for [_ChRIS_](https://chrisproject.org/)
-- `chrust`, a [Rust](https://www.rust-lang.org/) client library for _ChRIS_
+- `chris`, a [Rust](https://www.rust-lang.org/) client library for _ChRIS_
 
 ## Installation
 
