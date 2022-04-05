@@ -1,10 +1,11 @@
-use crate::types::{CUBEApiUrl, Username, UserUrl, UserId};
+use crate::types::{CUBEApiUrl, UserId, UserUrl, Username};
 use serde::{Deserialize, Serialize};
 
 #[derive(Deserialize)]
 struct AuthTokenResponse {
     // clippy doesn't know how serde works
-    #[allow(dead_code)] token: String,
+    #[allow(dead_code)]
+    token: String,
 }
 
 #[derive(Deserialize)]
@@ -16,7 +17,6 @@ pub struct UserCreatedResponse {
     // feed: Vec  // idk what this is
 }
 
-
 #[derive(Serialize)]
 struct Credentials<'a> {
     username: &'a Username,
@@ -27,23 +27,27 @@ struct Credentials<'a> {
 struct CreateUserData<'a> {
     username: &'a Username,
     password: &'a str,
-    email: &'a str
+    email: &'a str,
 }
 
 pub struct CUBEAuth<'a> {
     pub client: &'a reqwest::Client,
     pub url: &'a CUBEApiUrl,
     pub username: &'a Username,
-    pub password: &'a str
+    pub password: &'a str,
 }
 
 impl CUBEAuth<'_> {
     pub async fn get_token(&self) -> Result<String, reqwest::Error> {
         let auth_url = format!("{}auth-token/", &self.url);
-        let req = self.client
+        let req = self
+            .client
             .post(auth_url)
             .header(reqwest::header::ACCEPT, "application/json")
-            .json(&Credentials { username: &self.username, password: &self.password });
+            .json(&Credentials {
+                username: self.username,
+                password: self.password,
+            });
         let res = req.send().await?;
         res.error_for_status_ref()?;
         let token_object: AuthTokenResponse = res.json().await?;
@@ -52,18 +56,21 @@ impl CUBEAuth<'_> {
 
     pub async fn create_account(&self, email: &str) -> Result<UserCreatedResponse, reqwest::Error> {
         let users_url = format!("{}users/", &self.url);
-        let req = self.client
+        let req = self
+            .client
             .post(users_url)
             .header(reqwest::header::ACCEPT, "application/json")
-            .json(&CreateUserData{ username: &self.username, password: &self.password, email: &email});
+            .json(&CreateUserData {
+                username: self.username,
+                password: self.password,
+                email,
+            });
         let res = req.send().await?;
         res.error_for_status_ref()?;
         let created_user: UserCreatedResponse = res.json().await?;
         Ok(created_user)
     }
 }
-
-
 
 //
 // pub async fn create_account(client: &reqwest::Client, url: &CUBEApiUrl, username: &Username, password: &str) {
@@ -74,8 +81,8 @@ impl CUBEAuth<'_> {
 mod tests {
     use super::*;
     use lazy_static::lazy_static;
-    use std::str::FromStr;
     use names::Generator;
+    use std::str::FromStr;
 
     const CUBE_URL: &str = "http://localhost:8000/api/v1/";
 
@@ -85,7 +92,7 @@ mod tests {
             username: &Username::from_str("chris")?,
             password: "chris1234",
             url: &CUBE_API_URL,
-            client: &CLIENT
+            client: &CLIENT,
         };
 
         let token = account.get_token().await?;
@@ -108,7 +115,7 @@ mod tests {
             username: &Username::from_str(username.as_str())?,
             password: &*format!("{}1234", username.chars().rev().collect::<String>()),
             url: &CUBE_API_URL,
-            client: &CLIENT
+            client: &CLIENT,
         };
 
         if account_creator.get_token().await.is_ok() {

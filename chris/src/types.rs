@@ -2,7 +2,6 @@
 ///
 /// Big thanks to:
 /// https://www.worthe-it.co.za/blog/2020-10-31-newtype-pattern-in-rust.html
-
 use console::style;
 use serde::{Deserialize, Serialize};
 use std::fmt::{Display, Formatter};
@@ -81,7 +80,16 @@ impl std::str::FromStr for CUBEApiUrl {
 }
 
 /// *ChRIS* user's username.
-#[derive(Debug, derive_more::FromStr, derive_more::Display, derive_more::Deref, Serialize, Deserialize, PartialEq, Clone)]
+#[derive(
+    Debug,
+    derive_more::FromStr,
+    derive_more::Display,
+    derive_more::Deref,
+    Serialize,
+    Deserialize,
+    PartialEq,
+    Clone,
+)]
 pub struct Username(String);
 
 impl Username {
