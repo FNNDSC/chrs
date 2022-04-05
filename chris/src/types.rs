@@ -50,8 +50,14 @@ impl std::error::Error for CUBEApiUrlParseError {}
 
 /// A [CUBEApiUrl] is the base URL for a CUBE, e.g.
 /// "https://cube.chrisproject.org/api/v1/"
-#[derive(Debug, PartialEq, derive_more::Display)]
+#[derive(Debug, PartialEq, derive_more::Display, Clone, Serialize, Deserialize)]
 pub struct CUBEApiUrl(String);
+
+impl CUBEApiUrl {
+    pub fn as_str(&self) -> &str {
+        &self.0
+    }
+}
 
 impl std::str::FromStr for CUBEApiUrl {
     type Err = CUBEApiUrlParseError;
@@ -75,8 +81,14 @@ impl std::str::FromStr for CUBEApiUrl {
 }
 
 /// *ChRIS* user's username.
-#[derive(derive_more::FromStr, derive_more::Display, derive_more::Deref, Serialize, Deserialize, PartialEq)]
+#[derive(Debug, derive_more::FromStr, derive_more::Display, derive_more::Deref, Serialize, Deserialize, PartialEq, Clone)]
 pub struct Username(String);
+
+impl Username {
+    pub fn as_str(&self) -> &str {
+        &self.0
+    }
+}
 
 /// CUBE user resource URL, e.g. https://cube.chrisproject.org/api/v1/users/3/
 #[derive(derive_more::FromStr, derive_more::Display, Serialize, Deserialize)]

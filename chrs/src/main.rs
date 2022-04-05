@@ -1,11 +1,10 @@
 mod config;
 mod login;
-mod upload;
 
 use std::path::PathBuf;
 use std::str::FromStr;
 
-use anyhow::{bail, Context, Ok, Result};
+use anyhow::{bail, Ok, Result};
 use clap::{Parser, Subcommand};
 
 use chris::types::{CUBEApiUrl, Username};
@@ -76,20 +75,19 @@ async fn main() -> Result<()> {
 
     match &args.command {
         Commands::Upload { files, path } => {
-            // upload(files, path)?;
+            println!("files={:?}, path={:?}", files, path);
             bail!("not implemented anymore");
         }
         Commands::Login { no_keyring } => {
-            let backend;
-            if *no_keyring {
-                backend = login::tokenstore::Backend::ClearText;
+            let backend = if *no_keyring {
+                login::tokenstore::Backend::ClearText
             } else {
-                backend = login::tokenstore::Backend::Keyring;
-            }
+                login::tokenstore::Backend::Keyring
+            };
             login::cmd::login(address, username, password, backend).await?;
         }
         Commands::Logout {} => {
-            bail!("not implemented");
+            login::cmd::logout(address, username)?;
         }
     };
     Ok(())
