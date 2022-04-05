@@ -16,15 +16,15 @@ use chris::types::{CUBEApiUrl, Username};
 )]
 struct Cli {
     /// CUBE address
-    #[clap(short, long)]
+    #[clap(short, long, global = true)]
     address: Option<String>,
 
     /// account username
-    #[clap(long)]
+    #[clap(long, global = true)]
     username: Option<String>,
 
     /// account password
-    #[clap(long)]
+    #[clap(long, global = true)]
     password: Option<String>,
 
     #[clap(subcommand)]
@@ -48,10 +48,14 @@ enum Commands {
     ///
     /// Stores a username and authorization token for a given ChRIS API URL.
     Login {
-        // it would be nice to have the --address, --username, ... duplicated here
         /// Save token in plaintext instead of using keyring
         #[clap(long)]
         no_keyring: bool,
+
+        /// Take the password from stdin
+        #[clap(long)]
+        password_stdin: bool,
+        // it would be nice to have the --address, --username, ... duplicated here
     },
 
     /// Forget ChRIS login account
@@ -78,13 +82,16 @@ async fn main() -> Result<()> {
             println!("files={:?}, path={:?}", files, path);
             bail!("not implemented anymore");
         }
-        Commands::Login { no_keyring } => {
+        Commands::Login {
+            no_keyring,
+            password_stdin,
+        } => {
             let backend = if *no_keyring {
                 login::tokenstore::Backend::ClearText
             } else {
                 login::tokenstore::Backend::Keyring
             };
-            login::cmd::login(address, username, password, backend).await?;
+            login::cmd::login(address, username, password, backend, password_stdin).await?;
         }
         Commands::Logout {} => {
             login::cmd::logout(address, username)?;

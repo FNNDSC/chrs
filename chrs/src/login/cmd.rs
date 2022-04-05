@@ -10,11 +10,16 @@ pub async fn login(
     username: Option<Username>,
     password: Option<String>,
     backend: tokenstore::Backend,
+    password_from_stdin: &bool,
 ) -> Result<()> {
+    if password.is_some() && *password_from_stdin {
+        bail!("Options --password and --password-stdin may not be used together.");
+    }
+
     let mut config = config::ChrsConfig::load()?;
     let given_address = prompt_if_missing(address, "ChRIS API address")?;
     let given_username = prompt_if_missing(username, "username")?;
-    let given_password = prompt_if_missing_password(password, "password")?;
+    let given_password = prompt_if_missing_password(password, "password", password_from_stdin)?;
 
     println!("your password is {}", given_password);
 

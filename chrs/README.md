@@ -67,7 +67,7 @@ on the same _ChRIS_ instance.
 chrs --address https://cube.chrisproject.org/api/v1/ login
 
 # log in without using keyring and non-interactively, useful for automation
-chrs --address https://cube.chrisproject.org/api/v1/ --username test-user login --no-keyring <<< "$PASSWORD"
+chrs --address https://cube.chrisproject.org/api/v1/ --username test-user login --no-keyring --password-stdin <<< "$PASSWORD"
 ```
 
 ### `chrs logout`
