@@ -1,12 +1,14 @@
 mod config;
 mod login;
+mod upload;
 
 use std::path::PathBuf;
 use std::str::FromStr;
 
-use anyhow::{bail, Ok, Result};
+use anyhow::{Ok, Result};
 use clap::{Parser, Subcommand};
 
+use crate::upload::upload;
 use chris::types::{CUBEApiUrl, Username};
 
 #[derive(Parser)]
@@ -35,13 +37,13 @@ struct Cli {
 enum Commands {
     /// Upload local data to my ChRIS library
     Upload {
+        /// Path prefix, i.e. subdir of <username>/uploads to upload to
+        #[clap(short, long, default_value_t=String::from(""))]
+        path: String,
+
         /// Files and directories to upload
         #[clap(required = true)]
         files: Vec<PathBuf>,
-
-        /// Path in swift to upload to
-        #[clap(short, long, default_value_t=String::from(""))]
-        path: String,
     },
 
     /// Remember ChRIS login account.
@@ -79,8 +81,7 @@ async fn main() -> Result<()> {
 
     match &args.command {
         Commands::Upload { files, path } => {
-            println!("files={:?}, path={:?}", files, path);
-            bail!("not implemented anymore");
+            upload(files, path).await?;
         }
         Commands::Login {
             no_keyring,
