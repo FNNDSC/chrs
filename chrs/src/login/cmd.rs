@@ -1,6 +1,7 @@
 use crate::config;
+use crate::login::helpers::{prompt_if_missing, prompt_if_missing_password};
 use crate::login::tokenstore;
-use anyhow::{bail, Context, Ok, Result};
+use anyhow::{bail, Context, Result};
 use chris::auth::CUBEAuth;
 use chris::types::{CUBEApiUrl, Username};
 
@@ -11,9 +12,11 @@ pub async fn login(
     backend: tokenstore::Backend,
 ) -> Result<()> {
     let mut config = config::ChrsConfig::load()?;
-    let given_address = address.context("--address is required")?;
-    let given_username = username.context("--username is required")?;
-    let given_password = password.context("--password is required")?;
+    let given_address = prompt_if_missing(address, "ChRIS API address")?;
+    let given_username = prompt_if_missing(username, "username")?;
+    let given_password = prompt_if_missing_password(password, "password")?;
+
+    println!("your password is {}", given_password);
 
     let account = CUBEAuth {
         client: &Default::default(),
@@ -38,7 +41,7 @@ pub async fn login(
     config.store()
 }
 
-pub fn logout(address: Option<CUBEApiUrl>, username: Option<Username>) -> Result<()> {
+pub fn logout(address: Option<CUBEApiUrl>, username: Option<Username>) -> anyhow::Result<()> {
     let mut config = config::ChrsConfig::load()?;
     if let Some(given_address) = address {
         let removed = match username {
@@ -51,6 +54,5 @@ pub fn logout(address: Option<CUBEApiUrl>, username: Option<Username>) -> Result
     } else if !config.clear() {
         bail!("Not logged in.");
     }
-    config.store()?;
-    Ok(())
+    config.store()
 }

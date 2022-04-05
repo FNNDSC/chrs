@@ -19,9 +19,11 @@ lazy_static = "1.4.0"
 serde = { version = "1.0.136", features = ["derive"] }
 keyring = "1.1.2"
 anyhow = "1.0.56"
+thiserror = "1.0.30"
 tokio = { version = "1.17.0", features = ["full"] }
 chris = { path = "../chris" }
 confy = "0.4.0"
+dialoguer = "0.10.0"
 
 [dev-dependencies]
 tempfile = "3.3.0"
