@@ -1,15 +1,14 @@
 mod config;
-mod upload;
 mod login;
+mod upload;
 
 use std::path::PathBuf;
 use std::str::FromStr;
 
-
-use clap::{Parser, Subcommand};
 use anyhow::{bail, Context, Ok, Result};
+use clap::{Parser, Subcommand};
 
-use chris::types::{Username, CUBEApiUrl};
+use chris::types::{CUBEApiUrl, Username};
 
 #[derive(Parser)]
 #[clap(
@@ -51,14 +50,14 @@ enum Commands {
     /// Stores a username and authorization token for a given ChRIS API URL.
     Login {
         // it would be nice to have the --address, --username, ... duplicated here
+        /// Save token in plaintext instead of using keyring
+        #[clap(long)]
+        no_keyring: bool,
     },
 
     /// Forget ChRIS login account
-    Logout {
-
-    }
+    Logout {},
 }
-
 
 #[tokio::main]
 async fn main() -> Result<()> {
@@ -79,13 +78,19 @@ async fn main() -> Result<()> {
         Commands::Upload { files, path } => {
             // upload(files, path)?;
             bail!("not implemented anymore");
-        },
-        Commands::Login {} => {
-            login::cmd::login(address, username, password).await?;
-        },
+        }
+        Commands::Login { no_keyring } => {
+            let backend;
+            if *no_keyring {
+                backend = login::tokenstore::Backend::ClearText;
+            } else {
+                backend = login::tokenstore::Backend::Keyring;
+            }
+            login::cmd::login(address, username, password, backend).await?;
+        }
         Commands::Logout {} => {
             bail!("not implemented");
-        },
+        }
     };
     Ok(())
 }

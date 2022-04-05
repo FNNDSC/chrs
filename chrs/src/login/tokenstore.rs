@@ -1,4 +1,6 @@
 //! Abstraction over token storage using keyring or in plaintext configuration file.
+//! When saved to keyring, the token is identified by a string in the form
+//! "<CUBEUsername>@<CUBEAddress>"
 
 use anyhow::{Context, Ok, Result};
 use serde::{Deserialize, Serialize};
@@ -20,7 +22,7 @@ impl SavedCubeAuth {
         let token = match &self.store {
             StoredToken::Text(token) => Ok(token.to_owned()),
             StoredToken::Keyring => {
-                let entry = keyring::Entry::new(service, &self.username);
+                let entry = keyring::Entry::new(service, &*self.to_keyring_username());
                 let token = entry.get_password().with_context(|| {
                     format!(
                         "Could not get login token from keyring \
@@ -37,6 +39,10 @@ impl SavedCubeAuth {
             token,
         })
     }
+
+    fn to_keyring_username(&self) -> String {
+        format!("{}@{}", &self.username, &self.address)
+    }
 }
 
 /// A [Login] is the data required to authenticate with CUBE.
@@ -47,10 +53,40 @@ pub struct Login {
     pub token: String,
 }
 
+impl Login {
+    /// Convert to [SavedCubeAuth]. If specified to use keyring backend,
+    /// token is saved to the keyring.
+    pub fn to_saved(self, backend: Backend, service: &str) -> Result<SavedCubeAuth> {
+        let token: StoredToken = match backend {
+            Backend::ClearText => StoredToken::Text(self.token),
+            Backend::Keyring => {
+                let entry = keyring::Entry::new(service, &*self.to_keyring_username());
+                entry.set_password(&self.token)?;
+                StoredToken::Keyring
+            }
+        };
+        let saved = SavedCubeAuth {
+            username: self.username,
+            address: self.address,
+            store: token,
+        };
+        Ok(saved)
+    }
+
+    fn to_keyring_username(&self) -> String {
+        format!("{}@{}", &self.username, &self.address)
+    }
+}
+
 #[derive(Serialize, Deserialize, PartialEq, Debug)]
 #[serde(tag = "store", content = "value")]
 pub enum StoredToken {
     Text(String),
+    Keyring,
+}
+
+pub enum Backend {
+    ClearText,
     Keyring,
 }
 
@@ -74,13 +110,31 @@ mod tests {
     #[test]
     fn test_to_login_from_keyring() -> Result<()> {
         let token = "my-secret-secure-token";
-        let entry = keyring::Entry::new(TEST_SERVICE, EXAMPLE_USERNAME);
+        let keyring_username = format!("{}@{}", EXAMPLE_USERNAME, EXAMPLE_ADDRESS);
+        let entry = keyring::Entry::new(TEST_SERVICE, &*keyring_username);
         entry.set_password(&token)?;
 
         let (expected, actual) = login_helper(StoredToken::Keyring, token)?;
         entry.delete_password()?;
 
         assert_eq!(expected, actual);
+        Ok(())
+    }
+
+    #[test]
+    fn test_to_saved_with_keyring() -> Result<()> {
+        let token = "my-secret-secure-token";
+        let login = Login {
+            address: EXAMPLE_ADDRESS.to_string(),
+            username: EXAMPLE_USERNAME.to_string(),
+            token: token.to_string(),
+        };
+        login.to_saved(Backend::Keyring, TEST_SERVICE)?;
+
+        let keyring_username = format!("{}@{}", EXAMPLE_USERNAME, EXAMPLE_ADDRESS);
+        let entry = keyring::Entry::new(TEST_SERVICE, &*keyring_username);
+        assert_eq!(token, entry.get_password()?);
+        entry.delete_password()?;
         Ok(())
     }
 

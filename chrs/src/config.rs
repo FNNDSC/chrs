@@ -1,16 +1,23 @@
 //! chrs application configuration --- mainly just saving
 //! the login token for CUBE, or possibly multiple CUBEs.
 
-use crate::login::saved::{Login, SavedCubeAuth};
-use anyhow::{Ok, Result};
+use crate::login::tokenstore::{Backend, Login, SavedCubeAuth};
+use anyhow::{bail, Context, Ok, Result};
 use serde::{Deserialize, Serialize};
 
 const SERVICE: &str = "org.chrisproject.chrs";
+const APP_NAME: &str = "chrs";
 
 /// Saved logins for chrs.
 #[derive(Serialize, Deserialize)]
 pub struct ChrsConfig {
     cubes: Vec<SavedCubeAuth>,
+}
+
+impl Default for ChrsConfig {
+    fn default() -> Self {
+        ChrsConfig { cubes: vec![] }
+    }
 }
 
 impl ChrsConfig {
@@ -28,6 +35,10 @@ impl ChrsConfig {
         }
     }
 
+    /// Get the credentials for a CUBE. If `address` is not specified, then
+    /// return the most recently added login. A `username` for the `address`
+    /// may be specified in cases where multiple logins for the same CUBE
+    /// are saved.
     pub fn get_cube(
         &self,
         address: Option<&str>,
@@ -53,12 +64,56 @@ impl ChrsConfig {
         }
         None
     }
+
+    /// Append the given [Login]. If there already exists in this [ChrsConfig]
+    /// a token for the [Login]'s address and username, it is overwritten.
+    pub fn add(&mut self, cube: Login, backend: Backend) -> Result<()> {
+        self.remove(&cube.address, Some(&cube.username));
+        self.cubes.push(cube.to_saved(backend, SERVICE)?);
+        Ok(())
+    }
+
+    /// Remove a saved login, if found. Returns `true` if login was removed,
+    /// or `false` if nothing was removed.
+    pub fn remove(&mut self, address: &str, username: Option<&str>) -> bool {
+        if let Some(i) = self.index_of(address, username) {
+            self.cubes.remove(i);
+            return true;
+        }
+        false
+    }
+
+    fn index_of(&self, address: &str, username: Option<&str>) -> Option<usize> {
+        for (i, e) in self.cubes.iter().enumerate() {
+            if e.address == address {
+                if let Some(u) = username {
+                    if u == e.username {
+                        return Some(i);
+                    }
+                } else {
+                    return Some(i);
+                }
+            }
+        }
+        return None;
+    }
+
+    /// Load config from file.
+    pub fn load() -> Result<Self> {
+        let c: Self = confy::load(APP_NAME).context("Couldn't load config file")?;
+        Ok(c)
+    }
+
+    /// Write config to file.
+    pub fn store(&self) -> Result<()> {
+        confy::store(APP_NAME, self).context("Couldn't write config file")
+    }
 }
 
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::login::saved::StoredToken;
+    use crate::login::tokenstore::StoredToken;
     use lazy_static::lazy_static;
 
     const EXAMPLE_ADDRESS: &str = "https://example.com/api/v1/";
@@ -93,7 +148,7 @@ mod tests {
 
     #[test]
     fn test_empty_config() -> Result<()> {
-        let empty_config = ChrsConfig { cubes: vec![] };
+        let empty_config = ChrsConfig::default();
         assert!(empty_config.get_login(None, None)?.is_none());
         assert!(empty_config
             .get_login(Some(EXAMPLE_ADDRESS), None)?
@@ -164,6 +219,139 @@ mod tests {
                 .get_login(Some(&address), Some("b-second"))?
                 .as_ref()
         );
+        Ok(())
+    }
+
+    #[test]
+    fn test_add() -> Result<()> {
+        let mut config = ChrsConfig::default();
+        assert_eq!(0, config.cubes.len());
+        config.add(
+            Login {
+                address: String::from("https://example.com/api/v1/"),
+                username: String::from("apple"),
+                token: String::from("red-delicious"),
+            },
+            Backend::ClearText,
+        );
+        assert_eq!(1, config.cubes.len());
+        assert_eq!(
+            StoredToken::Text(String::from("red-delicious")),
+            config
+                .get_cube(Some("https://example.com/api/v1/"), None)
+                .unwrap()
+                .store
+        );
+
+        config.add(
+            Login {
+                address: String::from("https://example.com/api/v1/"),
+                username: String::from("apple"),
+                token: String::from("golden-delicious"),
+            },
+            Backend::ClearText,
+        );
+        assert_eq!(
+            1,
+            config.cubes.len(),
+            "length is not the same after adding a Login with same address and username"
+        );
+        assert_eq!(
+            StoredToken::Text(String::from("golden-delicious")),
+            config
+                .get_cube(Some("https://example.com/api/v1/"), None)
+                .unwrap()
+                .store
+        );
+
+        config.add(
+            Login {
+                address: String::from("https://example.com/api/v1/"),
+                username: String::from("pear"),
+                token: String::from("yapearisachinesepear"),
+            },
+            Backend::ClearText,
+        );
+        assert_eq!(
+            2,
+            config.cubes.len(),
+            "length did not increase after adding a login with a different username."
+        );
+
+        config.add(
+            Login {
+                address: String::from("https://another.example.com/api/v1/"),
+                username: String::from("pear"),
+                token: String::from("yapearisachinesepear"),
+            },
+            Backend::ClearText,
+        );
+        assert_eq!(
+            3,
+            config.cubes.len(),
+            "length did not increase after adding a login with a different address."
+        );
+        Ok(())
+    }
+
+    #[test]
+    fn test_remove() -> Result<()> {
+        let mut config = ChrsConfig::default();
+        config.add(
+            Login {
+                address: String::from("https://one.example.com/api/v1/"),
+                username: String::from("apple"),
+                token: String::from("red-delicious"),
+            },
+            Backend::ClearText,
+        );
+        config.add(
+            Login {
+                address: String::from("https://two.example.com/api/v1/"),
+                username: String::from("pear"),
+                token: String::from("yapearisachinesepear"),
+            },
+            Backend::ClearText,
+        );
+        assert_eq!(
+            StoredToken::Text(String::from("red-delicious")),
+            config
+                .get_cube(Some("https://one.example.com/api/v1/"), None)
+                .unwrap()
+                .store
+        );
+        println!("{:?}", config.cubes);
+        assert_eq!(
+            StoredToken::Text(String::from("yapearisachinesepear")),
+            config
+                .get_cube(Some("https://two.example.com/api/v1/"), None)
+                .unwrap()
+                .store
+        );
+        assert!(config.remove("https://one.example.com/api/v1/", None));
+        assert!(
+            !config.remove("https://one.example.com/api/v1/", None),
+            "login already removed"
+        );
+        assert!(config
+            .get_cube(Some("https://one.example.com/api/v1/"), None)
+            .is_none());
+        assert_eq!(
+            StoredToken::Text(String::from("yapearisachinesepear")),
+            config
+                .get_cube(Some("https://two.example.com/api/v1/"), None)
+                .unwrap()
+                .store
+        );
+        assert!(
+            !config.remove("https://two.example.com/api/v1/", Some("apple")),
+            "username should not be found"
+        );
+        assert!(config.remove("https://two.example.com/api/v1/", Some("pear")));
+        assert!(config
+            .get_cube(Some("https://two.example.com/api/v1/"), None)
+            .is_none());
+
         Ok(())
     }
 }
