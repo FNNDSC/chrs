@@ -1,6 +1,6 @@
+use crate::api::{UserId, UserUrl};
 use crate::common_types::{CUBEApiUrl, Username};
 use serde::{Deserialize, Serialize};
-use crate::api::{UserId, UserUrl};
 
 #[derive(Deserialize)]
 struct AuthTokenResponse {
@@ -72,7 +72,6 @@ impl CUBEAuth<'_> {
         Ok(created_user)
     }
 }
-
 
 #[cfg(test)]
 mod tests {

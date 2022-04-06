@@ -1,9 +1,9 @@
 // use serde::Deserialize;
 
-use reqwest::header::{HeaderMap, HeaderValue, ACCEPT, AUTHORIZATION};
 use crate::api::*;
 use crate::common_types::{CUBEApiUrl, Username};
 use crate::pagination::*;
+use reqwest::header::{HeaderMap, HeaderValue, ACCEPT, AUTHORIZATION};
 
 #[derive(Debug)]
 pub struct ChrisClient {
@@ -14,17 +14,29 @@ pub struct ChrisClient {
 }
 
 impl ChrisClient {
-    pub async fn new(url: CUBEApiUrl, username: Username, token: String) -> Result<Self, reqwest::Error> {
+    pub async fn new(
+        url: CUBEApiUrl,
+        username: Username,
+        token: String,
+    ) -> Result<Self, reqwest::Error> {
         let client = reqwest::ClientBuilder::new()
             .default_headers(token2header(&token))
             .build()?;
         let res = client.get(url.as_str()).query(&LIMIT_ZERO).send().await?;
         let links: CUBELinks = res.json().await?;
-        Ok(ChrisClient { client, url, username, links })
+        Ok(ChrisClient {
+            client,
+            url,
+            username,
+            links,
+        })
     }
 }
 
-const LIMIT_ZERO: PaginationQuery = PaginationQuery {limit: 0, offset: 0};
+const LIMIT_ZERO: PaginationQuery = PaginationQuery {
+    limit: 0,
+    offset: 0,
+};
 
 fn token2header(token: &str) -> HeaderMap {
     let mut headers = HeaderMap::new();
@@ -35,7 +47,6 @@ fn token2header(token: &str) -> HeaderMap {
     headers.insert(ACCEPT, "application/json".parse().unwrap());
     headers
 }
-
 
 // #[cfg(test)]
 // mod tests {
