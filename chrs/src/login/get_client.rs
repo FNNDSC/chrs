@@ -13,7 +13,7 @@ pub async fn get_client(
     username: Option<Username>,
     password: Option<String>,
 ) -> Result<ChrisClient> {
-    let (given_username, token) = match password {
+    let (given_address, given_username, token) = match password {
         Some(given_password) => {
             let given_address = address.ok_or_else(|| Error::msg("--address is required"))?;
             let given_username = username.ok_or_else(|| Error::msg("--username is required"))?;
@@ -24,16 +24,16 @@ pub async fn get_client(
                 &given_password,
             )
             .await?;
-            Ok((given_username, token))
+            Ok((given_address, given_username, token))
         }
         None => {
             let login = ChrsConfig::load()?
                 .get_login(address.as_ref(), username.as_ref())?
                 .ok_or_else(|| Error::msg(&*NOT_LOGGED_IN))?;
-            Ok((login.username, login.token))
+            Ok((login.address, login.username, login.token))
         }
     }?;
-    Ok(ChrisClient::new(given_username, token).await)
+    Ok(ChrisClient::new(given_address, given_username, token).await?)
 }
 
 pub async fn get_token(

@@ -34,6 +34,26 @@ dependencies = [
 ]
 
 [[package]]
+name = "aliri_braid"
+version = "0.1.10"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "b321b715087f4b23fdfe778cb5a60988ebddc6ef61fbbf78bb9294dcd855df78"
+dependencies = [
+ "aliri_braid_impl",
+]
+
+[[package]]
+name = "aliri_braid_impl"
+version = "0.1.10"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "0f9afe97decc070be1864d96ab118383abed1c58fc09696663666049431110c5"
+dependencies = [
+ "proc-macro2",
+ "quote",
+ "syn",
+]
+
+[[package]]
 name = "anyhow"
 version = "1.0.56"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -158,13 +178,16 @@ checksum = "baf1de4339761588bc0619e3cbc0120ee582ebb74b53b4efbf79117bd2da40fd"
 name = "chris"
 version = "0.0.0"
 dependencies = [
+ "aliri_braid",
  "console",
  "derive_more",
  "lazy_static",
  "names",
  "reqwest",
+ "rstest",
  "serde",
  "serde_json",
+ "shrinkwraprs",
  "thiserror",
  "tokio",
 ]
@@ -369,6 +392,12 @@ dependencies = [
  "redox_users",
  "winapi",
 ]
+
+[[package]]
+name = "either"
+version = "1.6.1"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "e78d4f1cc4ae33bbfc157ed5d5a5ef3bc29227303d595861deb238fcec4e9457"
 
 [[package]]
 name = "encode_unicode"
@@ -748,6 +777,15 @@ name = "ipnet"
 version = "2.3.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "68f2d64f2edebec4ce84ad108148e67e1064789bee435edc5b60ad398714a3a9"
+
+[[package]]
+name = "itertools"
+version = "0.8.2"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "f56a2d0bc861f9165be4eb3442afd3c236d8a98afd426f65d92324ae1091a484"
+dependencies = [
+ "either",
+]
 
 [[package]]
 name = "itoa"
@@ -1313,6 +1351,19 @@ dependencies = [
 ]
 
 [[package]]
+name = "rstest"
+version = "0.12.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "d912f35156a3f99a66ee3e11ac2e0b3f34ac85a07e05263d05a7e2c8810d616f"
+dependencies = [
+ "cfg-if 1.0.0",
+ "proc-macro2",
+ "quote",
+ "rustc_version",
+ "syn",
+]
+
+[[package]]
 name = "rustc_version"
 version = "0.4.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -1463,6 +1514,19 @@ dependencies = [
  "cpufeatures",
  "digest",
  "opaque-debug",
+]
+
+[[package]]
+name = "shrinkwraprs"
+version = "0.3.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "e63e6744142336dfb606fe2b068afa2e1cca1ee6a5d8377277a92945d81fa331"
+dependencies = [
+ "bitflags",
+ "itertools",
+ "proc-macro2",
+ "quote",
+ "syn",
 ]
 
 [[package]]

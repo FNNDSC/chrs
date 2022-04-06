@@ -72,10 +72,6 @@ impl CUBEAuth<'_> {
     }
 }
 
-//
-// pub async fn create_account(client: &reqwest::Client, url: &CUBEApiUrl, username: &Username, password: &str) {
-//
-// }
 
 #[cfg(test)]
 mod tests {
@@ -123,7 +119,7 @@ mod tests {
         }
 
         let created_account = account_creator.create_account(&email).await?;
-        assert_eq!(*created_account.username, username);
+        assert_eq!(*created_account.username.as_str(), username);
         assert_eq!(created_account.email, email);
 
         let _token = account_creator.get_token().await?;
@@ -132,6 +128,6 @@ mod tests {
 
     lazy_static! {
         static ref CLIENT: reqwest::Client = reqwest::Client::new();
-        static ref CUBE_API_URL: CUBEApiUrl = CUBEApiUrl::from_str(&CUBE_URL).unwrap();
+        static ref CUBE_API_URL: CUBEApiUrl = CUBEApiUrl::new(CUBE_URL).unwrap();
     }
 }
