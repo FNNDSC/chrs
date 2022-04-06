@@ -1,6 +1,6 @@
 mod config;
 mod login;
-mod upload;
+// mod upload;
 
 use std::path::PathBuf;
 
@@ -9,7 +9,7 @@ use clap::{Parser, Subcommand};
 
 use crate::config::ChrsConfig;
 use crate::login::get_client::get_client;
-use crate::upload::upload;
+// use crate::upload::upload;
 use chris::common_types::{CUBEApiUrl, Username};
 
 #[derive(Parser)]
@@ -36,31 +36,31 @@ struct Cli {
 
 #[derive(Subcommand)]
 enum Commands {
-    /// Upload files to my ChRIS library
-    Upload {
-        /// Path prefix, i.e. subdir of <username>/uploads to upload to
-        #[clap(short, long, default_value_t=String::from(""))]
-        path: String,
-
-        /// Files and directories to upload
-        #[clap(required = true)]
-        files: Vec<PathBuf>,
-    },
-
-    /// Download files from ChRIS
-    Download {},
-
-    /// Search for files in ChRIS
-    Ls {},
-
-    /// Search for plugins and pipelines
-    Search {},
-
-    /// Get information about a ChRIS resource
-    Describe {},
-
-    /// Run plugins and pipelines
-    Run {},
+    // /// Upload files to my ChRIS library
+    // Upload {
+    //     /// Path prefix, i.e. subdir of <username>/uploads to upload to
+    //     #[clap(short, long, default_value_t=String::from(""))]
+    //     path: String,
+    //
+    //     /// Files and directories to upload
+    //     #[clap(required = true)]
+    //     files: Vec<PathBuf>,
+    // },
+    //
+    // /// Download files from ChRIS
+    // Download {},
+    //
+    // /// Search for files in ChRIS
+    // Ls {},
+    //
+    // /// Search for plugins and pipelines
+    // Search {},
+    //
+    // /// Get information about a ChRIS resource
+    // Describe {},
+    //
+    // /// Run plugins and pipelines
+    // Run {},
 
     /// Remember login account
     ///
@@ -86,11 +86,11 @@ enum Commands {
 
 #[derive(Subcommand)]
 enum PipelineFile {
-    /// Export pipeline to a file
-    Export,
-
-    /// Render pipeline file as a tree
-    Tree,
+    // /// Export pipeline to a file
+    // Export,
+    //
+    // /// Render pipeline file as a tree
+    // Tree,
 
     /// Upload a pipeline to ChRIS
     Add {
@@ -123,10 +123,10 @@ async fn main() -> Result<()> {
     }
 
     match &args.command {
-        Commands::Upload { files, path } => {
-            let _client = get_client(address, username, password).await?;
-            upload(files, path).await
-        }
+        // Commands::Upload { files, path } => {
+        //     let _client = get_client(address, username, password).await?;
+        //     upload(files, path).await
+        // }
         Commands::Login {
             no_keyring,
             password_stdin,
@@ -143,12 +143,10 @@ async fn main() -> Result<()> {
         },
         Commands::PipelineFile (pf_command) => {
             match pf_command {
-                PipelineFile::Export => { bail!("not implemented") }
-                PipelineFile::Tree => { bail!("not implemented") }
+                // PipelineFile::Export => { bail!("not implemented") }
+                // PipelineFile::Tree => { bail!("not implemented") }
                 PipelineFile::Add { file } => { bail!("not implemented") }
             }
-        },
-
-        _ => { bail!("not implemented") }
+        }
     }
 }
