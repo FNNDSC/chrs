@@ -3,9 +3,8 @@ mod login;
 mod upload;
 
 use std::path::PathBuf;
-use std::str::FromStr;
 
-use anyhow::{Ok, Result};
+use anyhow::{bail, Result};
 use clap::{Parser, Subcommand};
 
 use crate::config::ChrsConfig;
@@ -37,7 +36,7 @@ struct Cli {
 
 #[derive(Subcommand)]
 enum Commands {
-    /// Upload local data to my ChRIS library
+    /// Upload files to my ChRIS library
     Upload {
         /// Path prefix, i.e. subdir of <username>/uploads to upload to
         #[clap(short, long, default_value_t=String::from(""))]
@@ -48,7 +47,22 @@ enum Commands {
         files: Vec<PathBuf>,
     },
 
-    /// Remember ChRIS login account.
+    /// Download files from ChRIS
+    Download {},
+
+    /// Search for files in ChRIS
+    Ls {},
+
+    /// Search for plugins and pipelines
+    Search {},
+
+    /// Get information about a ChRIS resource
+    Describe {},
+
+    /// Run plugins and pipelines
+    Run {},
+
+    /// Remember login account
     ///
     /// Stores a username and authorization token for a given ChRIS API URL.
     Login {
@@ -62,8 +76,35 @@ enum Commands {
         // it would be nice to have the --address, --username, ... duplicated here
     },
 
-    /// Forget ChRIS login account
+    /// Forget login
     Logout {},
+
+    /// Work with file-representation of pipelines
+    #[clap(subcommand)]
+    PipelineFile(PipelineFile),
+}
+
+#[derive(Subcommand)]
+enum PipelineFile {
+    /// Export pipeline to a file
+    Export,
+
+    /// Render pipeline file as a tree
+    Tree,
+
+    /// Upload a pipeline to ChRIS
+    Add {
+        /// File representation of a pipeline
+        file: PathBuf
+
+        // TODO
+        // name
+        // authors
+        // category
+        // description
+        // unlocked
+        // locked
+    }
 }
 
 #[tokio::main]
@@ -75,16 +116,16 @@ async fn main() -> Result<()> {
     let password = args.password;
 
     if let Some(given_address) = args.address {
-        address = Some(CUBEApiUrl::from_str(&*given_address)?);
+        address = Some(CUBEApiUrl::new(&*given_address)?);
     }
     if let Some(given_username) = args.username {
-        username = Some(Username::from_str(&*given_username)?);
+        username = Some(Username::new(&*given_username));
     }
 
     match &args.command {
         Commands::Upload { files, path } => {
             let _client = get_client(address, username, password).await?;
-            upload(files, path).await?;
+            upload(files, path).await
         }
         Commands::Login {
             no_keyring,
@@ -95,11 +136,19 @@ async fn main() -> Result<()> {
             } else {
                 login::tokenstore::Backend::Keyring
             };
-            login::cmd::login(address, username, password, backend, password_stdin).await?;
+            login::cmd::login(address, username, password, backend, password_stdin).await
         }
         Commands::Logout {} => {
-            login::cmd::logout(address, username)?;
-        }
-    };
-    Ok(())
+            login::cmd::logout(address, username)
+        },
+        Commands::PipelineFile (pf_command) => {
+            match pf_command {
+                PipelineFile::Export => { bail!("not implemented") }
+                PipelineFile::Tree => { bail!("not implemented") }
+                PipelineFile::Add { file } => { bail!("not implemented") }
+            }
+        },
+
+        _ => { bail!("not implemented") }
+    }
 }

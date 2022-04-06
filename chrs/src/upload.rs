@@ -13,7 +13,7 @@ pub async fn upload(files: &[PathBuf], path: &str) -> Result<()> {
         let upload_path = prefix.join(file_name).to_string_lossy().into_owned();
         println!("{:?} -> {:?}", file, upload_path);
     }
-    Ok(())
+    bail!("Not implemented anymore")
 }
 
 /// Given a list of files and directories, traverse every directory
