@@ -1,5 +1,6 @@
-use crate::types::{CUBEApiUrl, UserId, UserUrl, Username};
+use crate::common_types::{CUBEApiUrl, Username};
 use serde::{Deserialize, Serialize};
+use crate::api::{UserId, UserUrl};
 
 #[derive(Deserialize)]
 struct AuthTokenResponse {

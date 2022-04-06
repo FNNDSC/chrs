@@ -1,7 +1,7 @@
 use crate::ChrsConfig;
 use anyhow::{Context, Error, Ok, Result};
 use chris::auth::CUBEAuth;
-use chris::types::{CUBEApiUrl, Username};
+use chris::common_types::{CUBEApiUrl, Username};
 use chris::ChrisClient;
 use console::style;
 use lazy_static::lazy_static;

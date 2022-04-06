@@ -3,7 +3,7 @@
 //! "<CUBEUsername>@<CUBEAddress>"
 
 use anyhow::{Context, Ok, Result};
-use chris::types::{CUBEApiUrl, Username};
+use chris::common_types::{CUBEApiUrl, Username};
 use serde::{Deserialize, Serialize};
 
 /// Supported mechanisms for storing secrets.

@@ -3,7 +3,7 @@ use crate::login::get_client::get_token;
 use crate::login::prompt::{prompt_if_missing, prompt_if_missing_password};
 use crate::login::tokenstore;
 use anyhow::{bail, Result};
-use chris::types::{CUBEApiUrl, Username};
+use chris::common_types::{CUBEApiUrl, Username};
 
 pub async fn login(
     address: Option<CUBEApiUrl>,

@@ -11,7 +11,7 @@ use clap::{Parser, Subcommand};
 use crate::config::ChrsConfig;
 use crate::login::get_client::get_client;
 use crate::upload::upload;
-use chris::types::{CUBEApiUrl, Username};
+use chris::common_types::{CUBEApiUrl, Username};
 
 #[derive(Parser)]
 #[clap(

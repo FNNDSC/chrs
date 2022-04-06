@@ -2,8 +2,9 @@
 
 pub mod auth;
 mod base;
-pub mod types;
+pub mod common_types;
 pub mod api;
+mod pagination;
 
 pub use base::ChrisClient;
 

@@ -1,6 +1,5 @@
-/// NewTypes for values from the CUBE API.
+//! NewTypes for values used by users when interacting with the CUBE API.
 
-use serde::{Deserialize, Serialize};
 use aliri_braid::braid;
 
 #[derive(thiserror::Error, Debug)]
@@ -35,14 +34,6 @@ impl aliri_braid::Validator for CUBEApiUrl {
 /// *ChRIS* user's username.
 #[braid(serde)]
 pub struct Username;
-
-/// CUBE user resource URL, e.g. https://cube.chrisproject.org/api/v1/users/3/
-#[braid(serde)]
-pub struct UserUrl(String);
-
-/// CUBE User ID
-#[derive(Shrinkwrap, Deserialize)]
-pub struct UserId(u16);
 
 #[cfg(test)]
 mod tests {
