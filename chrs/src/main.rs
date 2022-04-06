@@ -8,6 +8,8 @@ use std::str::FromStr;
 use anyhow::{Ok, Result};
 use clap::{Parser, Subcommand};
 
+use crate::config::ChrsConfig;
+use crate::login::get_client::get_client;
 use crate::upload::upload;
 use chris::types::{CUBEApiUrl, Username};
 
@@ -81,6 +83,7 @@ async fn main() -> Result<()> {
 
     match &args.command {
         Commands::Upload { files, path } => {
+            let _client = get_client(address, username, password).await?;
             upload(files, path).await?;
         }
         Commands::Login {

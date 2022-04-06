@@ -1,3 +1,4 @@
 pub(crate) mod cmd;
-mod helpers;
+pub(crate) mod get_client;
+mod prompt;
 pub(crate) mod tokenstore;

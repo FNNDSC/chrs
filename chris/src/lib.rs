@@ -2,6 +2,8 @@ pub mod auth;
 mod base;
 pub mod types;
 
+pub use base::ChrisClient;
+
 #[cfg(test)]
 mod tests {
     #[test]

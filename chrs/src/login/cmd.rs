@@ -1,8 +1,8 @@
 use crate::config;
-use crate::login::helpers::{prompt_if_missing, prompt_if_missing_password};
+use crate::login::get_client::get_token;
+use crate::login::prompt::{prompt_if_missing, prompt_if_missing_password};
 use crate::login::tokenstore;
-use anyhow::{bail, Context, Result};
-use chris::auth::CUBEAuth;
+use anyhow::{bail, Result};
 use chris::types::{CUBEApiUrl, Username};
 
 pub async fn login(
@@ -21,22 +21,14 @@ pub async fn login(
     let given_username = prompt_if_missing(username, "username")?;
     let given_password = prompt_if_missing_password(password, "password", password_from_stdin)?;
 
-    println!("your password is {}", given_password);
+    let token = get_token(
+        &Default::default(),
+        &given_address,
+        &given_username,
+        &given_password,
+    )
+    .await?;
 
-    let account = CUBEAuth {
-        client: &Default::default(),
-        url: &given_address,
-        username: &given_username,
-        password: given_password.as_str(),
-    };
-
-    let token = account.get_token().await.with_context(|| {
-        format!(
-            "Could not login to {} with username \"{}\"",
-            given_address.as_str(),
-            given_username.as_str()
-        )
-    })?;
     let login = tokenstore::Login {
         address: given_address,
         username: given_username,
