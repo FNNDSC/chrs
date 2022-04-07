@@ -5,9 +5,9 @@
 
 This project provides:
 
-- [`chrs`](chrs), a command-line client for [_ChRIS_](https://chrisproject.org/)
+- [`chrs`](https://crates.io/crates/chrs), a command-line client for [_ChRIS_](https://chrisproject.org/)
   (this is what end-users are looking for)
-- [`chris`](chris), a [Rust](https://www.rust-lang.org/) client library for _ChRIS_
+- [`chris`](https://crates.io/crates/chris), a [Rust](https://www.rust-lang.org/) client library for _ChRIS_
   (this is for developers)
 
 ## Roadmap
