@@ -16,18 +16,18 @@ jobs:
         with:
           toolchain: stable
           profile: minimal
-      - name: Publish chrs (cli)
-        uses: actions-rs/cargo@v1
-        with:
-          command: publish
-          args: --manifest-path chrs/Cargo.toml
-        env:
-          CARGO_REGISTRY_TOKEN: ${{ secrets.CARGO_REGISTRY_TOKEN }}
       - name: Publish chris (lib)
         uses: actions-rs/cargo@v1
         with:
           command: publish
           args: --manifest-path chris/Cargo.toml
+        env:
+          CARGO_REGISTRY_TOKEN: ${{ secrets.CARGO_REGISTRY_TOKEN }}
+      - name: Publish chrs (cli)
+        uses: actions-rs/cargo@v1
+        with:
+          command: publish
+          args: --manifest-path chrs/Cargo.toml
         env:
           CARGO_REGISTRY_TOKEN: ${{ secrets.CARGO_REGISTRY_TOKEN }}
 
