@@ -81,3 +81,14 @@ chrs --address https://cube.chrisproject.org/api/v1/ logout
 # remove all saved logins
 chrs logout
 ```
+
+### `chrs pipeline-file add`
+
+Uploads a file-representation of a ChRIS pipeline.
+The file should be a JSON file.
+(`plugin_tree` may be either a string (canonical) or an object).
+YAML support coming soon.
+
+```shell
+chrs pipeline-file add chris/tests/data/pipelines/fetal_brain_reconstruction_expanded.json
+```
