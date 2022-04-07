@@ -14,6 +14,7 @@ categories = ["command-line-utilities", "science"]
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [dependencies]
+chris = { path = "../chris", version = "0.0.1-a1" }
 clap = { version = "3.1.6", features = ["derive"] }
 reqwest = { version = "0.11.9", features = ["blocking", "json", "multipart"] }
 lazy_static = "1.4.0"
@@ -22,7 +23,6 @@ keyring = "1.1.2"
 anyhow = "1.0.56"
 thiserror = "1.0.30"
 tokio = { version = "1.17.0", features = ["full"] }
-chris = { path = "../chris", version = "0.0.1-a1" }
 confy = "0.4.0"
 dialoguer = "0.10.0"
 indicatif = "0.17.0-rc.10"
