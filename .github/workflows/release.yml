@@ -202,7 +202,7 @@ jobs:
       - name: Build Debian release
         run: |
           cargo install cargo-deb --version 1.37.0 --locked
-          cargo deb --no-build
+          cargo deb --no-build -p chrs
           cp -v ./target/debian/*.deb ./
       - name: Test Debian release
         run: sudo dpkg -i ./*.deb
