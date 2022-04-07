@@ -63,7 +63,7 @@ jobs:
           - {
             os: "ubuntu-18.04",
             target: "x86_64-unknown-linux-musl",
-            cross: false,
+            cross: true,  # workaround, needs musl-gcc to compile OpenSSL
           }
           - {
             os: "ubuntu-18.04",
@@ -103,12 +103,13 @@ jobs:
             cross: true,
           }
 
-          # Risc-V 64gc
-          - {
-            os: "ubuntu-18.04",
-            target: "riscv64gc-unknown-linux-gnu",
-            cross: true,
-          }
+          # doesn't work
+#          # Risc-V 64gc
+#          - {
+#            os: "ubuntu-18.04",
+#            target: "riscv64gc-unknown-linux-gnu",
+#            cross: true,
+#          }
 
     steps:
       - name: Checkout repository
@@ -129,7 +130,7 @@ jobs:
           key: ${{ matrix.triple.target }}
 
       - name: Build (vendored OpenSSL)
-        if: matrix.triple.container || matrix.triple.cross || endsWith( matrix.triple.target, '-linux-musl' )
+        if: matrix.triple.container || matrix.triple.cross
         id: build_vendored_openssl
         uses: actions-rs/cargo@v1
         with:
