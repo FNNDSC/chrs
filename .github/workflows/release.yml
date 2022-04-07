@@ -1,9 +1,15 @@
+# On tags, publish crates to crates.io.
+# If chrs is to be published, build binaries for multiple platforms and
+# create a draft Github release.
+
 name: Release
 
 on:
   push:
     tags:
-      - "v[0-9]+.[0-9]+.[0-9]+"
+      - "chris/[0-9]+.[0-9]+.[0-9]+"
+      - "chrs/[0-9]+.[0-9]+.[0-9]+"
+
 jobs:
   crate:
     runs-on: ubuntu-latest
@@ -17,6 +23,7 @@ jobs:
           toolchain: stable
           profile: minimal
       - name: Publish chris (lib)
+        if: startsWith( github.ref, 'refs/tags/chris/' )
         uses: actions-rs/cargo@v1
         with:
           command: publish
@@ -24,6 +31,7 @@ jobs:
         env:
           CARGO_REGISTRY_TOKEN: ${{ secrets.CARGO_REGISTRY_TOKEN }}
       - name: Publish chrs (cli)
+        if: startsWith( github.ref, 'refs/tags/chrs/' )
         uses: actions-rs/cargo@v1
         with:
           command: publish
@@ -34,6 +42,7 @@ jobs:
   # copied from
   # https://github.com/ClementTsang/chrs/blob/d297ee4639f65e9bb1c0c636ebe9faad075822c1/.github/workflows/deployment.yml
   build-release:
+    if: startsWith( github.ref, 'refs/tags/chrs/' )
     runs-on: ${{ matrix.triple.os }}
     container: ${{ matrix.triple.container }}
     env:
@@ -173,6 +182,7 @@ jobs:
 
   build-deb:
     name: build-deb
+    if: startsWith( github.ref, 'refs/tags/chrs/' )
     runs-on: "ubuntu-18.04"
     env:
       RUST_BACKTRACE: 1
