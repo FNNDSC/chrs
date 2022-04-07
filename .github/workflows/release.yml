@@ -165,7 +165,8 @@ jobs:
         if: matrix.triple.os != 'windows-2019'
         shell: bash
         run: |
-          cp target/${{ matrix.triple.target }}/release/chrs ./chrs
+          mv -v chrs/ repo_chrs/
+          cp -v target/${{ matrix.triple.target }}/release/chrs ./chrs
           tar -czvf chrs_${{ matrix.triple.target }}${{ matrix.triple.suffix }}.tar.gz chrs
           echo "ASSET=chrs_${{ matrix.triple.target }}${{ matrix.triple.suffix }}.tar.gz" >> $GITHUB_ENV
       - name: Create release directory for artifact, move file
