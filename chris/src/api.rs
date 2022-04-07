@@ -1,5 +1,17 @@
 use aliri_braid::braid;
 use serde::{Deserialize, Serialize};
+use crate::common_types::Username;
+
+#[derive(Debug, Deserialize)]
+pub struct BaseResponse {
+    pub count: u32,
+    pub next: Option<FeedsPaginatedUrl>,
+    pub previous: Option<FeedsPaginatedUrl>,
+    pub collection_links: CUBELinks
+}
+
+#[braid(serde)]
+pub struct FeedsPaginatedUrl;
 
 #[derive(Debug, Deserialize)]
 pub struct CUBELinks {
@@ -45,4 +57,44 @@ pub enum ParameterValue {
     Int(i64),
     Float(f64),
     Str(String),
+}
+
+#[braid(serde)]
+pub struct PipelineUrl;
+
+#[derive(Shrinkwrap, Deserialize, Debug)]
+pub struct PipelineId(u16);
+
+#[braid(serde)]
+pub struct PipelinePluginsUrl;
+
+#[braid(serde)]
+pub struct PipelinePipingsUrl;
+
+#[braid(serde)]
+pub struct PipelineDefaultParametersUrl;
+
+#[braid(serde)]
+pub struct PipelineInstancesUrl;
+
+#[braid(serde)]
+pub struct PipelineWorkflowsUrl;
+
+#[derive(Debug, Deserialize)]
+pub struct PipelineUploadResponse {
+    pub url: PipelineUrl,
+    pub id: PipelineId,
+    pub name: String,
+    pub locked: bool,
+    pub authors: String,
+    pub category: String,
+    pub description: String,
+    pub owner_username: Username,
+    pub creation_date: String,
+    pub modification_date: String,
+    pub plugins: PipelinePluginsUrl,
+    pub plugin_pipings: PipelinePipingsUrl,
+    pub default_parameters: PipelineDefaultParametersUrl,
+    pub instances: PipelineInstancesUrl,
+    pub workflows: PipelineWorkflowsUrl
 }

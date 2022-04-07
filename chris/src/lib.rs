@@ -3,9 +3,9 @@ extern crate shrinkwraprs;
 
 pub mod api;
 pub mod auth;
-mod base;
+mod client;
 pub mod common_types;
 mod pagination;
-mod pipelines;
+pub mod pipeline;
 
-pub use base::ChrisClient;
+pub use client::ChrisClient;

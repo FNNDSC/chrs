@@ -1,15 +1,17 @@
 mod config;
 mod login;
+mod pipeline_add;
 // mod upload;
 
 use std::path::PathBuf;
 
-use anyhow::{bail, Result};
+use anyhow::Result;
 use clap::{Parser, Subcommand};
 
 use crate::config::ChrsConfig;
 use crate::login::get_client::get_client;
 // use crate::upload::upload;
+use crate::pipeline_add::add_pipeline;
 use chris::common_types::{CUBEApiUrl, Username};
 
 #[derive(Parser)]
@@ -61,7 +63,6 @@ enum Commands {
     //
     // /// Run plugins and pipelines
     // Run {},
-
     /// Remember login account
     ///
     /// Stores a username and authorization token for a given ChRIS API URL.
@@ -91,20 +92,17 @@ enum PipelineFile {
     //
     // /// Render pipeline file as a tree
     // Tree,
-
     /// Upload a pipeline to ChRIS
     Add {
         /// File representation of a pipeline
-        file: PathBuf
-
-        // TODO
-        // name
-        // authors
-        // category
-        // description
-        // unlocked
-        // locked
-    }
+        file: PathBuf, // TODO
+                       // name
+                       // authors
+                       // category
+                       // description
+                       // unlocked
+                       // locked
+    },
 }
 
 #[tokio::main]
@@ -138,14 +136,15 @@ async fn main() -> Result<()> {
             };
             login::cmd::login(address, username, password, backend, password_stdin).await
         }
-        Commands::Logout {} => {
-            login::cmd::logout(address, username)
-        },
-        Commands::PipelineFile (pf_command) => {
+        Commands::Logout {} => login::cmd::logout(address, username),
+        Commands::PipelineFile(pf_command) => {
             match pf_command {
                 // PipelineFile::Export => { bail!("not implemented") }
                 // PipelineFile::Tree => { bail!("not implemented") }
-                PipelineFile::Add { file } => { bail!("not implemented") }
+                PipelineFile::Add { file } => {
+                    let client = get_client(address, username, password).await?;
+                    add_pipeline(&client, file).await
+                }
             }
         }
     }

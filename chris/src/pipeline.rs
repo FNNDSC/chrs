@@ -4,7 +4,7 @@ use std::convert::From;
 
 /// A pipeline the way CUBE wants it (where `plugin_tree` is a string).
 #[derive(Serialize, Debug, PartialEq)]
-struct CanonPipeline {
+pub struct CanonPipeline {
     pub authors: String,
     pub name: String,
     pub description: String,
@@ -65,6 +65,19 @@ pub struct ExpandedTreeParameter {
     pub default: ParameterValue,
 }
 
+impl From<ExpandedTreePipeline> for CanonPipeline {
+    fn from(p: ExpandedTreePipeline) -> Self {
+        CanonPipeline {
+            authors: p.authors,
+            name: p.name,
+            description: p.description,
+            category: p.category,
+            locked: p.locked,
+            plugin_tree: serde_json::to_string(&p.plugin_tree).unwrap(),
+        }
+    }
+}
+
 impl From<PossiblyExpandedTreePipeline> for CanonPipeline {
     fn from(p: PossiblyExpandedTreePipeline) -> Self {
         let plugin_tree = match p.plugin_tree {
@@ -95,6 +108,9 @@ impl From<CanonPipeline> for ExpandedTreePipeline {
         }
     }
 }
+
+
+
 
 #[cfg(test)]
 mod tests {
