@@ -27,7 +27,6 @@ jobs:
           profile: minimal
       - uses: Swatinem/rust-cache@v1
       - name: Cargo test
-        working-directory: chrs
         # https://github.com/hwchen/keyring-rs/blob/4297618e0cf061eacedf6d7c3f164ee4074a3c5d/linux-test.sh
         run: |
           cat > test.sh << EOF
