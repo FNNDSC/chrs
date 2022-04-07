@@ -18,15 +18,19 @@ jobs:
         run: |
           sudo apt update -y
           sudo apt install -y gnome-keyring
+      - name: Run ChRIS backend
+        uses: FNNDSC/miniChRIS-docker@20220330
+
       - name: Git checkout
         uses: actions/checkout@v2
-      - name: Setup rust
+      - name: Setup rust toolchain
         uses: actions-rs/toolchain@v1
         with:
           toolchain: stable
           profile: minimal
-      - uses: Swatinem/rust-cache@v1
-      - name: Cargo test
+      - name: Setup rust cache
+        uses: Swatinem/rust-cache@v1
+      - name: Run tests
         # https://github.com/hwchen/keyring-rs/blob/4297618e0cf061eacedf6d7c3f164ee4074a3c5d/linux-test.sh
         run: |
           cat > test.sh << EOF
