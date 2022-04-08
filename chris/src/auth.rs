@@ -1,6 +1,8 @@
 use crate::api::{UserId, UserUrl};
 use crate::common_types::{CUBEApiUrl, Username};
 use serde::{Deserialize, Serialize};
+use crate::ChrisClient;
+use crate::client::CUBEError;
 
 #[derive(Deserialize)]
 struct AuthTokenResponse {
@@ -33,9 +35,9 @@ struct CreateUserData<'a> {
 
 pub struct CUBEAuth<'a> {
     pub client: &'a reqwest::Client,
-    pub url: &'a CUBEApiUrl,
-    pub username: &'a Username,
-    pub password: &'a str,
+    pub url: CUBEApiUrl,
+    pub username: Username,
+    pub password: String,
 }
 
 impl CUBEAuth<'_> {
@@ -46,8 +48,8 @@ impl CUBEAuth<'_> {
             .post(auth_url)
             .header(reqwest::header::ACCEPT, "application/json")
             .json(&Credentials {
-                username: self.username,
-                password: self.password,
+                username: &self.username,
+                password: &self.password,
             });
         let res = req.send().await?;
         res.error_for_status_ref()?;
@@ -62,14 +64,19 @@ impl CUBEAuth<'_> {
             .post(users_url)
             .header(reqwest::header::ACCEPT, "application/json")
             .json(&CreateUserData {
-                username: self.username,
-                password: self.password,
+                username: &self.username,
+                password: &self.password,
                 email,
             });
         let res = req.send().await?;
         res.error_for_status_ref()?;
         let created_user: UserCreatedResponse = res.json().await?;
         Ok(created_user)
+    }
+
+    pub async fn into_client(self) -> Result<ChrisClient, CUBEError> {
+        let token = self.get_token().await?;
+        Ok(ChrisClient::new(self.url, self.username, token).await?)
     }
 }
 
@@ -79,38 +86,51 @@ mod tests {
     use lazy_static::lazy_static;
     use names::Generator;
     use std::str::FromStr;
+    use rstest::*;
 
     const CUBE_URL: &str = "http://localhost:8000/api/v1/";
 
+    lazy_static! {
+        static ref CLIENT: reqwest::Client = reqwest::Client::new();
+    }
+
+    #[fixture]
+    fn cube_url() -> CUBEApiUrl {
+        CUBEApiUrl::new(CUBE_URL).unwrap()
+    }
+
+    #[rstest]
     #[tokio::test]
-    async fn test_get_token() -> Result<(), Box<dyn std::error::Error>> {
+    async fn test_get_token(cube_url: CUBEApiUrl) -> Result<(), Box<dyn std::error::Error>> {
         let account = CUBEAuth {
-            username: &Username::from_str("chris")?,
-            password: "chris1234",
-            url: &CUBE_API_URL,
+            username: Username::from_str("chris")?,
+            password: "chris1234".to_string(),
+            url: cube_url,
             client: &CLIENT,
         };
 
         let token = account.get_token().await?;
 
         let req = CLIENT
-            .get(&CUBE_API_URL.to_string())
+            .get(CUBE_URL)
             .header(reqwest::header::AUTHORIZATION, format!("Token {}", &token));
         let res = req.send().await?;
         assert_eq!(res.status(), reqwest::StatusCode::OK);
         Ok(())
     }
 
+    #[rstest]
     #[tokio::test]
-    async fn test_create_user() -> Result<(), Box<dyn std::error::Error>> {
+    async fn test_create_user(cube_url: CUBEApiUrl) -> Result<(), Box<dyn std::error::Error>> {
         let mut generator = Generator::default();
         let username = generator.next().unwrap();
+        let password= format!("{}1234", &username.chars().rev().collect::<String>());
         let email = format!("{}@example.org", &username);
 
         let account_creator = CUBEAuth {
-            username: &Username::from_str(username.as_str())?,
-            password: &*format!("{}1234", username.chars().rev().collect::<String>()),
-            url: &CUBE_API_URL,
+            username: Username::new(username.clone()),
+            password,
+            url: cube_url,
             client: &CLIENT,
         };
 
@@ -124,10 +144,5 @@ mod tests {
 
         let _token = account_creator.get_token().await?;
         Ok(())
-    }
-
-    lazy_static! {
-        static ref CLIENT: reqwest::Client = reqwest::Client::new();
-        static ref CUBE_API_URL: CUBEApiUrl = CUBEApiUrl::new(CUBE_URL).unwrap();
     }
 }

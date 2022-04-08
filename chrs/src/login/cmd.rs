@@ -1,8 +1,8 @@
 use crate::config;
-use crate::login::get_client::get_token;
 use crate::login::prompt::{prompt_if_missing, prompt_if_missing_password};
 use crate::login::tokenstore;
-use anyhow::{bail, Result};
+use anyhow::{bail, Context, Result};
+use chris::auth::CUBEAuth;
 use chris::common_types::{CUBEApiUrl, Username};
 
 pub async fn login(
@@ -17,22 +17,17 @@ pub async fn login(
     }
 
     let mut config = config::ChrsConfig::load()?;
-    let given_address = prompt_if_missing(address, "ChRIS API address")?;
-    let given_username = prompt_if_missing(username, "username")?;
-    let given_password = prompt_if_missing_password(password, "password", password_from_stdin)?;
-
-    let token = get_token(
-        &Default::default(),
-        &given_address,
-        &given_username,
-        &given_password,
-    )
-    .await?;
+    let account = CUBEAuth {
+        client: &Default::default(),
+        url: prompt_if_missing(address, "ChRIS API address")?,
+        username: prompt_if_missing(username, "username")?,
+        password: prompt_if_missing_password(password, "password", password_from_stdin)?
+    };
 
     let login = tokenstore::Login {
-        address: given_address,
-        username: given_username,
-        token,
+        token: account.get_token().await.context("Could not log in")?,
+        address: account.url,
+        username: account.username,
     };
     config.add(login, backend)?;
     config.store()

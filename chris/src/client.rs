@@ -212,7 +212,6 @@ mod tests {
     use names::Generator;
     use rstest::*;
     use std::path::PathBuf;
-    use std::str::FromStr;
     use tempfile::TempDir;
     use tokio::io::AsyncWriteExt;
 
@@ -325,22 +324,19 @@ mod tests {
         // for each unit test.
         //
         // https://github.com/la10736/rstest/issues/141
-        let username_value = Generator::default().next().unwrap();
-        let url = CUBEApiUrl::from_str(&CUBE_URL).unwrap();
-        let username = Username::new(username_value);
+        let username = Generator::default().next().unwrap();
         let email = format!("{}@example.org", &username);
         let account_creator = CUBEAuth {
-            username: &username,
-            password: &*format!(
+            password: format!(
                 "{}1234",
                 username.as_str().chars().rev().collect::<String>()
             ),
-            url: &url,
+            username: Username::new(username),
+            url: CUBEApiUrl::new(CUBE_URL).unwrap(),
             client: &reqwest::Client::new(),
         };
         account_creator.create_account(&email).await.unwrap();
-        let token = account_creator.get_token().await.unwrap();
-        ChrisClient::new(url, username, token).await.unwrap()
+        account_creator.into_client().await.unwrap()
     }
 
     #[fixture]

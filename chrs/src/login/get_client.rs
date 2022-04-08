@@ -1,5 +1,5 @@
 use crate::ChrsConfig;
-use anyhow::{Context, Error, Ok, Result};
+use anyhow::{Context, Error, Result};
 use chris::auth::CUBEAuth;
 use chris::common_types::{CUBEApiUrl, Username};
 use chris::ChrisClient;
@@ -13,49 +13,28 @@ pub async fn get_client(
     username: Option<Username>,
     password: Option<String>,
 ) -> Result<ChrisClient> {
-    let (given_address, given_username, token) = match password {
+    match password {
         Some(given_password) => {
             let given_address = address.ok_or_else(|| Error::msg("--address is required"))?;
             let given_username = username.ok_or_else(|| Error::msg("--username is required"))?;
-            let token: String = get_token(
-                &Default::default(),
-                &given_address,
-                &given_username,
-                &given_password,
-            )
-            .await?;
-            Ok((given_address, given_username, token))
+            let account = CUBEAuth {
+                client: &Default::default(),
+                url: given_address,
+                username: given_username,
+                password: given_password
+            };
+            account.into_client().await.context("Password incorrect")
         }
         None => {
             let login = ChrsConfig::load()?
                 .get_login(address.as_ref(), username.as_ref())?
                 .ok_or_else(|| Error::msg(&*NOT_LOGGED_IN))?;
-            Ok((login.address, login.username, login.token))
+            login.into_client().await.with_context(
+                || format!("Could not log in. \
+                Your token might have expired, please run {}", style("chrs logout").bold())
+            )
         }
-    }?;
-    Ok(ChrisClient::new(given_address, given_username, token).await?)
-}
-
-pub async fn get_token(
-    client: &reqwest::Client,
-    address: &CUBEApiUrl,
-    username: &Username,
-    password: &str,
-) -> Result<String> {
-    let account = CUBEAuth {
-        client,
-        url: address,
-        username,
-        password,
-    };
-
-    account.get_token().await.with_context(|| {
-        format!(
-            "Could not login to {} with username \"{}\"",
-            address.as_str(),
-            username.as_str()
-        )
-    })
+    }
 }
 
 lazy_static! {
