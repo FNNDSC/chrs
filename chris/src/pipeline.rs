@@ -109,9 +109,6 @@ impl From<CanonPipeline> for ExpandedTreePipeline {
     }
 }
 
-
-
-
 #[cfg(test)]
 mod tests {
     use super::*;

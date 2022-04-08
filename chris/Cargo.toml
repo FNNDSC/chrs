@@ -1,6 +1,6 @@
 [package]
 name = "chris"
-version = "0.0.1-a1"
+version = "0.0.1"
 edition = "2021"
 
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
@@ -12,13 +12,16 @@ categories = ["web-programming::http-client", "science"]
 
 [dependencies]
 serde = { version = "1.0.136", features = ["derive"] }
-reqwest = { version = "0.11.10", features = ["json", "multipart"] }
+reqwest = { version = "0.11.10", features = ["json", "multipart", "stream"] }
 thiserror = "1.0.30"
-derive_more = "0.99.17"
 console = "0.15.0"
 aliri_braid = "0.1.10"
 shrinkwraprs = "0.3.0"
 serde_json = "1.0.79"
+futures = "0.3.21"
+async-stream = "0.3.3"
+tokio-util = "0.7.1"
+tokio = { version = "1.17.0", features = ["full"] }
 
 # OpenSSL workaround, see features section
 openssl = { version = "0.10", optional = true }
@@ -28,10 +31,10 @@ trust-dns-resolver = "0.21"
 lazy_static = "1.4.0"
 serde_json = "1.0.79"
 names = { version = "0.13.0", default-features = false }
-tokio = { version = "1.17.0", features = ["full"] }
 rstest = "0.12.0"
 tokio-test = "0.4.2"
 async-std = { version = "1.11.0", features = ["attributes"] }
+tempfile = "3.3.0"
 
 # https://github.com/cross-rs/cross/issues/229#issuecomment-597898074
 [features]

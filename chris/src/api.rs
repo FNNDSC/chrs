@@ -1,13 +1,13 @@
+use crate::common_types::Username;
 use aliri_braid::braid;
 use serde::{Deserialize, Serialize};
-use crate::common_types::Username;
 
 #[derive(Debug, Deserialize)]
 pub struct BaseResponse {
     pub count: u32,
     pub next: Option<FeedsPaginatedUrl>,
     pub previous: Option<FeedsPaginatedUrl>,
-    pub collection_links: CUBELinks
+    pub collection_links: CUBELinks,
 }
 
 #[braid(serde)]
@@ -15,7 +15,7 @@ pub struct FeedsPaginatedUrl;
 
 #[derive(Debug, Deserialize)]
 pub struct CUBELinks {
-    pub files: FilesUrl,
+    pub files: AllFilesUrl,
     pub uploadedfiles: UploadedFilesUrl,
     pub user: UserUrl,
     pub pipelines: PipelinesUrl,
@@ -23,7 +23,7 @@ pub struct CUBELinks {
 
 /// CUBE files resource URL, e.g. https://cube.chrisproject.org/api/v1/files/
 #[braid(serde)]
-pub struct FilesUrl;
+pub struct AllFilesUrl;
 
 /// CUBE uploaded files resource URL, e.g. https://cube.chrisproject.org/api/v1/uploadedfiles/
 #[braid(serde)]
@@ -96,5 +96,16 @@ pub struct PipelineUploadResponse {
     pub plugin_pipings: PipelinePipingsUrl,
     pub default_parameters: PipelineDefaultParametersUrl,
     pub instances: PipelineInstancesUrl,
-    pub workflows: PipelineWorkflowsUrl
+    pub workflows: PipelineWorkflowsUrl,
+}
+
+#[derive(Debug, Deserialize)]
+pub struct FileUploadResponse {
+    pub url: String,
+    pub id: u32,
+    pub creation_date: String,
+    pub fname: String,
+    pub fsize: u32,
+    pub file_resource: String,
+    pub owner: String,
 }
