@@ -1,3 +1,5 @@
+/// Types produced by the _ChRIS_ backend (CUBE) API.
+
 use crate::common_types::Username;
 use aliri_braid::braid;
 use serde::{Deserialize, Serialize};
@@ -21,11 +23,11 @@ pub struct CUBELinks {
     pub pipelines: PipelinesUrl,
 }
 
-/// CUBE files resource URL, e.g. https://cube.chrisproject.org/api/v1/files/
+/// CUBE files resource URL, e.g. `https://cube.chrisproject.org/api/v1/files/`
 #[braid(serde)]
 pub struct AllFilesUrl;
 
-/// CUBE uploaded files resource URL, e.g. https://cube.chrisproject.org/api/v1/uploadedfiles/
+/// CUBE uploaded files resource URL, e.g. `https://cube.chrisproject.org/api/v1/uploadedfiles/`
 #[braid(serde)]
 pub struct UploadedFilesUrl;
 
@@ -33,11 +35,11 @@ pub struct UploadedFilesUrl;
 #[derive(Shrinkwrap, Deserialize)]
 pub struct UserId(u16);
 
-/// CUBE user resource URL, e.g. https://cube.chrisproject.org/api/v1/users/3/
+/// CUBE user resource URL, e.g. `https://cube.chrisproject.org/api/v1/users/3/`
 #[braid(serde)]
 pub struct UserUrl;
 
-/// CUBE pipelines resource URL, e.g. https://cube.chrisproject.org/api/v1/pipelines/
+/// CUBE pipelines resource URL, e.g. `https://cube.chrisproject.org/api/v1/pipelines/`
 #[braid(serde)]
 pub struct PipelinesUrl;
 

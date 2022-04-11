@@ -12,7 +12,7 @@ pub enum InvalidCUBEUrl {
 }
 
 /// A [CUBEApiUrl] is the base URL for a CUBE, e.g.
-/// "https://cube.chrisproject.org/api/v1/"
+/// `https://cube.chrisproject.org/api/v1/`
 #[braid(validator, serde)]
 pub struct CUBEApiUrl(String);
 

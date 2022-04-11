@@ -57,7 +57,7 @@ impl ChrisClient {
 
     /// Iterate over files in the given query.
     ///
-    /// Usage: https://docs.rs/async-stream/0.3.3/async_stream/#usage
+    /// Usage: <https://docs.rs/async-stream/0.3.3/async_stream/#usage>
     pub fn iter_files<'a>(
         &'a self,
         url: &'a AnyFilesUrl,

@@ -50,7 +50,7 @@ where
 }
 
 /// Read a line from stdin.
-/// https://doc.rust-lang.org/std/io/struct.Stdin.html#examples
+/// <https://doc.rust-lang.org/std/io/struct.Stdin.html#examples>
 fn read_line() -> io::Result<String> {
     let mut buffer = String::new();
     io::stdin().read_line(&mut buffer)?;
