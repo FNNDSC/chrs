@@ -94,7 +94,8 @@ enum PipelineFile {
     // Tree,
     /// Upload a pipeline to ChRIS
     Add {
-        /// File representation of a pipeline
+        /// File representation of a pipeline.
+        /// Can be either JSON (canonical) or YAML (ChRIS RFC #2).
         file: PathBuf, // TODO
                        // name
                        // authors

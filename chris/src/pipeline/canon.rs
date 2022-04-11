@@ -60,7 +60,7 @@ pub enum PossiblyExpandedPluginTree {
 pub struct ExpandedTreePiping {
     pub plugin_name: PluginName,
     pub plugin_version: PluginVersion,
-    pub previous_index: Option<u8>,
+    pub previous_index: Option<usize>,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub plugin_parameter_defaults: Option<Vec<ExpandedTreeParameter>>,
 }

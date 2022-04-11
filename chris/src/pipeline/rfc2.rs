@@ -101,8 +101,9 @@ impl TryFrom<TitleIndexedPipeline> for ExpandedTreePipeline {
         let root = pop_root(&mut p.plugin_tree)?; // err if more than one root
         let mut non_roots = agg_by_previous(p.plugin_tree);
 
-        drain_pipings(&mut pipings, &mut non_roots, 0, &root.title);
         pipings.push(root.into());
+        // drain_pipings(&mut pipings, &mut non_roots, 0, &pipings[0].title);
+        pipings.extend(drain_pipings(&mut non_roots, 0, &pipings[0].title));
 
         // There will be values remaining inside `non_roots` if there are any
         // elements of `plugin_tree` which specify a `previous` that doesn't exist,
@@ -183,23 +184,28 @@ fn index_of_root(p: &[TitleIndexedPiping]) -> Result<usize, InvalidTitleIndexedP
     }
 }
 
-/// Remove entries from `m` and push them into `pipings` while converting
-/// [NRPiping] into [NumericPreviousPiping].
+// TODO
+// TESTS AND EFFICIENCY. VERY BAD CLONE AND BAD BAD VEC ALLOCATIONS
 fn drain_pipings(
-    pipings: &mut Vec<NumericPreviousPiping>,
     m: &mut HashMap<PipingTitle, Vec<NRPiping>>,
-    previous_index: u8,
+    previous_index: usize,
     previous_title: &PipingTitle,
-) {
-    // I suppose this could be done functionally, but using mutable
-    // accumulators saves us from having to allocate Vec!
-    if let Some(children) = m.remove(previous_title) {
-        let current_index = previous_index + 1;
-        for (i, child) in children.iter().enumerate() {
-            drain_pipings(pipings, m, current_index + i as u8, &child.title);
+) -> Vec<NumericPreviousPiping> {
+    match m.remove(previous_title) {
+        None => vec![],
+        Some(children) => {
+            let current_index = previous_index + 1;
+            let mut pipings: Vec<NumericPreviousPiping> = children
+                .into_iter()
+                .map(|p| p.canonicalize(previous_index))
+                .collect();
+            let titles = pipings.clone().into_iter().map(|p| p.title);
+            for (i, child) in titles.enumerate() {
+                let grandchildren = drain_pipings(m, current_index + i, &child);
+                pipings.extend(grandchildren);
+            }
+            pipings
         }
-        let c = children.into_iter().map(|p| p.canonicalize(previous_index));
-        pipings.extend(c);
     }
 }
 
@@ -223,10 +229,11 @@ struct NRPiping {
     plugin_parameter_defaults: Option<HashMap<ParameterName, ParameterValue>>,
 }
 
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 struct NumericPreviousPiping {
+    title: PipingTitle,
     plugin: UnparsedPlugin,
-    previous_index: Option<u8>,
+    previous_index: Option<usize>,
     plugin_parameter_defaults: Option<HashMap<ParameterName, ParameterValue>>,
 }
 
@@ -267,6 +274,7 @@ struct IsRoot;
 impl From<RootPiping> for NumericPreviousPiping {
     fn from(p: RootPiping) -> Self {
         NumericPreviousPiping {
+            title: p.title,
             plugin: p.plugin,
             previous_index: None,
             plugin_parameter_defaults: p.plugin_parameter_defaults,
@@ -275,8 +283,9 @@ impl From<RootPiping> for NumericPreviousPiping {
 }
 
 impl NRPiping {
-    fn canonicalize(self, previous_index: u8) -> NumericPreviousPiping {
+    fn canonicalize(self, previous_index: usize) -> NumericPreviousPiping {
         NumericPreviousPiping {
+            title: self.title,
             plugin: self.plugin,
             previous_index: Some(previous_index),
             plugin_parameter_defaults: self.plugin_parameter_defaults,
