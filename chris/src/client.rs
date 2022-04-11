@@ -206,7 +206,7 @@ mod tests {
     use super::*;
     use crate::api::{ParameterName, ParameterValue, PluginName, PluginVersion};
     use crate::auth::CUBEAuth;
-    use crate::pipeline::{ExpandedTreeParameter, ExpandedTreePipeline, ExpandedTreePiping};
+    use crate::pipeline::canon::{ExpandedTreeParameter, ExpandedTreePipeline, ExpandedTreePiping};
     use futures::future::{join_all, try_join_all};
     use futures::{pin_mut, StreamExt};
     use names::Generator;

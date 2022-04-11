@@ -1,8 +1,8 @@
 use crate::api::{UserId, UserUrl};
-use crate::common_types::{CUBEApiUrl, Username};
-use serde::{Deserialize, Serialize};
-use crate::ChrisClient;
 use crate::client::CUBEError;
+use crate::common_types::{CUBEApiUrl, Username};
+use crate::ChrisClient;
+use serde::{Deserialize, Serialize};
 
 #[derive(Deserialize)]
 struct AuthTokenResponse {
@@ -85,8 +85,8 @@ mod tests {
     use super::*;
     use lazy_static::lazy_static;
     use names::Generator;
-    use std::str::FromStr;
     use rstest::*;
+    use std::str::FromStr;
 
     const CUBE_URL: &str = "http://localhost:8000/api/v1/";
 
@@ -124,7 +124,7 @@ mod tests {
     async fn test_create_user(cube_url: CUBEApiUrl) -> Result<(), Box<dyn std::error::Error>> {
         let mut generator = Generator::default();
         let username = generator.next().unwrap();
-        let password= format!("{}1234", &username.chars().rev().collect::<String>());
+        let password = format!("{}1234", &username.chars().rev().collect::<String>());
         let email = format!("{}@example.org", &username);
 
         let account_creator = CUBEAuth {

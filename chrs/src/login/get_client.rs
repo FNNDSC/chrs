@@ -21,7 +21,7 @@ pub async fn get_client(
                 client: &Default::default(),
                 url: given_address,
                 username: given_username,
-                password: given_password
+                password: given_password,
             };
             account.into_client().await.context("Password incorrect")
         }
@@ -29,10 +29,13 @@ pub async fn get_client(
             let login = ChrsConfig::load()?
                 .get_login(address.as_ref(), username.as_ref())?
                 .ok_or_else(|| Error::msg(&*NOT_LOGGED_IN))?;
-            login.into_client().await.with_context(
-                || format!("Could not log in. \
-                Your token might have expired, please run {}", style("chrs logout").bold())
-            )
+            login.into_client().await.with_context(|| {
+                format!(
+                    "Could not log in. \
+                Your token might have expired, please run {}",
+                    style("chrs logout").bold()
+                )
+            })
         }
     }
 }

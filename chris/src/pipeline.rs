@@ -1,118 +1,16 @@
-use crate::api::{ParameterName, ParameterValue, PluginName, PluginVersion};
-use serde::{Deserialize, Serialize};
-use std::convert::From;
+pub mod canon;
+pub mod rfc2;
 
-/// A pipeline the way CUBE wants it (where `plugin_tree` is a string).
-#[derive(Serialize, Debug, PartialEq)]
-pub struct CanonPipeline {
-    pub authors: String,
-    pub name: String,
-    pub description: String,
-    pub category: String,
-    pub locked: bool,
-    pub plugin_tree: String,
-}
-
-/// A pipeline representation which is the same as [CanonPipeline],
-/// but where `plugin_tree` **might be** a deserialized object instead of a string.
-/// User input files can be loaded as a [PossiblyExpandedTreePipeline] and converted
-/// into [CanonPipeline] or [ExpandedTreePipeline].
-#[derive(Debug, Serialize, Deserialize)]
-pub struct PossiblyExpandedTreePipeline {
-    pub authors: String,
-    pub name: String,
-    pub description: String,
-    pub category: String,
-    pub locked: bool,
-    pub plugin_tree: PossiblyExpandedPluginTree,
-}
-
-/// A pipeline representation which is the same as [CanonPipeline],
-/// but where `plugin_tree` **is** an object.
-///
-/// [ExpandedTreePipeline] is easier to work with than [CanonPipeline],
-/// but unlike [CanonPipeline], a [ExpandedTreePipeline] cannot be
-/// uploaded to CUBE.
-#[derive(Debug, Serialize, Deserialize, PartialEq)]
-pub struct ExpandedTreePipeline {
-    pub authors: String,
-    pub name: String,
-    pub description: String,
-    pub category: String,
-    pub locked: bool,
-    pub plugin_tree: Vec<ExpandedTreePiping>,
-}
-
-#[derive(Debug, Serialize, Deserialize)]
-#[serde(untagged)]
-pub enum PossiblyExpandedPluginTree {
-    Expanded(Vec<ExpandedTreePiping>),
-    Unexpanded(String),
-}
-
-#[derive(Debug, Serialize, Deserialize, PartialEq)]
-pub struct ExpandedTreePiping {
-    pub plugin_name: PluginName,
-    pub plugin_version: PluginVersion,
-    pub previous_index: Option<u8>,
-    #[serde(skip_serializing_if = "Option::is_none")]
-    pub plugin_parameter_defaults: Option<Vec<ExpandedTreeParameter>>,
-}
-
-#[derive(Debug, Serialize, Deserialize, PartialEq)]
-pub struct ExpandedTreeParameter {
-    pub name: ParameterName,
-    pub default: ParameterValue,
-}
-
-impl From<ExpandedTreePipeline> for CanonPipeline {
-    fn from(p: ExpandedTreePipeline) -> Self {
-        CanonPipeline {
-            authors: p.authors,
-            name: p.name,
-            description: p.description,
-            category: p.category,
-            locked: p.locked,
-            plugin_tree: serde_json::to_string(&p.plugin_tree).unwrap(),
-        }
-    }
-}
-
-impl From<PossiblyExpandedTreePipeline> for CanonPipeline {
-    fn from(p: PossiblyExpandedTreePipeline) -> Self {
-        let plugin_tree = match p.plugin_tree {
-            PossiblyExpandedPluginTree::Unexpanded(t) => t,
-            PossiblyExpandedPluginTree::Expanded(t) => serde_json::to_string(&t).unwrap(),
-        };
-        CanonPipeline {
-            authors: p.authors,
-            name: p.name,
-            description: p.description,
-            category: p.category,
-            locked: p.locked,
-            plugin_tree,
-        }
-    }
-}
-
-impl From<CanonPipeline> for ExpandedTreePipeline {
-    fn from(p: CanonPipeline) -> Self {
-        let plugin_tree: Vec<ExpandedTreePiping> = serde_json::from_str(&p.plugin_tree).unwrap();
-        ExpandedTreePipeline {
-            authors: p.authors,
-            name: p.name,
-            description: p.description,
-            category: p.category,
-            locked: p.locked,
-            plugin_tree,
-        }
-    }
-}
+pub use canon::{CanonPipeline, PossiblyExpandedTreePipeline};
+pub use rfc2::TitleIndexedPipeline;
 
 #[cfg(test)]
 mod tests {
-    use super::*;
+    use super::canon::*;
+    use super::rfc2::*;
     use lazy_static::lazy_static;
+    use rstest::*;
+    use std::cmp::Ordering;
     use std::fs::File;
     use std::io::BufReader;
     use std::path::Path;
@@ -121,29 +19,91 @@ mod tests {
         static ref EXAMPLE_DIR: &'static Path = Path::new("tests/data/pipelines");
     }
 
-    #[test]
-    fn test_serialization() {
-        let canon_converted: CanonPipeline =
-            read_example_json("fetal_brain_reconstruction_canon.json")
-                .unwrap()
-                .into();
-        let expanded_converted: CanonPipeline =
-            read_example_json("fetal_brain_reconstruction_expanded.json")
-                .unwrap()
-                .into();
-
-        let canon_expanded: ExpandedTreePipeline = canon_converted.into();
-        let expanded_expanded: ExpandedTreePipeline = expanded_converted.into();
-
-        assert_eq!(canon_expanded, expanded_expanded);
+    #[fixture]
+    #[once]
+    fn canon() -> ExpandedTreePipeline {
+        let converted: CanonPipeline =
+            read_example_json("fetal_brain_reconstruction_canon.json").into();
+        converted.into()
     }
 
-    fn read_example_json(
-        fname: &str,
-    ) -> Result<PossiblyExpandedTreePipeline, Box<dyn std::error::Error>> {
-        let file = File::open(EXAMPLE_DIR.join(Path::new(fname)))?;
-        let reader = BufReader::new(file);
-        let x = serde_json::from_reader(reader)?;
-        Ok(x)
+    #[fixture]
+    #[once]
+    fn json_example() -> ExpandedTreePipeline {
+        let converted: CanonPipeline =
+            read_example_json("fetal_brain_reconstruction_expanded.json").into();
+        converted.into()
+    }
+
+    #[fixture]
+    #[once]
+    fn yaml_example() -> ExpandedTreePipeline {
+        read_example_yaml("fetal_brain_reconstruction.yml")
+            .try_into()
+            .unwrap()
+    }
+
+    #[rstest]
+    fn test_json(canon: &ExpandedTreePipeline, json_example: &ExpandedTreePipeline) {
+        assert_eq!(canon, json_example);
+    }
+
+    #[rstest]
+    fn test_yaml(canon: &ExpandedTreePipeline, yaml_example: &ExpandedTreePipeline) {
+        cmp_unordered(canon, yaml_example);
+    }
+
+    fn read_example_json(fname: &str) -> PossiblyExpandedTreePipeline {
+        serde_json::from_reader(example_reader(fname)).unwrap()
+    }
+
+    fn read_example_yaml(fname: &str) -> TitleIndexedPipeline {
+        serde_yaml::from_reader(example_reader(fname)).unwrap()
+    }
+
+    fn example_reader(fname: &str) -> BufReader<File> {
+        let file = File::open(EXAMPLE_DIR.join(Path::new(fname))).unwrap();
+        BufReader::new(file)
+    }
+
+    /// a brute-force comparison
+    fn cmp_unordered(a: &ExpandedTreePipeline, b: &ExpandedTreePipeline) {
+        assert_eq!(a.locked, b.locked);
+        assert_eq!(a.name, b.name);
+        assert_eq!(a.category, b.category);
+        assert_eq!(a.authors, b.authors);
+        assert_eq!(a.description, b.description);
+
+        assert_eq!(
+            normalize(a.plugin_tree.clone()),
+            normalize(b.plugin_tree.clone())
+        )
+    }
+
+    fn normalize(mut plugin_tree: Vec<ExpandedTreePiping>) -> Vec<ExpandedTreePiping> {
+        for piping in plugin_tree.iter_mut() {
+            if let Some(params) = &mut piping.plugin_parameter_defaults {
+                params.sort_by(|a, b| a.name.as_str().cmp(b.name.as_str()));
+            }
+        }
+        plugin_tree.sort_by(cmp_pipings);
+        plugin_tree
+    }
+
+    fn cmp_pipings(a: &ExpandedTreePiping, b: &ExpandedTreePiping) -> Ordering {
+        let mut o = a.previous_index.cmp(&b.previous_index);
+        if !o.is_eq() {
+            return o;
+        }
+        o = a.plugin_name.as_str().cmp(b.plugin_name.as_str());
+        if !o.is_eq() {
+            return o;
+        }
+        o = a.plugin_version.as_str().cmp(b.plugin_version.as_str());
+        if !o.is_eq() {
+            return o;
+        }
+        // not comparing plugin_parameter_defaults
+        return Ordering::Equal;
     }
 }

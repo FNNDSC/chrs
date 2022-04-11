@@ -1,0 +1,448 @@
+/// Simplified, human-friendly pipeline representation as described in
+/// [_ChRIS_ RFC #2: _ChRIS_ Pipeline YAML Schema](https://github.com/FNNDSC/CHRIS_docs/blob/master/rfcs/2-pipeline_yaml.adoc).
+use super::canon::{default_locked, ExpandedTreeParameter, ExpandedTreePipeline};
+use crate::api::*;
+use crate::pipeline::canon::ExpandedTreePiping;
+use crate::pipeline::CanonPipeline;
+use aliri_braid::braid;
+use itertools::Itertools;
+use serde::Deserialize;
+use std::collections::HashMap;
+
+// ================================================================================
+//                                 DATA DEFINITIONS
+// ================================================================================
+
+/// Title of an element of a `plugin_tree` of a
+/// [_ChRIS_ RFC #2](https://github.com/FNNDSC/CHRIS_docs/blob/master/rfcs/2-pipeline_yaml.adoc)
+/// pipeline.
+#[braid(serde)]
+pub struct PipingTitle;
+
+/// `plugin_name` and `plugin_version` as a single string. See
+/// <https://github.com/FNNDSC/CHRIS_docs/blob/master/rfcs/2-pipeline_yaml.adoc#plugin_treeplugin>
+#[braid(serde)]
+pub struct UnparsedPlugin;
+
+/// A pipeline schema described in
+/// [_ChRIS_ RFC #2: _ChRIS_ Pipeline YAML Schema](https://github.com/FNNDSC/CHRIS_docs/blob/master/rfcs/2-pipeline_yaml.adoc).
+///
+/// A [TitleIndexedPipeline] may or may not be valid. If invalid, it will
+/// produce an error when trying to convert it to a [ExpandedTreePipeline].
+#[derive(Deserialize)]
+pub struct TitleIndexedPipeline {
+    pub authors: String,
+    pub name: String,
+    pub description: String,
+    pub category: String,
+    #[serde(default = "default_locked")]
+    pub locked: bool,
+    pub plugin_tree: Vec<TitleIndexedPiping>,
+}
+
+/// See [TitleIndexedPipeline].
+#[derive(Deserialize, Debug, Clone)]
+pub struct TitleIndexedPiping {
+    pub title: PipingTitle,
+    pub plugin: UnparsedPlugin,
+    pub previous: Option<PipingTitle>,
+    pub plugin_parameter_defaults: Option<HashMap<ParameterName, ParameterValue>>,
+}
+
+/// Various explanations for invalid user input.
+#[derive(thiserror::Error, Debug, PartialEq)]
+pub enum InvalidTitleIndexedPipeline {
+    #[error("At lease one element of `plugin_tree` must be the root (i.e. `previous` is null)")]
+    NoRoot,
+    #[error("Multiple elements of `plugin_tree` found to be the root: {0:?}")]
+    PluralRoot(Vec<PipingTitle>),
+    #[error("Some `previous` titles were not found")]
+    PreviousNotFound, // TODO plugin titles of other trees
+    #[error(transparent)]
+    Plugin(#[from] PluginParseError),
+}
+
+// ================================================================================
+//                             TOP-LEVEL FUNCTIONALITY
+// ================================================================================
+//
+// To convert from [TitleIndexedPipeline] to [ExpandedTreePipeline] and
+// subsequently [CanonPipeline], the bulk of the work is figuring out
+// how to convert `plugin_tree`, or more specifically, converting
+// [TitleIndexedPiping] into [ExpandedTreePiping]. This involves figuring
+// out `previous_index` based on [PipingTitle].
+
+impl TryFrom<TitleIndexedPipeline> for CanonPipeline {
+    type Error = InvalidTitleIndexedPipeline;
+
+    fn try_from(value: TitleIndexedPipeline) -> Result<Self, Self::Error> {
+        let expanded: ExpandedTreePipeline = value.try_into()?;
+        Ok(expanded.into())
+    }
+}
+
+// ## How It All Works
+//
+// 1. Convert [TitleIndexedPiping] into either [RootPiping] or [NRPiping],
+//    depending on whether `previous == None(..)`
+// 2. Create a lookup table mapping the title of each [NRPiping]'s previous
+//    to itself.
+// 3. Create a list of pipings from the lookup table, while converting
+//    pipings to [NumericalPreviousPiping].
+// 4. Convert all [NumericalPreviousPiping] to [ExpandedTreePiping] by
+//    parsing `plugin_name` and `plugin_version` from plugin.
+// 5. Done!
+
+impl TryFrom<TitleIndexedPipeline> for ExpandedTreePipeline {
+    type Error = InvalidTitleIndexedPipeline;
+
+    fn try_from(mut p: TitleIndexedPipeline) -> Result<Self, Self::Error> {
+        let mut pipings: Vec<NumericPreviousPiping> = Vec::with_capacity(p.plugin_tree.len());
+        let root = pop_root(&mut p.plugin_tree)?; // err if more than one root
+        let mut non_roots = agg_by_previous(p.plugin_tree);
+
+        drain_pipings(&mut pipings, &mut non_roots, 0, &root.title);
+        pipings.push(root.into());
+
+        // There will be values remaining inside `non_roots` if there are any
+        // elements of `plugin_tree` which specify a `previous` that doesn't exist,
+        // i.e. user input is invalid.
+        if pipings.len() != pipings.capacity() {
+            return Err(InvalidTitleIndexedPipeline::PreviousNotFound);
+        }
+
+        // parse `plugin_name` and `plugin_version` from `plugin` string
+        let plugin_tree: Vec<ExpandedTreePiping> = pipings
+            .into_iter()
+            .map(ExpandedTreePiping::try_from)
+            .try_collect()?;
+
+        Ok(ExpandedTreePipeline {
+            authors: p.authors,
+            name: p.name,
+            description: p.description,
+            category: p.category,
+            locked: p.locked,
+            plugin_tree,
+        })
+    }
+}
+
+// ================================================================================
+//                               HELPER FUNCTIONS
+// ================================================================================
+
+// TODO
+// #[derive(thiserror::Error, Debug)]
+// #[error("`plugin_tree` contains duplicate title: \"{0}\"")]
+// struct DuplicateTitle(PipingTitle);
+
+/// Put all the non-root pipings into a map where keys are the `title` of their `previous`.
+fn agg_by_previous(plugin_tree: Vec<TitleIndexedPiping>) -> HashMap<PipingTitle, Vec<NRPiping>> {
+    let mut m: HashMap<PipingTitle, Vec<NRPiping>> = HashMap::with_capacity(plugin_tree.len());
+    let non_roots = plugin_tree
+        .into_iter()
+        .filter_map(|p| NRPiping::try_from(p).ok());
+    for p in non_roots {
+        match m.get_mut(&p.previous) {
+            None => {
+                m.insert(p.previous.clone(), vec![p]);
+            }
+            Some(v) => {
+                v.push(p);
+            }
+        }
+    }
+    m
+}
+
+/// Remove and return the root of the `plugin_tree`.
+fn pop_root(
+    plugin_tree: &mut Vec<TitleIndexedPiping>,
+) -> Result<RootPiping, InvalidTitleIndexedPipeline> {
+    Ok(plugin_tree.swap_remove(index_of_root(plugin_tree)?).into())
+}
+
+/// Get the index of the piping which has a null previous.
+fn index_of_root(p: &[TitleIndexedPiping]) -> Result<usize, InvalidTitleIndexedPipeline> {
+    let roots: Vec<(usize, &PipingTitle)> = p
+        .iter()
+        .enumerate()
+        .filter_map(|(i, piping)| match piping.previous {
+            None => Some((i, &piping.title)),
+            Some(_) => None,
+        })
+        .collect();
+    match roots.len() {
+        1 => Ok(roots[0].0),
+        0 => Err(InvalidTitleIndexedPipeline::NoRoot),
+        _ => {
+            let titles = roots.into_iter().map(|(_, t)| t.clone()).collect();
+            Err(InvalidTitleIndexedPipeline::PluralRoot(titles))
+        }
+    }
+}
+
+/// Remove entries from `m` and push them into `pipings` while converting
+/// [NRPiping] into [NumericPreviousPiping].
+fn drain_pipings(
+    pipings: &mut Vec<NumericPreviousPiping>,
+    m: &mut HashMap<PipingTitle, Vec<NRPiping>>,
+    previous_index: u8,
+    previous_title: &PipingTitle,
+) {
+    // I suppose this could be done functionally, but using mutable
+    // accumulators saves us from having to allocate Vec!
+    if let Some(children) = m.remove(previous_title) {
+        let current_index = previous_index + 1;
+        for (i, child) in children.iter().enumerate() {
+            drain_pipings(pipings, m, current_index + i as u8, &child.title);
+        }
+        let c = children.into_iter().map(|p| p.canonicalize(previous_index));
+        pipings.extend(c);
+    }
+}
+
+// ================================================================================
+//                             INTERMEDIATE STRUCTS
+// ================================================================================
+
+/// A Piping which does not have a previous. There may only be one per pipeline.
+struct RootPiping {
+    title: PipingTitle,
+    plugin: UnparsedPlugin,
+    plugin_parameter_defaults: Option<HashMap<ParameterName, ParameterValue>>,
+}
+
+/// A Non-Root Piping.
+#[derive(Debug)]
+struct NRPiping {
+    title: PipingTitle,
+    plugin: UnparsedPlugin,
+    previous: PipingTitle,
+    plugin_parameter_defaults: Option<HashMap<ParameterName, ParameterValue>>,
+}
+
+#[derive(Debug)]
+struct NumericPreviousPiping {
+    plugin: UnparsedPlugin,
+    previous_index: Option<u8>,
+    plugin_parameter_defaults: Option<HashMap<ParameterName, ParameterValue>>,
+}
+
+// ================================================================================
+//                            INTERMEDIATE CONVERTERS
+// ================================================================================
+
+impl From<TitleIndexedPiping> for RootPiping {
+    fn from(p: TitleIndexedPiping) -> Self {
+        RootPiping {
+            title: p.title,
+            plugin: p.plugin,
+            plugin_parameter_defaults: p.plugin_parameter_defaults,
+        }
+    }
+}
+
+impl TryFrom<TitleIndexedPiping> for NRPiping {
+    type Error = IsRoot;
+
+    fn try_from(p: TitleIndexedPiping) -> Result<Self, Self::Error> {
+        match p.previous {
+            None => Err(IsRoot),
+            Some(previous) => Ok(NRPiping {
+                title: p.title,
+                plugin: p.plugin,
+                previous,
+                plugin_parameter_defaults: p.plugin_parameter_defaults,
+            }),
+        }
+    }
+}
+
+#[derive(thiserror::Error, Debug)]
+#[error("IsRoot")]
+struct IsRoot;
+
+impl From<RootPiping> for NumericPreviousPiping {
+    fn from(p: RootPiping) -> Self {
+        NumericPreviousPiping {
+            plugin: p.plugin,
+            previous_index: None,
+            plugin_parameter_defaults: p.plugin_parameter_defaults,
+        }
+    }
+}
+
+impl NRPiping {
+    fn canonicalize(self, previous_index: u8) -> NumericPreviousPiping {
+        NumericPreviousPiping {
+            plugin: self.plugin,
+            previous_index: Some(previous_index),
+            plugin_parameter_defaults: self.plugin_parameter_defaults,
+        }
+    }
+}
+
+impl TryFrom<NumericPreviousPiping> for ExpandedTreePiping {
+    type Error = PluginParseError;
+
+    fn try_from(p: NumericPreviousPiping) -> Result<ExpandedTreePiping, Self::Error> {
+        let (plugin_name, plugin_version) = parse_plugin(&p.plugin)?;
+        Ok(ExpandedTreePiping {
+            plugin_name,
+            plugin_version,
+            previous_index: p.previous_index,
+            plugin_parameter_defaults: p
+                .plugin_parameter_defaults
+                .map(|m| m.into_iter().map(|t| t.into()).collect()),
+        })
+    }
+}
+
+impl From<(ParameterName, ParameterValue)> for ExpandedTreeParameter {
+    fn from(t: (ParameterName, ParameterValue)) -> Self {
+        ExpandedTreeParameter {
+            name: t.0,
+            default: t.1,
+        }
+    }
+}
+
+fn parse_plugin(plugin: &UnparsedPlugin) -> Result<(PluginName, PluginVersion), PluginParseError> {
+    let (utn, version) = plugin
+        .as_str()
+        .rsplit_once('v')
+        .ok_or_else(|| PluginParseError::NoV(plugin.to_owned()))?;
+    if !utn.ends_with(' ') {
+        return Err(PluginParseError::NoSpaceBeforeV(plugin.to_owned()));
+    }
+    Ok((PluginName::new(utn.trim_end()), PluginVersion::new(version)))
+}
+
+#[derive(thiserror::Error, Debug, PartialEq)]
+pub enum PluginParseError {
+    #[error("\"{0}\" cannot be parsed as (plugin_name, plugin_version)")]
+    NoV(UnparsedPlugin),
+    #[error("\"{0}\" cannot be parsed as (plugin_name, plugin_version)")]
+    NoSpaceBeforeV(UnparsedPlugin),
+}
+
+impl From<NRPiping> for PipingTitle {
+    fn from(p: NRPiping) -> Self {
+        p.title
+    }
+}
+
+// ================================================================================
+//                                  UNIT TESTS
+// ================================================================================
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use rstest::*;
+    use std::collections::HashSet;
+
+    #[rstest]
+    #[case("pl-dircopy v1.2.3", "pl-dircopy", "1.2.3")]
+    #[case("pl-dircopy   v4", "pl-dircopy", "4")]
+    #[case("vvvvv v4.5", "vvvvv", "4.5")]
+    #[case("vvvv v v4.5", "vvvv v", "4.5")]
+    fn test_parse_plugin_ok(#[case] unparsed: &str, #[case] name: &str, #[case] version: &str) {
+        assert_eq!(
+            parse_plugin(&UnparsedPlugin::new(unparsed)).unwrap(),
+            (PluginName::new(name), PluginVersion::new(version))
+        );
+    }
+
+    #[rstest]
+    #[case("pl-dircopyv1.2.3")]
+    #[case("pl-dircopy 1.2.3")]
+    #[case("pl-dircopyv 1.2.3")]
+    fn test_parse_plugin_err(#[case] unparsed: &str) {
+        assert!(parse_plugin(&UnparsedPlugin::new(unparsed)).is_err())
+    }
+
+    #[rstest]
+    fn test_index_of_root() {
+        let root1 = create_example("root1", None);
+        let root2 = create_example("root2", None);
+        let child1 = create_example("child1", Some("root1"));
+        let child2 = create_example("root1", Some("child1"));
+
+        assert_eq!(
+            index_of_root(&vec![root1.clone(), child1.clone(), child2.clone()]),
+            Ok(0)
+        );
+        assert_eq!(
+            index_of_root(&vec![child1.clone(), root1.clone(), child2.clone()]),
+            Ok(1)
+        );
+        assert_eq!(
+            index_of_root(&vec![child2.clone(), child1.clone(), root1.clone()]),
+            Ok(2)
+        );
+
+        let mut plugin_tree = vec![root1.clone(), child1.clone(), child2.clone()];
+        let removed_root = pop_root(&mut plugin_tree).unwrap();
+        assert_eq!(removed_root.title, root1.title);
+        assert_eq!(
+            plugin_tree
+                .iter()
+                .map(|p| &p.title)
+                .collect::<HashSet<&PipingTitle>>(),
+            vec![&child1.title, &child2.title]
+                .into_iter()
+                .collect::<HashSet<&PipingTitle>>()
+        );
+
+        assert_eq!(
+            index_of_root(&vec![child1.clone(), child2.clone()]).unwrap_err(),
+            InvalidTitleIndexedPipeline::NoRoot
+        );
+        assert_eq!(
+            index_of_root(&vec![
+                root1.clone(),
+                child1.clone(),
+                root2.clone(),
+                child2.clone()
+            ])
+            .unwrap_err(),
+            InvalidTitleIndexedPipeline::PluralRoot(vec![root1.title, root2.title])
+        );
+    }
+
+    #[rstest]
+    fn test_index_by_previous() {
+        let examples = vec![
+            create_example("example1", None),
+            create_example("example2", None),
+            create_example("example3", Some("a")),
+            create_example("example4", Some("b")),
+            create_example("example5", Some("b")),
+        ];
+        let mut m = agg_by_previous(examples);
+        assert_set_eq(m.remove(&PipingTitle::new("a")).unwrap(), vec!["example3"]);
+        assert_set_eq(
+            m.remove(&PipingTitle::new("b")).unwrap(),
+            vec!["example4", "example5"],
+        );
+        assert!(m.is_empty());
+    }
+
+    fn create_example(title: &str, previous: Option<&str>) -> TitleIndexedPiping {
+        TitleIndexedPiping {
+            title: PipingTitle::new(title),
+            plugin: UnparsedPlugin::new(format!("pl-{} v0.0.0", title)),
+            previous: previous.map(PipingTitle::new),
+            plugin_parameter_defaults: None,
+        }
+    }
+
+    fn assert_set_eq(left: Vec<impl Into<PipingTitle>>, right: Vec<&str>) {
+        let left_set: HashSet<PipingTitle> = left.into_iter().map_into().collect();
+        let right_set: HashSet<PipingTitle> = right.into_iter().map(PipingTitle::new).collect();
+        assert_eq!(left_set, right_set);
+    }
+}

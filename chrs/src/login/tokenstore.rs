@@ -3,10 +3,10 @@
 //! "<CUBEUsername>@<CUBEAddress>"
 
 use anyhow::{Context, Ok, Result};
-use console::style;
 use chris::common_types::{CUBEApiUrl, Username};
-use serde::{Deserialize, Serialize};
 use chris::ChrisClient;
+use console::style;
+use serde::{Deserialize, Serialize};
 
 /// Supported mechanisms for storing secrets.
 pub enum Backend {
@@ -93,10 +93,14 @@ impl Login {
 
     pub async fn into_client(self) -> Result<ChrisClient> {
         let client = ChrisClient::new(self.address, self.username, self.token)
-            .await.with_context(
-            || format!("Could not login. \
-            Your token may have expired, please run {}", style("chrs logout").bold())
-        )?;
+            .await
+            .with_context(|| {
+                format!(
+                    "Could not login. \
+            Your token may have expired, please run {}",
+                    style("chrs logout").bold()
+                )
+            })?;
         Ok(client)
     }
 

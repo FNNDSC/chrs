@@ -50,7 +50,7 @@ pub struct PluginVersion;
 #[braid(serde)]
 pub struct ParameterName;
 
-#[derive(Debug, Serialize, Deserialize, PartialEq)]
+#[derive(Debug, Serialize, Deserialize, PartialEq, Clone)]
 #[serde(untagged)]
 pub enum ParameterValue {
     Bool(bool),

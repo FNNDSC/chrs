@@ -1,5 +1,6 @@
 #[macro_use]
 extern crate shrinkwraprs;
+extern crate core;
 
 pub mod api;
 pub mod auth;

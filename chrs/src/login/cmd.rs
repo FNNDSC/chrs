@@ -21,7 +21,7 @@ pub async fn login(
         client: &Default::default(),
         url: prompt_if_missing(address, "ChRIS API address")?,
         username: prompt_if_missing(username, "username")?,
-        password: prompt_if_missing_password(password, "password", password_from_stdin)?
+        password: prompt_if_missing_password(password, "password", password_from_stdin)?,
     };
 
     let login = tokenstore::Login {
