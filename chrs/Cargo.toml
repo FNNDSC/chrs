@@ -1,6 +1,6 @@
 [package]
 name = "chrs"
-version = "0.0.3-1"
+version = "0.0.4"
 authors = ["FNNDSC <dev@babyMRI.org>"]
 
 edition = "2021"
@@ -38,3 +38,4 @@ tempfile = "3.3.0"
 default = ["chris/default"]
 vendored-openssl = ["chris/vendored-openssl"]
 rustls = ["chris/rustls"]
+

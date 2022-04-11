@@ -16,7 +16,7 @@ use chris::common_types::{CUBEApiUrl, Username};
 
 #[derive(Parser)]
 #[clap(
-    author, version, about, long_about = None,
+    version, about = "Manage ChRIS files, plugins, and pipelines.",
     propagate_version = false, disable_help_subcommand = true
 )]
 struct Cli {
