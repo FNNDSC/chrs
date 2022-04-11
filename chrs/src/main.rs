@@ -11,7 +11,7 @@ use clap::{Parser, Subcommand};
 use crate::config::ChrsConfig;
 use crate::login::get_client::get_client;
 // use crate::upload::upload;
-use crate::pipeline_add::add_pipeline;
+use crate::pipeline_add::{add_pipeline, convert_pipeline};
 use chris::common_types::{CUBEApiUrl, Username};
 
 #[derive(Parser)]
@@ -104,6 +104,21 @@ enum PipelineFile {
                        // unlocked
                        // locked
     },
+
+    /// Convert between pipeline file formats (usually for debugging).
+    ///
+    /// Supported formats: JSON, YAML.
+    Convert {
+        /// If output type is JSON, serialize `plugin_tree` as an object
+        /// instead of a string.
+        #[clap(short, long)]
+        expand: bool,
+
+        /// Source pipeline file.
+        src: PathBuf,
+        /// Output file.
+        dst: PathBuf,
+    },
 }
 
 #[tokio::main]
@@ -145,6 +160,9 @@ async fn main() -> Result<()> {
                 PipelineFile::Add { file } => {
                     let client = get_client(address, username, password).await?;
                     add_pipeline(&client, file).await
+                }
+                PipelineFile::Convert { expand, src, dst } => {
+                    convert_pipeline(expand, src, dst).await
                 }
             }
         }

@@ -1,7 +1,7 @@
 pub mod canon;
 pub mod rfc2;
 
-pub use canon::{CanonPipeline, PossiblyExpandedTreePipeline};
+pub use canon::{CanonPipeline, ExpandedTreePipeline, PossiblyExpandedTreePipeline};
 pub use rfc2::TitleIndexedPipeline;
 
 #[cfg(test)]

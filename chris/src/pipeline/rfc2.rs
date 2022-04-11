@@ -6,7 +6,7 @@ use crate::pipeline::canon::ExpandedTreePiping;
 use crate::pipeline::CanonPipeline;
 use aliri_braid::braid;
 use itertools::Itertools;
-use serde::Deserialize;
+use serde::{Deserialize, Serialize};
 use std::collections::{HashMap, HashSet};
 
 // ================================================================================
@@ -29,7 +29,7 @@ pub struct UnparsedPlugin;
 ///
 /// A [TitleIndexedPipeline] may or may not be valid. If invalid, it will
 /// produce an error when trying to convert it to a [ExpandedTreePipeline].
-#[derive(Deserialize)]
+#[derive(Serialize, Deserialize)]
 pub struct TitleIndexedPipeline {
     pub authors: String,
     pub name: String,
@@ -41,7 +41,7 @@ pub struct TitleIndexedPipeline {
 }
 
 /// See [TitleIndexedPipeline].
-#[derive(Deserialize, Debug, Clone)]
+#[derive(Serialize, Deserialize, Debug, Clone)]
 pub struct TitleIndexedPiping {
     pub title: PipingTitle,
     pub plugin: UnparsedPlugin,
@@ -344,6 +344,57 @@ pub enum PluginParseError {
 impl From<NRPiping> for PipingTitle {
     fn from(p: NRPiping) -> Self {
         p.title
+    }
+}
+
+// ================================================================================
+//                                OTHER CONVERTERS
+// ================================================================================
+
+impl From<ExpandedTreePipeline> for TitleIndexedPipeline {
+    fn from(p: ExpandedTreePipeline) -> Self {
+        // we need to make up unique titles for every piping
+        let titles: Vec<PipingTitle> = p.plugin_tree
+            .iter().enumerate().map(
+            |(i, p)| PipingTitle::new(format!("{}-{}", &p.plugin_name, i))
+        ).collect();
+        let plugin_tree = p
+            .plugin_tree
+            .into_iter()
+            .enumerate()
+            .map(|(i, piping)| {
+                let plugin = UnparsedPlugin::new(format!(
+                    "{} v{}",
+                    &piping.plugin_name, &piping.plugin_version
+                ));
+                let title = titles[i].clone();
+                let previous = piping.previous_index
+                    .map(|pi| titles[pi].clone());
+                // let title = PipingTitle::new(format!("{}-{}", &piping.plugin_name, i));
+
+                let plugin_parameter_defaults = piping.plugin_parameter_defaults.map(|params| {
+                    params
+                        .into_iter()
+                        .map(|param| (param.name, param.default))
+                        .collect()
+                });
+
+                TitleIndexedPiping {
+                    title,
+                    plugin,
+                    previous,
+                    plugin_parameter_defaults,
+                }
+            })
+            .collect();
+        TitleIndexedPipeline {
+            authors: p.authors,
+            name: p.name,
+            description: p.description,
+            category: p.category,
+            locked: p.locked,
+            plugin_tree,
+        }
     }
 }
 

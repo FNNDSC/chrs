@@ -114,3 +114,24 @@ impl From<CanonPipeline> for ExpandedTreePipeline {
         }
     }
 }
+
+impl TryFrom<PossiblyExpandedTreePipeline> for ExpandedTreePipeline {
+    type Error = serde_json::Error;
+
+    fn try_from(p: PossiblyExpandedTreePipeline) -> Result<Self, Self::Error> {
+        let plugin_tree = match p.plugin_tree {
+            PossiblyExpandedPluginTree::Expanded(pt) => Ok(pt),
+            PossiblyExpandedPluginTree::Unexpanded(plugin_tree) => {
+                serde_json::from_str(&plugin_tree)
+            }
+        }?;
+        Ok(ExpandedTreePipeline {
+            authors: p.authors,
+            name: p.name,
+            description: p.description,
+            category: p.category,
+            locked: p.locked,
+            plugin_tree,
+        })
+    }
+}
