@@ -1,5 +1,5 @@
-/// Simplified, human-friendly pipeline representation as described in
-/// [_ChRIS_ RFC #2: _ChRIS_ Pipeline YAML Schema](https://github.com/FNNDSC/CHRIS_docs/blob/master/rfcs/2-pipeline_yaml.adoc).
+//! Simplified, human-friendly pipeline representation as described in
+//! [_ChRIS_ RFC #2: _ChRIS_ Pipeline YAML Schema](https://github.com/FNNDSC/CHRIS_docs/blob/master/rfcs/2-pipeline_yaml.adoc).
 use super::canon::{default_locked, ExpandedTreeParameter, ExpandedTreePipeline};
 use crate::api::*;
 use crate::pipeline::canon::ExpandedTreePiping;
@@ -7,7 +7,7 @@ use crate::pipeline::CanonPipeline;
 use aliri_braid::braid;
 use itertools::Itertools;
 use serde::Deserialize;
-use std::collections::HashMap;
+use std::collections::{HashMap, HashSet};
 
 // ================================================================================
 //                                 DATA DEFINITIONS
@@ -56,8 +56,8 @@ pub enum InvalidTitleIndexedPipeline {
     NoRoot,
     #[error("Multiple elements of `plugin_tree` found to be the root: {0:?}")]
     PluralRoot(Vec<PipingTitle>),
-    #[error("Some `previous` titles were not found")]
-    PreviousNotFound, // TODO plugin titles of other trees
+    #[error("Some `previous` are not connected to `plugin_tree`: {0:?}")]
+    Disconnected(HashSet<PipingTitle>),
     #[error(transparent)]
     Plugin(#[from] PluginParseError),
 }
@@ -102,14 +102,15 @@ impl TryFrom<TitleIndexedPipeline> for ExpandedTreePipeline {
         let mut non_roots = agg_by_previous(p.plugin_tree);
 
         pipings.push(root.into());
-        // drain_pipings(&mut pipings, &mut non_roots, 0, &pipings[0].title);
-        pipings.extend(drain_pipings(&mut non_roots, 0, &pipings[0].title));
+        pipings.extend(drain_by_previous(&mut non_roots, 0, &pipings[0].title));
 
         // There will be values remaining inside `non_roots` if there are any
         // elements of `plugin_tree` which specify a `previous` that doesn't exist,
         // i.e. user input is invalid.
         if pipings.len() != pipings.capacity() {
-            return Err(InvalidTitleIndexedPipeline::PreviousNotFound);
+            return Err(InvalidTitleIndexedPipeline::Disconnected(
+                non_roots.into_keys().collect(),
+            ));
         }
 
         // parse `plugin_name` and `plugin_version` from `plugin` string
@@ -184,9 +185,9 @@ fn index_of_root(p: &[TitleIndexedPiping]) -> Result<usize, InvalidTitleIndexedP
     }
 }
 
-// TODO
-// TESTS AND EFFICIENCY. VERY BAD CLONE AND BAD BAD VEC ALLOCATIONS
-fn drain_pipings(
+/// Remove entries from `m` and produce a sequence of them while converting
+/// from [NRPiping] to [NumericPreviousPiping] based on the given `previous_index`.
+fn drain_by_previous(
     m: &mut HashMap<PipingTitle, Vec<NRPiping>>,
     previous_index: usize,
     previous_title: &PipingTitle,
@@ -199,11 +200,14 @@ fn drain_pipings(
                 .into_iter()
                 .map(|p| p.canonicalize(previous_index))
                 .collect();
-            let titles = pipings.clone().into_iter().map(|p| p.title);
-            for (i, child) in titles.enumerate() {
-                let grandchildren = drain_pipings(m, current_index + i, &child);
-                pipings.extend(grandchildren);
+            let mut everything_else: Vec<NumericPreviousPiping> = Vec::new();
+            for (i, child) in pipings.iter().enumerate() {
+                let next_index = current_index + i;
+                let next_title = &child.title;
+                let grandchildren = drain_by_previous(m, next_index, next_title);
+                everything_else.extend(grandchildren);
             }
+            pipings.extend(everything_else);
             pipings
         }
     }
@@ -221,7 +225,7 @@ struct RootPiping {
 }
 
 /// A Non-Root Piping.
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 struct NRPiping {
     title: PipingTitle,
     plugin: UnparsedPlugin,
@@ -229,7 +233,7 @@ struct NRPiping {
     plugin_parameter_defaults: Option<HashMap<ParameterName, ParameterValue>>,
 }
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, PartialEq)]
 struct NumericPreviousPiping {
     title: PipingTitle,
     plugin: UnparsedPlugin,
@@ -432,12 +436,115 @@ mod tests {
             create_example("example5", Some("b")),
         ];
         let mut m = agg_by_previous(examples);
-        assert_set_eq(m.remove(&PipingTitle::new("a")).unwrap(), vec!["example3"]);
-        assert_set_eq(
+        assert_set_title_eq(m.remove(&PipingTitle::new("a")).unwrap(), vec!["example3"]);
+        assert_set_title_eq(
             m.remove(&PipingTitle::new("b")).unwrap(),
             vec!["example4", "example5"],
         );
         assert!(m.is_empty());
+    }
+
+    #[rstest]
+    fn test_drain_by_previous_empty() {
+        assert!(drain_by_previous(&mut HashMap::new(), 0, &PipingTitle::new("lol")).is_empty());
+    }
+
+    #[rstest]
+    fn test_drain_by_previous_linear() {
+        let mut m: HashMap<PipingTitle, Vec<NRPiping>> = HashMap::new();
+        let a: NRPiping = create_example("a", Some("root")).try_into().unwrap();
+        let b: NRPiping = create_example("b", Some("a")).try_into().unwrap();
+        let c: NRPiping = create_example("c", Some("b")).try_into().unwrap();
+        m.insert(PipingTitle::new("root"), vec![a.clone()]);
+        m.insert(PipingTitle::new("a"), vec![b.clone()]);
+        m.insert(PipingTitle::new("b"), vec![c.clone()]);
+
+        let expected = vec![a.canonicalize(0), b.canonicalize(1), c.canonicalize(2)];
+        let actual = drain_by_previous(&mut m, 0, &PipingTitle::new("root"));
+        assert_eq!(actual, expected);
+    }
+
+    #[rstest]
+    fn test_drain_by_previous_branching() {
+        //       root
+        //       / \
+        //      a   b
+        //    / | \   \
+        //   c  d  e   f
+        let mut m: HashMap<PipingTitle, Vec<NRPiping>> = HashMap::new();
+        let a: NRPiping = create_example("a", Some("root")).try_into().unwrap();
+        let b: NRPiping = create_example("b", Some("a")).try_into().unwrap();
+        let c: NRPiping = create_example("c", Some("a")).try_into().unwrap();
+        let d: NRPiping = create_example("d", Some("a")).try_into().unwrap();
+        let e: NRPiping = create_example("e", Some("a")).try_into().unwrap();
+        let f: NRPiping = create_example("f", Some("b")).try_into().unwrap();
+        m.insert(PipingTitle::new("root"), vec![a.clone(), b.clone()]);
+        m.insert(PipingTitle::new("a"), vec![c.clone(), d.clone(), e.clone()]);
+        m.insert(PipingTitle::new("b"), vec![f.clone()]);
+
+        let expected = vec![
+            a.canonicalize(0),
+            b.canonicalize(0),
+            c.canonicalize(1),
+            d.canonicalize(1),
+            e.canonicalize(1),
+            f.canonicalize(2),
+        ];
+        let actual = drain_by_previous(&mut m, 0, &PipingTitle::new("root"));
+        assert_eq!(actual, expected);
+    }
+
+    #[rstest]
+    fn test_no_root() {
+        let pipeline = create_pipeline(vec![
+            create_example("a", Some("something")),
+            create_example("b", Some("something")),
+        ]);
+        assert_eq!(pipeline.unwrap_err(), InvalidTitleIndexedPipeline::NoRoot);
+    }
+
+    #[rstest]
+    fn test_previous_not_found() {
+        let pipeline = create_pipeline(vec![
+            create_example("root", None),
+            create_example("child", Some("root")),
+            create_example("orphan", Some("dne")),
+        ]);
+        assert_eq!(
+            pipeline.unwrap_err(),
+            InvalidTitleIndexedPipeline::Disconnected([PipingTitle::new("dne")].into())
+        );
+    }
+
+    #[rstest]
+    fn test_has_plural_roots() {
+        let pipeline = create_pipeline(vec![
+            create_example("root", None),
+            create_example("child", Some("root")),
+            create_example("another_root", None),
+        ]);
+        assert_eq!(
+            pipeline.unwrap_err(),
+            InvalidTitleIndexedPipeline::PluralRoot(vec![
+                PipingTitle::new("root"),
+                PipingTitle::new("another_root")
+            ])
+        );
+    }
+
+    #[rstest]
+    fn test_cycle() {
+        let pipeline = create_pipeline(vec![
+            create_example("a", None),
+            create_example("b", Some("c")),
+            create_example("c", Some("b")),
+        ]);
+        assert_eq!(
+            pipeline.unwrap_err(),
+            InvalidTitleIndexedPipeline::Disconnected(
+                [PipingTitle::new("c"), PipingTitle::new("b")].into()
+            )
+        );
     }
 
     fn create_example(title: &str, previous: Option<&str>) -> TitleIndexedPiping {
@@ -449,7 +556,21 @@ mod tests {
         }
     }
 
-    fn assert_set_eq(left: Vec<impl Into<PipingTitle>>, right: Vec<&str>) {
+    fn create_pipeline(
+        plugin_tree: Vec<TitleIndexedPiping>,
+    ) -> Result<ExpandedTreePipeline, InvalidTitleIndexedPipeline> {
+        TitleIndexedPipeline {
+            authors: "Me <dev@babyMRI.org>".to_string(),
+            name: "Very Fun".to_string(),
+            description: "Broken pipeline example for testing chris-rs".to_string(),
+            category: "Test Example".to_string(),
+            locked: true,
+            plugin_tree,
+        }
+        .try_into()
+    }
+
+    fn assert_set_title_eq(left: Vec<impl Into<PipingTitle>>, right: Vec<&str>) {
         let left_set: HashSet<PipingTitle> = left.into_iter().map_into().collect();
         let right_set: HashSet<PipingTitle> = right.into_iter().map(PipingTitle::new).collect();
         assert_eq!(left_set, right_set);
