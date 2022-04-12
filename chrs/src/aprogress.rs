@@ -4,7 +4,7 @@ use std::future::Future;
 use tokio::join;
 use tokio::sync::mpsc;
 use tokio::sync::mpsc::UnboundedSender;
-
+use indicatif::{ProgressBar, ProgressIterator, ProgressStyle};
 /// Executes many futures with a progress bar. If any of the futures
 /// produce an error, it is returned. (Ok values produced by futures
 /// are ignored.)
@@ -24,9 +24,10 @@ pub async fn do_with_progress<T: Debug, E: std::error::Error>(
     }
     let count = handles.len();
     let main = async move {
-        for _ in 0..count {
+
+        let bar = ProgressBar::new(count as u64).with_style(style());
+        for _ in (0..count).progress_with(bar) {
             let _result = rx.recv().await.unwrap()?;
-            println!("did something");
         }
         Ok(())
     };
@@ -43,4 +44,9 @@ async fn call_and_send<T: Debug, E: std::error::Error>(
 ) -> Result<(), E> {
     tx.send(task.await).unwrap();
     Ok(())
+}
+
+fn style() -> ProgressStyle {
+    ProgressStyle::default_bar()
+        .template("[{elapsed_precise}] {wide_bar} ({pos}/{len} @ {per_sec}, ETA {eta})").unwrap()
 }
