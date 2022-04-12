@@ -12,6 +12,7 @@ use serde::de::DeserializeOwned;
 use tokio::fs::{self, File};
 use tokio_util::codec::{BytesCodec, FramedRead};
 
+/// _ChRIS_ client object.
 #[derive(Debug)]
 pub struct ChrisClient {
     client: reqwest::Client,

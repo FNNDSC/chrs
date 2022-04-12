@@ -1,3 +1,4 @@
+mod aprogress;
 mod config;
 mod constants;
 mod login;

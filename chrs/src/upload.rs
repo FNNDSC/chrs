@@ -1,38 +1,28 @@
+use crate::aprogress::do_with_progress;
 use crate::constants::BUG_REPORTS;
-use anyhow::{bail, Context, Error, Ok, Result};
+use anyhow::{bail, Context};
+use chris::api::FileUploadResponse;
+use chris::{ChrisClient, UploadError};
 use pathdiff::diff_paths;
 use std::path::{Path, PathBuf};
-use tokio::sync::mpsc;
-use chris::ChrisClient;
-use futures::future::try_join_all;
-use tokio::try_join;
 
 /// Upload local files and directories to my ChRIS Library.
 ///
-/// WARNING: uses std::path to iterate over filesystem instead of tokio::fs
-pub(crate) async fn upload(client: &ChrisClient, files: &[PathBuf], path: &str) -> Result<()> {
-    let all_files = discover_input_files(files)?;
-    let count = all_files.len();
-    let (tx, mut rx) = mpsc::unbounded_channel();
-    let mut tasks = Vec::with_capacity(count);
-    for file in all_files {
-        let tx = tx.clone();
-        let dst = format!("{}/{}", path, file.name);
-        let future = async move {
-            let upload = client.upload_file(&file.path, &dst).await;
-            tx.send(upload)?;
-            Ok(())
-        };
-        tasks.push(future);
-    }
-    let main = async move {
-        for _ in 0..count {
-            let upload = rx.recv().await.unwrap()?;
-            println!("{}", upload.url);
-        }
-        Ok(())
-    };
-    try_join!(try_join_all(tasks), main)?;
+/// WARNING: uses std::path to iterate over filesystem instead of tokio::fs,
+/// meaning that part of its execution is synchronous.
+pub(crate) async fn upload(
+    client: &ChrisClient,
+    files: &[PathBuf],
+    path: &str,
+) -> anyhow::Result<()> {
+    let uploads = discover_input_files(files)?
+        .into_iter()
+        .map(|file| FileToUpload {
+            name: format!("{}/{}", path, file.name),
+            path: file.path,
+        })
+        .map(|f| f.upload_using(client));
+    do_with_progress(uploads.collect()).await?;
     Ok(())
 }
 
@@ -45,9 +35,15 @@ struct FileToUpload {
     path: PathBuf,
 }
 
+impl FileToUpload {
+    async fn upload_using(self, client: &ChrisClient) -> Result<FileUploadResponse, UploadError> {
+        client.upload_file(&self.path, &self.name).await
+    }
+}
+
 /// Given a list of files and directories, traverse every directory
 /// to obtain just a list of files represented as [FileToUpload].
-fn discover_input_files(paths: &[PathBuf]) -> Result<Vec<FileToUpload>> {
+fn discover_input_files(paths: &[PathBuf]) -> anyhow::Result<Vec<FileToUpload>> {
     let mut all_files: Vec<FileToUpload> = Vec::new();
     for path in paths {
         let mut sub_files = files_under(path)?;
@@ -61,7 +57,7 @@ fn discover_input_files(paths: &[PathBuf]) -> Result<Vec<FileToUpload>> {
 /// The `name` of results will be their base name, whereas the name
 /// of files discovered under a specified directory will be the
 /// path relative to the basename of the directory.
-fn files_under(path: &Path) -> Result<Vec<FileToUpload>> {
+fn files_under(path: &Path) -> anyhow::Result<Vec<FileToUpload>> {
     if path.is_file() {
         let base = path
             .file_name()
@@ -83,7 +79,7 @@ fn files_under(path: &Path) -> Result<Vec<FileToUpload>> {
     files_under_dir(path, parent)
 }
 
-fn files_under_dir(dir: &Path, parent: &Path) -> Result<Vec<FileToUpload>> {
+fn files_under_dir(dir: &Path, parent: &Path) -> anyhow::Result<Vec<FileToUpload>> {
     let mut sub_files: Vec<FileToUpload> = Vec::new();
     for entry in dir.read_dir()? {
         let entry = entry?;
@@ -91,7 +87,7 @@ fn files_under_dir(dir: &Path, parent: &Path) -> Result<Vec<FileToUpload>> {
         if sub_path.is_file() {
             let name = diff_paths(&sub_path, parent)
                 .ok_or_else(|| {
-                    Error::msg(format!(
+                    anyhow::Error::msg(format!(
                         "{:?} not found under {:?}\
                 \nPlease report this bug: {}",
                         &sub_path, parent, BUG_REPORTS
@@ -115,6 +111,7 @@ fn files_under_dir(dir: &Path, parent: &Path) -> Result<Vec<FileToUpload>> {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use anyhow::Result;
     use std::collections::HashSet;
     use std::fs;
     use std::path::Path;

@@ -9,4 +9,4 @@ pub mod common_types;
 mod pagination;
 pub mod pipeline;
 
-pub use client::ChrisClient;
+pub use client::{ChrisClient, CUBEError, UploadError};
