@@ -1,7 +1,8 @@
 mod config;
+mod constants;
 mod login;
 mod pipeline_add;
-// mod upload;
+mod upload;
 
 use std::path::PathBuf;
 
@@ -10,14 +11,16 @@ use clap::{Parser, Subcommand};
 
 use crate::config::ChrsConfig;
 use crate::login::get_client::get_client;
-// use crate::upload::upload;
 use crate::pipeline_add::{add_pipeline, convert_pipeline};
+use crate::upload::upload;
 use chris::common_types::{CUBEApiUrl, Username};
 
 #[derive(Parser)]
 #[clap(
-    version, about = "Manage ChRIS files, plugins, and pipelines.",
-    propagate_version = false, disable_help_subcommand = true
+    version,
+    about = "Manage ChRIS files, plugins, and pipelines.",
+    propagate_version = false,
+    disable_help_subcommand = true
 )]
 struct Cli {
     /// CUBE address
@@ -38,16 +41,16 @@ struct Cli {
 
 #[derive(Subcommand)]
 enum Commands {
-    // /// Upload files to my ChRIS library
-    // Upload {
-    //     /// Path prefix, i.e. subdir of <username>/uploads to upload to
-    //     #[clap(short, long, default_value_t=String::from(""))]
-    //     path: String,
-    //
-    //     /// Files and directories to upload
-    //     #[clap(required = true)]
-    //     files: Vec<PathBuf>,
-    // },
+    /// Upload files to my ChRIS library
+    Upload {
+        /// Path prefix, i.e. subdir of <username>/uploads to upload to
+        #[clap(short, long, default_value_t=String::from(""))]
+        path: String,
+
+        /// Files and directories to upload
+        #[clap(required = true)]
+        files: Vec<PathBuf>,
+    },
     //
     // /// Download files from ChRIS
     // Download {},
@@ -137,10 +140,10 @@ async fn main() -> Result<()> {
     }
 
     match &args.command {
-        // Commands::Upload { files, path } => {
-        //     let _client = get_client(address, username, password).await?;
-        //     upload(files, path).await
-        // }
+        Commands::Upload { files, path } => {
+            let _client = get_client(address, username, password).await?;
+            upload(files, path).await
+        }
         Commands::Login {
             no_keyring,
             password_stdin,
