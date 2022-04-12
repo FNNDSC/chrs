@@ -82,13 +82,34 @@ chrs --address https://cube.chrisproject.org/api/v1/ logout
 chrs logout
 ```
 
+### `chrs upload FILE...`
+
+Upload files to my _ChRIS_ Library.
+
+```shell
+# upload some files
+chrs upload one_file.txt another_file.txt
+
+# upload all files in a directory
+chrs upload my_data/ 
+```
+
 ### `chrs pipeline-file add`
 
-Uploads a file-representation of a ChRIS pipeline.
-The file should be a JSON file.
-(`plugin_tree` may be either a string (canonical) or an object).
-YAML support coming soon.
+Uploads a file-representation of a _ChRIS_ pipeline.
+Supported file formats are:
+
+- JSON (`plugin_tree` may be either a string (canonical) or an object)
+- [YAML](https://github.com/FNNDSC/CHRIS_docs/blob/master/specs/YAML_Pipelines.adoc)
 
 ```shell
 chrs pipeline-file add chris/tests/data/pipelines/fetal_brain_reconstruction_expanded.json
 ```
+
+#### `chrs pipeline-file convert`
+
+Convert between supported pipeline file formats.
+
+````shell
+chrs pipeline-file convert pipeline.json pipeline.yml
+````
