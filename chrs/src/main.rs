@@ -16,6 +16,7 @@ use crate::download::download;
 use crate::login::get_client::get_client;
 use crate::pipeline_add::{add_pipeline, convert_pipeline};
 use crate::upload::upload;
+use chris::api::AnyFilesUrl;
 use chris::common_types::{CUBEApiUrl, Username};
 
 #[derive(Parser)]
@@ -58,7 +59,7 @@ enum Commands {
     /// Download files from ChRIS
     Download {
         /// What to download.
-        uri: String,
+        uri: AnyFilesUrl,
     },
     //
     // /// Search for files in ChRIS
@@ -151,7 +152,7 @@ async fn main() -> Result<()> {
             upload(&client, &files, &path).await
         }
         Commands::Download { uri } => {
-            let client = get_client(address, username, password, vec![&uri]).await?;
+            let client = get_client(address, username, password, vec![uri.as_str()]).await?;
             download(&client, &uri).await
         }
         Commands::Login {

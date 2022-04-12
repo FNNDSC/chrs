@@ -82,6 +82,18 @@ pub struct PipelineInstancesUrl;
 #[braid(serde)]
 pub struct PipelineWorkflowsUrl;
 
+/// A URL which produces a collection of files.
+///
+/// # Examples
+///
+/// - https://cube.chrisproject.org/api/v1/files/
+/// - https://cube.chrisproject.org/api/v1/files/search/
+/// - https://cube.chrisproject.org/api/v1/uploadedfiles/search/?fname=txt
+/// - https://cube.chrisproject.org/api/v1/20/files/
+/// - https://cube.chrisproject.org/api/v1/plugins/instances/40/files/
+#[braid(serde)]
+pub struct AnyFilesUrl;
+
 #[derive(Debug, Deserialize)]
 pub struct PipelineUploadResponse {
     pub url: PipelineUrl,

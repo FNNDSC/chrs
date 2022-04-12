@@ -1,3 +1,4 @@
+use crate::api::AnyFilesUrl;
 use aliri_braid::braid;
 use async_stream::stream;
 use futures::Stream;
@@ -43,17 +44,6 @@ pub(crate) struct Paginated<U, T> {
     pub results: Vec<T>,
 }
 
-/// A URL which produces a collection of files.
-///
-/// # Examples
-///
-/// - https://cube.chrisproject.org/api/v1/files/
-/// - https://cube.chrisproject.org/api/v1/files/search/
-/// - https://cube.chrisproject.org/api/v1/uploadedfiles/search/?fname=txt
-/// - https://cube.chrisproject.org/api/v1/20/files/
-/// - https://cube.chrisproject.org/api/v1/plugins/instances/40/files/
-#[braid(serde)]
-pub struct AnyFilesUrl;
 impl PaginatedUrl for AnyFilesUrl {}
 
 /// Download URL for a file resource.
