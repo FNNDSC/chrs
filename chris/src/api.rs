@@ -86,13 +86,47 @@ pub struct PipelineWorkflowsUrl;
 ///
 /// # Examples
 ///
-/// - https://cube.chrisproject.org/api/v1/files/
-/// - https://cube.chrisproject.org/api/v1/files/search/
-/// - https://cube.chrisproject.org/api/v1/uploadedfiles/search/?fname=txt
-/// - https://cube.chrisproject.org/api/v1/20/files/
-/// - https://cube.chrisproject.org/api/v1/plugins/instances/40/files/
+/// - `https://cube.chrisproject.org/api/v1/files/`
+/// - `https://cube.chrisproject.org/api/v1/files/search/`
+/// - `https://cube.chrisproject.org/api/v1/uploadedfiles/search/?fname=txt`
+/// - `https://cube.chrisproject.org/api/v1/20/files/`
+/// - `https://cube.chrisproject.org/api/v1/plugins/instances/40/files/`
 #[braid(serde)]
 pub struct AnyFilesUrl;
+
+/// Download URL for a file resource.
+///
+/// # Examples
+///
+/// - `https://cube.chrisproject.org/api/v1/files/84360/aparc.a2009s+aseg.mgz`
+#[braid(serde)]
+pub struct FileResourceUrl;
+
+/// File fname.
+#[braid(serde)]
+pub struct FileResourceFname;
+
+/// A CUBE item which has a `file_resource` and `fname`.
+pub trait Downloadable {
+    fn file_resource(&self) -> &FileResourceUrl;
+    fn fname(&self) -> &FileResourceFname;
+}
+
+#[derive(Deserialize)]
+pub struct DownloadableFile {
+    file_resource: FileResourceUrl,
+    fname: FileResourceFname,
+}
+
+impl Downloadable for DownloadableFile {
+    fn file_resource(&self) -> &FileResourceUrl {
+        &self.file_resource
+    }
+
+    fn fname(&self) -> &FileResourceFname {
+        &self.fname
+    }
+}
 
 #[derive(Debug, Deserialize)]
 pub struct PipelineUploadResponse {
@@ -118,8 +152,18 @@ pub struct FileUploadResponse {
     pub url: String,
     pub id: u32,
     pub creation_date: String,
-    pub fname: String,
+    fname: FileResourceFname,
     pub fsize: u32,
-    pub file_resource: String,
+    file_resource: FileResourceUrl,
     pub owner: String,
+}
+
+impl Downloadable for FileUploadResponse {
+    fn file_resource(&self) -> &FileResourceUrl {
+        &self.file_resource
+    }
+
+    fn fname(&self) -> &FileResourceFname {
+        &self.fname
+    }
 }

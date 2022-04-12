@@ -1,4 +1,4 @@
-use futures::Stream;
+use futures::{Stream, TryStreamExt};
 use std::path::Path;
 
 use crate::api::*;
@@ -8,10 +8,11 @@ use crate::pipeline::CanonPipeline;
 use reqwest::header::{HeaderMap, HeaderValue, ACCEPT, AUTHORIZATION};
 use reqwest::multipart::{Form, Part};
 use reqwest::{Body, Error};
-use serde::Deserialize;
 use serde::de::DeserializeOwned;
+use serde::Deserialize;
 use tokio::fs::{self, File};
 use tokio_util::codec::{BytesCodec, FramedRead};
+use tokio_util::io::StreamReader;
 
 /// _ChRIS_ client object.
 #[derive(Debug)]
@@ -70,8 +71,7 @@ impl ChrisClient {
     /// Fetch the count from a paginated resource.
     pub async fn get_count(&self, url: &str) -> Result<u32, CUBEError> {
         let res = self.client.get(url).query(&LIMIT_ZERO).send().await?;
-        let data: HasCount =
-            self.check_error(res).await?.json().await?;
+        let data: HasCount = self.check_error(res).await?.json().await?;
         Ok(data.count)
     }
 
@@ -80,16 +80,16 @@ impl ChrisClient {
         &self,
         local_file: &Path,
         upload_path: &str,
-    ) -> Result<FileUploadResponse, UploadError> {
+    ) -> Result<FileUploadResponse, FileIOError> {
         let swift_path = format!("{}/uploads/{}", self.username, upload_path);
 
         // https://github.com/seanmonstar/reqwest/issues/646#issuecomment-616985015
         let filename = local_file
             .file_name()
-            .ok_or_else(|| UploadError::PathError(local_file.to_string_lossy().to_string()))?
+            .ok_or_else(|| FileIOError::PathError(local_file.to_string_lossy().to_string()))?
             .to_string_lossy()
             .to_string();
-        let file = File::open(local_file).await.map_err(UploadError::IO)?;
+        let file = File::open(local_file).await.map_err(FileIOError::IO)?;
         let content_length = fs::metadata(local_file).await?.len();
         let reader = Body::wrap_stream(FramedRead::new(file, BytesCodec::new()));
 
@@ -103,6 +103,21 @@ impl ChrisClient {
             .multipart(form);
         let res = req.send().await?;
         Ok(self.check_error(res).await?.json().await?)
+    }
+
+    pub async fn download_file(
+        &self,
+        src: &impl Downloadable,
+        dst: &Path,
+    ) -> Result<(), FileIOError> {
+        let mut file = File::create(dst).await.map_err(FileIOError::IO)?;
+        let res = self.client.get(src.file_resource().as_str()).send().await?;
+        let stream = res
+            .bytes_stream()
+            .map_err(|e| std::io::Error::new(std::io::ErrorKind::ConnectionAborted, e));
+        let mut reader = StreamReader::new(stream);
+        tokio::io::copy(&mut reader, &mut file).await?;
+        Ok(())
     }
 
     // ============================== HELPERS ==============================
@@ -155,8 +170,9 @@ pub enum CUBEError {
     Raw(#[from] reqwest::Error),
 }
 
+/// An error which might occur while uploading or downloading files.
 #[derive(thiserror::Error, Debug)]
-pub enum UploadError {
+pub enum FileIOError {
     #[error("\"{0}\" is an invalid file path")]
     PathError(String),
     #[error(transparent)]
@@ -165,21 +181,21 @@ pub enum UploadError {
     IO(std::io::Error),
 }
 
-impl From<reqwest::Error> for UploadError {
+impl From<reqwest::Error> for FileIOError {
     fn from(e: Error) -> Self {
-        UploadError::Cube(CUBEError::Raw(e))
+        FileIOError::Cube(CUBEError::Raw(e))
     }
 }
 
-impl From<CUBEError> for UploadError {
+impl From<CUBEError> for FileIOError {
     fn from(e: CUBEError) -> Self {
-        UploadError::Cube(e)
+        FileIOError::Cube(e)
     }
 }
 
-impl From<std::io::Error> for UploadError {
+impl From<std::io::Error> for FileIOError {
     fn from(e: std::io::Error) -> Self {
-        UploadError::IO(e)
+        FileIOError::IO(e)
     }
 }
 
@@ -202,7 +218,7 @@ fn token2header(token: &str) -> HeaderMap {
 
 #[derive(Deserialize)]
 struct HasCount {
-    count: u32
+    count: u32,
 }
 
 // ============================== TESTS ==============================
@@ -224,6 +240,26 @@ mod tests {
     const CUBE_URL: &str = "http://localhost:8000/api/v1/";
 
     type AnyResult = Result<(), Box<dyn std::error::Error>>;
+
+    #[rstest]
+    #[tokio::test]
+    async fn test_download(#[future] future_client: ChrisClient) -> AnyResult {
+        let client: ChrisClient = future_client.await;
+        let data = b"finally some good content";
+        let tmp_path = TempDir::new()?.into_path();
+        let input_file = tmp_path.join(Path::new("hello.txt"));
+        let output_file = tmp_path.join(Path::new("same.txt"));
+        {
+            fs::File::create(&input_file).await?.write_all(data).await?;
+        }
+        let upload = client
+            .upload_file(&input_file, "test_files_upload_iter.txt")
+            .await?;
+        client.download_file(&upload, &output_file).await?;
+        let downloaded = tokio::fs::read(output_file).await?;
+        assert_eq!(data, downloaded.as_slice());
+        Ok(())
+    }
 
     #[rstest]
     #[tokio::test]
@@ -258,7 +294,7 @@ mod tests {
 
         // ---------- check for errors ----------
         let results = join_all(future_uploads).await;
-        let failures: Vec<&UploadError> = results.iter().filter_map(|r| r.as_ref().err()).collect();
+        let failures: Vec<&FileIOError> = results.iter().filter_map(|r| r.as_ref().err()).collect();
         assert_eq!(
             0,
             failures.len(),
@@ -289,7 +325,7 @@ mod tests {
             let file = f?;
             let mut removed: Option<String> = None;
             for (i, upload_path) in upload_paths.iter().enumerate() {
-                if file.fname.as_str().ends_with(upload_path) {
+                if file.fname().as_str().ends_with(upload_path) {
                     removed = Some(upload_paths.swap_remove(i));
                     break;
                 }
@@ -297,7 +333,7 @@ mod tests {
             assert!(
                 removed.is_some(),
                 "fname=\"{}\" not found in: {:?}",
-                file.fname,
+                file.fname(),
                 upload_paths
             )
         }

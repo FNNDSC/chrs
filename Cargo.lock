@@ -361,6 +361,7 @@ name = "chrs"
 version = "0.0.4"
 dependencies = [
  "anyhow",
+ "async-stream",
  "chris",
  "clap",
  "confy",

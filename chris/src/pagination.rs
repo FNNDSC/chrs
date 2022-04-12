@@ -1,5 +1,4 @@
 use crate::api::AnyFilesUrl;
-use aliri_braid::braid;
 use async_stream::stream;
 use futures::Stream;
 use serde::{de::DeserializeOwned, Deserialize, Serialize};
@@ -45,21 +44,3 @@ pub(crate) struct Paginated<U, T> {
 }
 
 impl PaginatedUrl for AnyFilesUrl {}
-
-/// Download URL for a file resource.
-///
-/// # Examples
-///
-/// - https://cube.chrisproject.org/api/v1/files/84360/aparc.a2009s+aseg.mgz
-#[braid(serde)]
-pub struct FileResourceUrl;
-
-/// File fname.
-#[braid(serde)]
-pub struct FileResourceFname;
-
-#[derive(Deserialize)]
-pub struct DownloadableFile {
-    pub file_resource: FileResourceUrl,
-    pub fname: FileResourceFname,
-}

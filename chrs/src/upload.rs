@@ -2,7 +2,7 @@ use crate::aprogress::do_with_progress;
 use crate::constants::BUG_REPORTS;
 use anyhow::{bail, Context, Error, Ok, Result};
 use chris::api::FileUploadResponse;
-use chris::{ChrisClient, UploadError};
+use chris::{ChrisClient, FileIOError};
 use pathdiff::diff_paths;
 use std::path::{Path, PathBuf};
 
@@ -32,7 +32,7 @@ struct FileToUpload {
 }
 
 impl FileToUpload {
-    async fn upload_using(self, client: &ChrisClient) -> Result<FileUploadResponse, UploadError> {
+    async fn upload_using(self, client: &ChrisClient) -> Result<FileUploadResponse, FileIOError> {
         client.upload_file(&self.path, &self.name).await
     }
 }
