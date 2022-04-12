@@ -8,6 +8,7 @@ use crate::pipeline::CanonPipeline;
 use reqwest::header::{HeaderMap, HeaderValue, ACCEPT, AUTHORIZATION};
 use reqwest::multipart::{Form, Part};
 use reqwest::{Body, Error};
+use serde::Deserialize;
 use serde::de::DeserializeOwned;
 use tokio::fs::{self, File};
 use tokio_util::codec::{BytesCodec, FramedRead};
@@ -66,11 +67,10 @@ impl ChrisClient {
         self.paginate(url)
     }
 
-    /// Fetch the count of number of files in the given query.
-    pub async fn count_files(&self, url: &AnyFilesUrl) -> Result<u32, CUBEError> {
-        let s: &str = url.as_ref();
-        let res = self.client.get(s).query(&LIMIT_ZERO).send().await?;
-        let data: Paginated<AnyFilesUrl, DownloadableFile> =
+    /// Fetch the count from a paginated resource.
+    pub async fn get_count(&self, url: &str) -> Result<u32, CUBEError> {
+        let res = self.client.get(url).query(&LIMIT_ZERO).send().await?;
+        let data: HasCount =
             self.check_error(res).await?.json().await?;
         Ok(data.count)
     }
@@ -200,6 +200,11 @@ fn token2header(token: &str) -> HeaderMap {
     headers
 }
 
+#[derive(Deserialize)]
+struct HasCount {
+    count: u32
+}
+
 // ============================== TESTS ==============================
 
 #[cfg(test)]
@@ -273,7 +278,7 @@ mod tests {
             client.username, &parent
         ));
 
-        assert_eq!(num_files, client.count_files(&search).await?);
+        assert_eq!(num_files, client.get_count(search.as_str()).await?);
 
         // ---------- test pagination ----------
         // Get the fnames of all the file we just uploaded,
