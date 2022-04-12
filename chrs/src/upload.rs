@@ -4,7 +4,6 @@ use pathdiff::diff_paths;
 use std::path::{Path, PathBuf};
 use tokio::sync::mpsc;
 use chris::ChrisClient;
-use std::sync::Arc;
 use futures::future::try_join_all;
 use tokio::try_join;
 
@@ -12,7 +11,6 @@ use tokio::try_join;
 ///
 /// WARNING: uses std::path to iterate over filesystem instead of tokio::fs
 pub(crate) async fn upload(client: &ChrisClient, files: &[PathBuf], path: &str) -> Result<()> {
-    let client = Arc::new(client);
     let all_files = discover_input_files(files)?;
     let count = all_files.len();
     let (tx, mut rx) = mpsc::unbounded_channel();
@@ -20,9 +18,8 @@ pub(crate) async fn upload(client: &ChrisClient, files: &[PathBuf], path: &str) 
     for file in all_files {
         let tx = tx.clone();
         let dst = format!("{}/{}", path, file.name);
-        let c = Arc::clone(&client);
         let future = async move {
-            let upload = c.upload_file(&file.path, &dst).await;
+            let upload = client.upload_file(&file.path, &dst).await;
             tx.send(upload)?;
             Ok(())
         };
