@@ -15,7 +15,7 @@ pub async fn add_pipeline(client: &ChrisClient, file: &Path) -> Result<()> {
     Ok(())
 }
 
-pub async fn convert_pipeline(expand: &bool, src: &Path, dst: &Path) -> Result<()> {
+pub async fn convert_pipeline(expand: bool, src: &Path, dst: &Path) -> Result<()> {
     let pipeline = read_pipeline_file(src)?;
     let file_extension = dst
         .extension()
@@ -24,7 +24,7 @@ pub async fn convert_pipeline(expand: &bool, src: &Path, dst: &Path) -> Result<(
     let writer = BufWriter::new(file);
 
     if file_extension == "json" {
-        if *expand {
+        if expand {
             serde_json::to_writer_pretty(writer, &pipeline)?;
         } else {
             let canonicalized: CanonPipeline = pipeline.into();

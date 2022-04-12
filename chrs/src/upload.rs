@@ -1,6 +1,6 @@
 use crate::aprogress::do_with_progress;
 use crate::constants::BUG_REPORTS;
-use anyhow::{bail, Context};
+use anyhow::{bail, Context, Error, Ok, Result};
 use chris::api::FileUploadResponse;
 use chris::{ChrisClient, UploadError};
 use pathdiff::diff_paths;
@@ -10,11 +10,7 @@ use std::path::{Path, PathBuf};
 ///
 /// WARNING: uses std::path to iterate over filesystem instead of tokio::fs,
 /// meaning that part of its execution is synchronous.
-pub(crate) async fn upload(
-    client: &ChrisClient,
-    files: &[PathBuf],
-    path: &str,
-) -> anyhow::Result<()> {
+pub(crate) async fn upload(client: &ChrisClient, files: &[PathBuf], path: &str) -> Result<()> {
     let uploads = discover_input_files(files)?
         .into_iter()
         .map(|file| FileToUpload {
@@ -43,7 +39,7 @@ impl FileToUpload {
 
 /// Given a list of files and directories, traverse every directory
 /// to obtain just a list of files represented as [FileToUpload].
-fn discover_input_files(paths: &[PathBuf]) -> anyhow::Result<Vec<FileToUpload>> {
+fn discover_input_files(paths: &[PathBuf]) -> Result<Vec<FileToUpload>> {
     let mut all_files: Vec<FileToUpload> = Vec::new();
     for path in paths {
         let mut sub_files = files_under(path)?;
@@ -57,7 +53,7 @@ fn discover_input_files(paths: &[PathBuf]) -> anyhow::Result<Vec<FileToUpload>> 
 /// The `name` of results will be their base name, whereas the name
 /// of files discovered under a specified directory will be the
 /// path relative to the basename of the directory.
-fn files_under(path: &Path) -> anyhow::Result<Vec<FileToUpload>> {
+fn files_under(path: &Path) -> Result<Vec<FileToUpload>> {
     if path.is_file() {
         let base = path
             .file_name()
@@ -79,7 +75,7 @@ fn files_under(path: &Path) -> anyhow::Result<Vec<FileToUpload>> {
     files_under_dir(path, parent)
 }
 
-fn files_under_dir(dir: &Path, parent: &Path) -> anyhow::Result<Vec<FileToUpload>> {
+fn files_under_dir(dir: &Path, parent: &Path) -> Result<Vec<FileToUpload>> {
     let mut sub_files: Vec<FileToUpload> = Vec::new();
     for entry in dir.read_dir()? {
         let entry = entry?;
@@ -87,7 +83,7 @@ fn files_under_dir(dir: &Path, parent: &Path) -> anyhow::Result<Vec<FileToUpload
         if sub_path.is_file() {
             let name = diff_paths(&sub_path, parent)
                 .ok_or_else(|| {
-                    anyhow::Error::msg(format!(
+                    Error::msg(format!(
                         "{:?} not found under {:?}\
                 \nPlease report this bug: {}",
                         &sub_path, parent, BUG_REPORTS
@@ -111,7 +107,6 @@ fn files_under_dir(dir: &Path, parent: &Path) -> anyhow::Result<Vec<FileToUpload
 #[cfg(test)]
 mod tests {
     use super::*;
-    use anyhow::Result;
     use std::collections::HashSet;
     use std::fs;
     use std::path::Path;

@@ -28,7 +28,7 @@ where
 pub fn prompt_if_missing_password<T: FromStr>(
     x: Option<T>,
     prompt: &str,
-    from_stdin: &bool,
+    from_stdin: bool,
 ) -> Result<T, ManualInputError<<T as FromStr>::Err>>
 where
     <T as FromStr>::Err: Error,
@@ -36,7 +36,7 @@ where
     match x {
         Some(v) => Ok(v),
         None => {
-            let input: String = if *from_stdin {
+            let input: String = if from_stdin {
                 read_line().map_err(ManualInputError::IoError)?
             } else {
                 dialoguer::Password::new()

@@ -1,6 +1,7 @@
 mod aprogress;
 mod config;
 mod constants;
+mod download;
 mod login;
 mod pipeline_add;
 mod upload;
@@ -11,6 +12,7 @@ use anyhow::Result;
 use clap::{Parser, Subcommand};
 
 use crate::config::ChrsConfig;
+use crate::download::download;
 use crate::login::get_client::get_client;
 use crate::pipeline_add::{add_pipeline, convert_pipeline};
 use crate::upload::upload;
@@ -52,9 +54,12 @@ enum Commands {
         #[clap(required = true)]
         files: Vec<PathBuf>,
     },
-    //
-    // /// Download files from ChRIS
-    // Download {},
+
+    /// Download files from ChRIS
+    Download {
+        /// What to download.
+        uri: String,
+    },
     //
     // /// Search for files in ChRIS
     // Ls {},
@@ -134,22 +139,26 @@ async fn main() -> Result<()> {
     let password = args.password;
 
     if let Some(given_address) = args.address {
-        address = Some(CUBEApiUrl::new(&*given_address)?);
+        address = Some(CUBEApiUrl::new(given_address)?);
     }
     if let Some(given_username) = args.username {
-        username = Some(Username::new(&*given_username));
+        username = Some(Username::new(given_username));
     }
 
-    match &args.command {
+    match args.command {
         Commands::Upload { files, path } => {
-            let client = get_client(address, username, password).await?;
-            upload(&client, files, path).await
+            let client = get_client(address, username, password, vec![]).await?;
+            upload(&client, &files, &path).await
+        }
+        Commands::Download { uri } => {
+            let client = get_client(address, username, password, vec![&uri]).await?;
+            download(&client, &uri).await
         }
         Commands::Login {
             no_keyring,
             password_stdin,
         } => {
-            let backend = if *no_keyring {
+            let backend = if no_keyring {
                 login::tokenstore::Backend::ClearText
             } else {
                 login::tokenstore::Backend::Keyring
@@ -162,11 +171,11 @@ async fn main() -> Result<()> {
                 // PipelineFile::Export => { bail!("not implemented") }
                 // PipelineFile::Tree => { bail!("not implemented") }
                 PipelineFile::Add { file } => {
-                    let client = get_client(address, username, password).await?;
-                    add_pipeline(&client, file).await
+                    let client = get_client(address, username, password, vec![]).await?;
+                    add_pipeline(&client, &file).await
                 }
                 PipelineFile::Convert { expand, src, dst } => {
-                    convert_pipeline(expand, src, dst).await
+                    convert_pipeline(expand, &src, &dst).await
                 }
             }
         }

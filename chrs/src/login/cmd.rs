@@ -10,9 +10,9 @@ pub async fn login(
     username: Option<Username>,
     password: Option<String>,
     backend: tokenstore::Backend,
-    password_from_stdin: &bool,
+    password_from_stdin: bool,
 ) -> Result<()> {
-    if password.is_some() && *password_from_stdin {
+    if password.is_some() && password_from_stdin {
         bail!("Options --password and --password-stdin may not be used together.");
     }
 
