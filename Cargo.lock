@@ -367,6 +367,7 @@ dependencies = [
  "console",
  "dialoguer",
  "fs-err",
+ "futures",
  "indicatif",
  "keyring",
  "lazy_static",

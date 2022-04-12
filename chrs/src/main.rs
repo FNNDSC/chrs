@@ -141,8 +141,8 @@ async fn main() -> Result<()> {
 
     match &args.command {
         Commands::Upload { files, path } => {
-            let _client = get_client(address, username, password).await?;
-            upload(files, path).await
+            let client = get_client(address, username, password).await?;
+            upload(&client, files, path).await
         }
         Commands::Login {
             no_keyring,

@@ -1,3 +1,5 @@
+//! Models for _ChRIS_ file-based representation of pipelines.
+
 pub mod canon;
 pub mod rfc2;
 

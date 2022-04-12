@@ -1,3 +1,6 @@
+//! Predecessors to [crate::ChrisClient] for getting _ChRIS_ authorization
+//! tokens or creating _ChRIS_ accounts.
+
 use crate::api::{UserId, UserUrl};
 use crate::client::CUBEError;
 use crate::common_types::{CUBEApiUrl, Username};

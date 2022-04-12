@@ -2,18 +2,41 @@ use crate::constants::BUG_REPORTS;
 use anyhow::{bail, Context, Error, Ok, Result};
 use pathdiff::diff_paths;
 use std::path::{Path, PathBuf};
+use tokio::sync::mpsc;
+use chris::ChrisClient;
+use std::sync::Arc;
+use futures::future::try_join_all;
+use tokio::try_join;
 
 /// Upload local files and directories to my ChRIS Library.
 ///
 /// WARNING: uses std::path to iterate over filesystem instead of tokio::fs
-pub(crate) async fn upload(files: &[PathBuf], path: &str) -> Result<()> {
-    println!("files={:?}, path={:?}", files, path);
+pub(crate) async fn upload(client: &ChrisClient, files: &[PathBuf], path: &str) -> Result<()> {
+    let client = Arc::new(client);
     let all_files = discover_input_files(files)?;
+    let count = all_files.len();
+    let (tx, mut rx) = mpsc::unbounded_channel();
+    let mut tasks = Vec::with_capacity(count);
     for file in all_files {
-        let upload_path = format!("{}/{}", path, file.name);
-        println!("{:?} -> {:?}", file.path, upload_path);
+        let tx = tx.clone();
+        let dst = format!("{}/{}", path, file.name);
+        let c = Arc::clone(&client);
+        let future = async move {
+            let upload = c.upload_file(&file.path, &dst).await;
+            tx.send(upload)?;
+            Ok(())
+        };
+        tasks.push(future);
     }
-    bail!("Not implemented anymore")
+    let main = async move {
+        for _ in 0..count {
+            let upload = rx.recv().await.unwrap()?;
+            println!("{}", upload.url);
+        }
+        Ok(())
+    };
+    try_join!(try_join_all(tasks), main)?;
+    Ok(())
 }
 
 /// A file on the local filesystem which the user intended to upload into _ChRIS_.
@@ -33,8 +56,7 @@ fn discover_input_files(paths: &[PathBuf]) -> Result<Vec<FileToUpload>> {
         let mut sub_files = files_under(path)?;
         all_files.append(&mut sub_files);
     }
-    // Ok(all_files)
-    todo!()
+    Ok(all_files)
 }
 
 /// Get all files under a path as [FileToUpload], where the given

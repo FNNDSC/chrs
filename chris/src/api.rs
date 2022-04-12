@@ -1,4 +1,5 @@
-/// Types produced by the _ChRIS_ backend (CUBE) API.
+//! Types produced by the _ChRIS_ backend (CUBE) API.
+
 use crate::common_types::Username;
 use aliri_braid::braid;
 use serde::{Deserialize, Serialize};

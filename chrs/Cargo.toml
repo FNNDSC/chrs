@@ -21,6 +21,7 @@ keyring = "1.1.2"
 anyhow = "1.0.56"
 thiserror = "1.0.30"
 tokio = { version = "1.17.0", features = ["full"] }
+futures = "0.3.21"
 confy = "0.4.0"
 dialoguer = "0.10.0"
 indicatif = "0.17.0-rc.10"

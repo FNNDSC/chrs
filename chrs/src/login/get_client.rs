@@ -12,6 +12,7 @@ pub async fn get_client(
     address: Option<CUBEApiUrl>,
     username: Option<Username>,
     password: Option<String>,
+    // TODO we should also consider if any positional URL has an address as well.
 ) -> Result<ChrisClient> {
     match password {
         Some(given_password) => {
