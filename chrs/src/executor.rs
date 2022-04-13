@@ -10,8 +10,8 @@ use std::error::Error;
 use std::fmt::Debug;
 use std::future::Future;
 use std::time::Duration;
-use tokio::join;
 use tokio::sync::mpsc;
+use tokio::try_join;
 
 /// Executes many futures with a progress bar. If any of the futures
 /// produce an error, it is returned. (Ok values produced by futures
@@ -30,11 +30,14 @@ use tokio::sync::mpsc;
 /// * `tasks` - A stream which produces futures to execute
 /// * `len` - Number of elements which will be produced by the given stream
 /// * `hidden` - Whether to hide the progress bar
+///
+/// If given an incorrect value for `len`, one of [ExecutorError::Underfull]
+/// or [ExecutorError::Overfull] will be produced.
 pub async fn do_with_progress<S, T: Debug, E: Error>(
     tasks: S,
     len: u64,
     hidden: bool,
-) -> Result<(), E>
+) -> Result<(), ExecutorError<E>>
 where
     S: Sized,
     S: TryStream<Error = E>,
@@ -42,14 +45,18 @@ where
     <<S as TryStream>::Ok as TryFuture>::Ok: Debug,
     <<S as TryStream>::Ok as TryFuture>::Error: Error,
 {
-    let (tx, mut rx) = mpsc::unbounded_channel();
+    let (tx, mut rx) = mpsc::channel(1);
 
     let pool = async move {
         let buf = tasks.try_buffer_unordered(NUM_THREADS);
         pin_mut!(buf);
         while let Some(res) = buf.next().await {
-            tx.send(res).unwrap();
+            tx.send(res)
+                .await
+                .map_err(|_| ExecutorError::Overfull(len))?;
         }
+        drop(tx); // notify main that stream is empty
+        Ok(())
     };
 
     let main = async move {
@@ -60,13 +67,16 @@ where
         };
         bar.enable_steady_tick(Duration::from_millis(200));
         for _ in (0..len).progress_with(bar) {
-            let _result = rx.recv().await.unwrap()?;
+            let received = rx
+                .recv()
+                .await
+                .ok_or_else(|| ExecutorError::Underfull(len))?;
+            received.map_err(|e| ExecutorError::Error(e))?;
         }
         Ok(())
     };
 
-    let (_, results) = join!(pool, main);
-    results
+    try_join!(pool, main).map(|_| ())
 }
 
 /// Calls [do_with_progress] on a sequence of futures which are produced
@@ -80,7 +90,14 @@ where
 {
     let proto_stream = tasks.map(coerce_as_result).collect_vec();
     let len = proto_stream.len() as u64;
-    do_with_progress(stream::iter(proto_stream), len, hidden).await
+    do_with_progress(stream::iter(proto_stream), len, hidden)
+        .await
+        .map_err(|error| match error {
+            // Invariant: since we're passing the Vec's len, we can guarantee
+            // that the error will not be Overfull nor Underfull.
+            ExecutorError::Error(e) => e,
+            _ => panic!("Bug: inconsistent data in channels: {:?}", error)
+        })
 }
 
 /// A workaround to inform the compiler of an error type for items which do not cause errors.
@@ -90,6 +107,26 @@ where
     <T as TryFuture>::Error: Error,
 {
     Result::Ok(f)
+}
+
+/// Errors raised by [do_with_progress] when executing futures.
+#[derive(thiserror::Error, Debug)]
+pub enum ExecutorError<E: Error> {
+    /// Given `len` was more than the actual stream contents.
+    #[error(
+        "Expected {0} items but got fewer. \
+    Items might have been deleted (for other reason) during operation."
+    )]
+    Underfull(u64),
+    /// Given `len` was less than the actual stream contents.
+    #[error(
+        "Expected {0} items but got more.\
+    Resource might have been updated during operation."
+    )]
+    Overfull(u64),
+    /// Error produced from the stream.
+    #[error(transparent)]
+    Error(#[from] E),
 }
 
 /// Progress bar style.
@@ -123,11 +160,35 @@ mod tests {
         let e = timeout(Duration::from_secs(1), execution)
             .await
             .context("Test timed out, the function is probably frozen.")?;
-        assert_eq!(
-            e,
-            Err(DummyError),
-            "Should have returned the error from failing task."
-        );
+        assert_eq!(e, Err(DummyError));
+        anyhow::Ok(())
+    }
+
+    #[tokio::test]
+    async fn test_underfull() -> anyhow::Result<()> {
+        let tasks = (0..5).into_iter().map(wrap_ok);
+        let proto_stream = tasks.map(coerce_as_result).collect_vec();
+        let len = proto_stream.len() as u64;
+        let execution = do_with_progress(stream::iter(proto_stream), len + 1, true);
+        let e = timeout(Duration::from_secs(1), execution)
+            .await
+            .context("Test timed out, the function is probably frozen.")?;
+        assert!(e.is_err());
+        assert!(matches!(e.unwrap_err(), ExecutorError::Underfull(6)));
+        anyhow::Ok(())
+    }
+
+    #[tokio::test]
+    async fn test_overfull() -> anyhow::Result<()> {
+        let tasks = (0..5).into_iter().map(wrap_ok);
+        let proto_stream = tasks.map(coerce_as_result).collect_vec();
+        let len = proto_stream.len() as u64;
+        let execution = do_with_progress(stream::iter(proto_stream), len - 1, true);
+        let e = timeout(Duration::from_secs(1), execution)
+            .await
+            .context("Test timed out, the function is probably frozen.")?;
+        assert!(e.is_err());
+        assert!(matches!(e.unwrap_err(), ExecutorError::Overfull(4)));
         anyhow::Ok(())
     }
 
