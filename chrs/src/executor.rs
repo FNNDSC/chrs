@@ -39,7 +39,6 @@ where
     S: Sized,
     S: TryStream<Error = E>,
     <S as TryStream>::Ok: TryFuture<Ok = T, Error = E>,
-    // <S as TryStream>::Ok: TryFuture,
     <<S as TryStream>::Ok as TryFuture>::Ok: Debug,
     <<S as TryStream>::Ok as TryFuture>::Error: Error,
 {
@@ -119,11 +118,8 @@ mod tests {
 
     #[tokio::test]
     async fn test_do_with_progress_err() -> anyhow::Result<()> {
-        // let (tx, mut rx) = mpsc::unbounded_channel();
-        // let t1 = tx.clone();
-        // let t2 = tx.clone();
-        let tasks = vec![pretend_to_fail(false), pretend_to_fail(true)];
-        let execution = collect_then_do_with_progress(tasks.into_iter(), true);
+        let tasks = vec![pretend_to_fail(false), pretend_to_fail(true)].into_iter();
+        let execution = collect_then_do_with_progress(tasks, true);
         let e = timeout(Duration::from_secs(1), execution)
             .await
             .context("Test timed out, the function is probably frozen.")?;
