@@ -224,6 +224,13 @@ jobs:
         run: |
           mkdir -v release
           mv -v ./*.deb release/
+
+        # for the convenience of being able to just download and run it
+        # right away, w/o needing to untar nor install
+      - name: Copy plain binary to artifacts directory
+        shell: bash
+        run: cp -v target/release/chrs release/
+
       - name: Save release as artifact
         uses: actions/upload-artifact@v2
         with:
