@@ -370,6 +370,7 @@ dependencies = [
  "fs-err",
  "futures",
  "indicatif",
+ "itertools 0.10.3",
  "keyring",
  "lazy_static",
  "pathdiff",

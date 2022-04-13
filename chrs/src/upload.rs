@@ -1,25 +1,35 @@
-use crate::aprogress::do_with_progress;
 use crate::constants::BUG_REPORTS;
+use crate::executor::collect_then_do_with_progress;
 use anyhow::{bail, Context, Error, Ok, Result};
 use chris::api::FileUploadResponse;
 use chris::{ChrisClient, FileIOError};
 use pathdiff::diff_paths;
+use std::fmt::Debug;
 use std::path::{Path, PathBuf};
 
 /// Upload local files and directories to my ChRIS Library.
 ///
 /// WARNING: uses std::path to iterate over filesystem instead of tokio::fs,
 /// meaning that part of its execution is synchronous.
-pub(crate) async fn upload(client: &ChrisClient, files: &[PathBuf], path: &str) -> Result<()> {
+pub async fn upload(client: &ChrisClient, files: &[PathBuf], path: &str) -> Result<()> {
+    let path = append_slash_if_not_empty(path);
     let uploads = discover_input_files(files)?
         .into_iter()
         .map(|file| FileToUpload {
-            name: format!("{}/{}", path, file.name),
+            name: format!("{}{}", path, file.name),
             path: file.path,
         })
         .map(|f| f.upload_using(client));
-    do_with_progress(uploads.collect()).await?;
+    collect_then_do_with_progress(uploads, false).await?;
     Ok(())
+}
+
+fn append_slash_if_not_empty(s: &str) -> String {
+    if s.is_empty() {
+        "".to_string()
+    } else {
+        format!("{}/", s)
+    }
 }
 
 /// A file on the local filesystem which the user intended to upload into _ChRIS_.

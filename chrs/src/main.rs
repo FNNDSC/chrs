@@ -1,7 +1,7 @@
-mod aprogress;
 mod config;
 mod constants;
 mod download;
+mod executor;
 mod login;
 mod pipeline_add;
 mod upload;
