@@ -80,6 +80,11 @@ enum Commands {
         /// Maximum subdirectory depth
         #[clap(short = 'L', long, default_value_t = 2)]
         level: u16,
+
+        /// Show full path of files
+        #[clap(short, long)]
+        full: bool,
+
         /// (Swift) data path
         path: FileBrowserPath,
     },
@@ -200,9 +205,9 @@ async fn main() -> Result<()> {
                 }
             }
         }
-        Commands::Tree { level, path } => {
+        Commands::Tree { level, full, path } => {
             let client = get_client(address, username, password, vec![]).await?;
-            ls(&client, &path, level).await
+            ls(&client, &path, full, level).await
         }
     }
 }
