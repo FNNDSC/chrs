@@ -42,7 +42,7 @@ where
     S: Sized,
     S: TryStream<Error = E>,
     <S as TryStream>::Ok: TryFuture<Ok = T, Error = E>,
-    <<S as TryStream>::Ok as TryFuture>::Ok: Debug,
+    <<S as TryStream>::Ok as TryFuture>::Ok: Debug, // TODO can I delete?
     <<S as TryStream>::Ok as TryFuture>::Error: Error,
 {
     let (tx, mut rx) = mpsc::channel(1);
@@ -67,11 +67,8 @@ where
         };
         bar.enable_steady_tick(Duration::from_millis(200));
         for _ in (0..len).progress_with(bar) {
-            let received = rx
-                .recv()
-                .await
-                .ok_or_else(|| ExecutorError::Underfull(len))?;
-            received.map_err(|e| ExecutorError::Error(e))?;
+            let received = rx.recv().await.ok_or(ExecutorError::Underfull(len))?;
+            received.map_err(ExecutorError::Error)?;
         }
         Ok(())
     };
@@ -96,7 +93,7 @@ where
             // Invariant: since we're passing the Vec's len, we can guarantee
             // that the error will not be Overfull nor Underfull.
             ExecutorError::Error(e) => e,
-            _ => panic!("Bug: inconsistent data in channels: {:?}", error)
+            _ => panic!("Bug: inconsistent data in channels: {:?}", error),
         })
 }
 
