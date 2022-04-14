@@ -94,6 +94,24 @@ chrs upload one_file.txt another_file.txt
 chrs upload my_data/ 
 ```
 
+### `chrs download SRC [DST]`
+
+Download files from _ChRIS_.
+
+```shell
+# download all files created by a feed number 15 into the current directory
+chrs download https://cube.chrisproject.org/api/v1/15/files/
+
+# download the output of plugin instance 30, but save the files to a
+# directory called "my_outputs" instead of something like
+# "<username>/feed_15/pl-dircopy_5550/pl-pfdicom_tagExtract_5551/data/...",
+chrs download --shorten https://cube.chrisproject.org/api/v1/plugins/instances/5551/files/ my_outputs
+
+# download files from ChRIS given a path
+chrs download chris/uploads/fetal_dataset
+chrs download SERVICES/PACS/orthanc/9cfafb0-DIXON_SHANNON_ANON-20140701
+```
+
 ### `chrs pipeline-file add`
 
 Uploads a file-representation of a _ChRIS_ pipeline.

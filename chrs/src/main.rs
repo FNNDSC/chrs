@@ -16,7 +16,6 @@ use crate::download::download;
 use crate::login::get_client::get_client;
 use crate::pipeline_add::{add_pipeline, convert_pipeline};
 use crate::upload::upload;
-use chris::api::AnyFilesUrl;
 use chris::common_types::{CUBEApiUrl, Username};
 
 #[derive(Parser)]
@@ -58,8 +57,19 @@ enum Commands {
 
     /// Download files from ChRIS
     Download {
-        /// What to download.
-        uri: AnyFilesUrl,
+        /// Save files from under plugin instances' "data" subdirectory at
+        /// the top-level, instead of under the nested parent directory.
+        #[clap(short, long)]
+        shorten: bool,
+
+        /// What to download. Can either be a ChRIS Library files path or
+        /// a files resource URL (such as a files search query or a feed
+        /// files URL).
+        src: String,
+
+        /// Directory where to download
+        #[clap(default_value = ".")]
+        dst: PathBuf,
     },
     //
     // /// Search for files in ChRIS
@@ -151,9 +161,9 @@ async fn main() -> Result<()> {
             let client = get_client(address, username, password, vec![]).await?;
             upload(&client, &files, &path).await
         }
-        Commands::Download { uri } => {
-            let client = get_client(address, username, password, vec![uri.as_str()]).await?;
-            download(&client, &uri).await
+        Commands::Download { shorten, src, dst } => {
+            let client = get_client(address, username, password, vec![src.as_str()]).await?;
+            download(&client, &src, &dst, shorten).await
         }
         Commands::Login {
             no_keyring,

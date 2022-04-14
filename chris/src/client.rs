@@ -10,7 +10,7 @@ use reqwest::multipart::{Form, Part};
 use reqwest::{Body, Error};
 use serde::de::DeserializeOwned;
 use serde::Deserialize;
-use tokio::fs::{self, File};
+use tokio::fs::{self, File, OpenOptions};
 use tokio_util::codec::{BytesCodec, FramedRead};
 use tokio_util::io::StreamReader;
 
@@ -18,8 +18,8 @@ use tokio_util::io::StreamReader;
 #[derive(Debug)]
 pub struct ChrisClient {
     client: reqwest::Client,
-    pub url: CUBEApiUrl,
-    pub username: Username,
+    url: CUBEApiUrl,
+    username: Username,
     links: CUBELinks,
     pub friendly_error: bool,
 }
@@ -45,6 +45,17 @@ impl ChrisClient {
         })
     }
 
+    /// Get the URL this client is connected to.
+    pub fn url(&self) -> &CUBEApiUrl {
+        &self.url
+    }
+
+    /// Get the username of this client.
+    pub fn username(&self) -> &Username {
+        &self.username
+    }
+
+    /// Upload a pipeline to _ChRIS_.
     pub async fn upload_pipeline(
         &self,
         pipeline: &CanonPipeline,
@@ -105,12 +116,23 @@ impl ChrisClient {
         Ok(self.check_error(res).await?.json().await?)
     }
 
+    /// Download a file from _ChRIS_ to a local path.
     pub async fn download_file(
         &self,
         src: &impl Downloadable,
         dst: &Path,
+        clobber: bool,
     ) -> Result<(), FileIOError> {
-        let mut file = File::create(dst).await.map_err(FileIOError::IO)?;
+        let mut file = if clobber {
+            File::create(dst).await
+        } else {
+            OpenOptions::new()
+                .write(true)
+                .create_new(true)
+                .open(dst)
+                .await
+        }
+        .map_err(FileIOError::IO)?;
         let res = self.client.get(src.file_resource().as_str()).send().await?;
         let stream = res
             .bytes_stream()
@@ -255,7 +277,7 @@ mod tests {
         let upload = client
             .upload_file(&input_file, "test_files_upload_iter.txt")
             .await?;
-        client.download_file(&upload, &output_file).await?;
+        client.download_file(&upload, &output_file, false).await?;
         let downloaded = tokio::fs::read(output_file).await?;
         assert_eq!(data, downloaded.as_slice());
         Ok(())

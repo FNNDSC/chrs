@@ -1,6 +1,6 @@
 [package]
 name = "chrs"
-version = "0.0.4"
+version = "0.0.5"
 authors = ["FNNDSC <dev@babyMRI.org>"]
 
 edition = "2021"
@@ -35,9 +35,11 @@ fs-err = "2.7.0"
 pathdiff = "0.2.1"
 itertools = "0.10.3"
 regex = "1.5"
+url = "2.2.2"
 
 [dev-dependencies]
 tempfile = "3.3.0"
+rstest = "0.12.0"
 
 [features]
 default = ["chris/default"]

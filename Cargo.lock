@@ -367,7 +367,7 @@ dependencies = [
 
 [[package]]
 name = "chrs"
-version = "0.0.4"
+version = "0.0.5"
 dependencies = [
  "anyhow",
  "async-stream",
@@ -385,12 +385,14 @@ dependencies = [
  "pathdiff",
  "regex",
  "reqwest",
+ "rstest",
  "serde",
  "serde_json",
  "serde_yaml",
  "tempfile",
  "thiserror",
  "tokio",
+ "url",
 ]
 
 [[package]]
