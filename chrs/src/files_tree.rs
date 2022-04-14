@@ -13,7 +13,7 @@ use tokio::sync::mpsc::UnboundedSender;
 use tokio::join;
 
 /// Show files in _ChRIS_ using the file browser API in a tree diagram.
-pub async fn ls(
+pub async fn files_tree(
     client: &ChrisClient,
     path: &FileBrowserPath,
     full: bool,
