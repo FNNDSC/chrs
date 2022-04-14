@@ -7,6 +7,10 @@ use chris::ChrisClient;
 use console::{style, StyledObject};
 use futures::TryStreamExt;
 use termtree::Tree;
+use tokio::sync::mpsc;
+use indicatif::ProgressBar;
+use tokio::sync::mpsc::UnboundedSender;
+use tokio::join;
 
 /// Show files in _ChRIS_ using the file browser API in a tree diagram.
 pub async fn ls(
@@ -19,11 +23,31 @@ pub async fn ls(
     match fb.browse(path).await? {
         None => bail!("Cannot find: {}", path),
         Some(v) => {
-            let top_path = v.path().to_string();
-            println!("{}", construct(&fb, v, top_path, full, depth).await?);
-            Ok(())
+            print_tree_from(&fb, v, full, depth).await
         }
     }?;
+    Ok(())
+}
+
+async fn print_tree_from(
+    fb: &FileBrowser,
+    v: FileBrowserView,
+    full: bool,
+    depth: u16,
+) -> Result<()> {
+    let top_path = v.path().to_string();
+    let (tx, mut rx) = mpsc::unbounded_channel();
+    let main = async move {
+        let spinner = ProgressBar::new_spinner();
+        let mut count = 0;
+        while let Some(_) = rx.recv().await {
+            count = count + 1;
+            spinner.set_message(format!("Getting information... {}", count));
+        }
+    };
+    let tree_builder = construct(&fb, tx, v, top_path, full, depth);
+    let (_, tree) = join!(main, tree_builder);
+    println!("{}", tree?);
     Ok(())
 }
 
@@ -31,6 +55,7 @@ pub async fn ls(
 #[async_recursion]
 async fn construct(
     fb: &FileBrowser,
+    tx: UnboundedSender<()>,
     v: FileBrowserView,
     current_path: String,
     full: bool,
@@ -57,10 +82,12 @@ async fn construct(
         .await
         .map_err(anyhow::Error::msg)?;
 
+    let stx = tx.clone();
     let subtree_stream = stream! {
         for maybe in maybes {
             if let Some((subfolder, child)) = maybe {
-                yield construct(fb, child, subfolder, full, depth - 1).await;
+                yield construct(fb, stx.clone(), child, subfolder, full, depth - 1).await;
+                stx.send(()).unwrap();
             }
         }
     };
