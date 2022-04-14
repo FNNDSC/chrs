@@ -1,4 +1,4 @@
-use crate::config;
+use crate::login::config;
 use crate::login::prompt::{prompt_if_missing, prompt_if_missing_password};
 use crate::login::tokenstore;
 use anyhow::{bail, Context, Result};

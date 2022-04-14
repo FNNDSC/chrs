@@ -2,10 +2,11 @@
 //! When saved to keyring, the token is identified by a string in the form
 //! "<CUBEUsername>@<CUBEAddress>"
 
-use anyhow::{Context, Ok, Result};
+use anyhow::{Context, Error, Ok, Result};
 use chris::common_types::{CUBEApiUrl, Username};
 use chris::ChrisClient;
 use console::style;
+use lazy_static::lazy_static;
 use serde::{Deserialize, Serialize};
 
 /// Supported mechanisms for storing secrets.
@@ -79,7 +80,9 @@ impl Login {
             Backend::ClearText => StoredToken::Text(self.token),
             Backend::Keyring => {
                 let entry = keyring::Entry::new(service, &*self.to_keyring_username());
-                entry.set_password(&self.token)?;
+                entry
+                    .set_password(&self.token)
+                    .map_err(|_| Error::msg(&*KEYRING_ERROR_MSG))?;
                 StoredToken::Keyring
             }
         };
@@ -107,6 +110,13 @@ impl Login {
     fn to_keyring_username(&self) -> String {
         format!("{}@{}", self.username.as_str(), self.address.as_str())
     }
+}
+
+lazy_static! {
+    static ref KEYRING_ERROR_MSG: String = format!(
+        "Unable to use keyring. Please try again with {}",
+        style("--no-keyring").bold()
+    );
 }
 
 #[cfg(test)]

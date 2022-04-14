@@ -1,9 +1,8 @@
-mod config;
 mod constants;
 mod download;
 mod executor;
-mod login;
 mod files_tree;
+mod login;
 mod pipeline_add;
 mod upload;
 
@@ -12,14 +11,14 @@ use std::path::PathBuf;
 use anyhow::Result;
 use clap::{Parser, Subcommand};
 
-use crate::config::ChrsConfig;
 use crate::download::download;
-use crate::login::get_client::get_client;
 use crate::files_tree::files_tree;
+use crate::login::get_client::get_client;
 use crate::pipeline_add::{add_pipeline, convert_pipeline};
 use crate::upload::upload;
 use chris::common_types::{CUBEApiUrl, Username};
 use chris::filebrowser::FileBrowserPath;
+use login::config::ChrsConfig;
 
 #[derive(Parser)]
 #[clap(

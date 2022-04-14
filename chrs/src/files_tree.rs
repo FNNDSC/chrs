@@ -6,11 +6,11 @@ use chris::filebrowser::{FileBrowser, FileBrowserPath, FileBrowserView};
 use chris::ChrisClient;
 use console::{style, StyledObject};
 use futures::TryStreamExt;
-use termtree::Tree;
-use tokio::sync::mpsc;
 use indicatif::ProgressBar;
-use tokio::sync::mpsc::UnboundedSender;
+use termtree::Tree;
 use tokio::join;
+use tokio::sync::mpsc;
+use tokio::sync::mpsc::UnboundedSender;
 
 /// Show files in _ChRIS_ using the file browser API in a tree diagram.
 pub async fn files_tree(
@@ -22,9 +22,7 @@ pub async fn files_tree(
     let fb = client.file_browser();
     match fb.browse(path).await? {
         None => bail!("Cannot find: {}", path),
-        Some(v) => {
-            print_tree_from(&fb, v, full, depth).await
-        }
+        Some(v) => print_tree_from(&fb, v, full, depth).await,
     }?;
     Ok(())
 }
