@@ -82,6 +82,40 @@ chrs --address https://cube.chrisproject.org/api/v1/ logout
 chrs logout
 ```
 
+### `chrs tree PATH`
+
+List files and directories in _ChRIS_.
+
+```shell
+$ tree -L 4 chris/feed_1443
+chris/feed_1443
+└── pl-dircopy_5827
+    ├── data
+    │   ├── output.meta.json
+    │   ├── input.meta.json
+    │   └── aparc.a2009saseg.mgz
+    └── pl-mgz2LUT_report_5836
+        └── data
+            ├── output.meta.json
+            ├── mgz2LUT_report.pdf
+            ├── mgz2LUT_report.html
+            └── input.meta.json
+
+$ tree -L 4 --full chris/feed_1443
+chris/feed_1443
+└── pl-dircopy_5827
+    ├── data
+    │   ├── chris/feed_1443/pl-dircopy_5827/data/output.meta.json
+    │   ├── chris/feed_1443/pl-dircopy_5827/data/input.meta.json
+    │   └── chris/feed_1443/pl-dircopy_5827/data/aparc.a2009saseg.mgz
+    └── pl-mgz2LUT_report_5836
+        └── data
+            ├── chris/feed_1443/pl-dircopy_5827/pl-mgz2LUT_report_5836/data/output.meta.json
+            ├── chris/feed_1443/pl-dircopy_5827/pl-mgz2LUT_report_5836/data/mgz2LUT_report.pdf
+            ├── chris/feed_1443/pl-dircopy_5827/pl-mgz2LUT_report_5836/data/mgz2LUT_report.html
+            └── chris/feed_1443/pl-dircopy_5827/pl-mgz2LUT_report_5836/data/input.meta.json
+```
+
 ### `chrs upload FILE...`
 
 Upload files to my _ChRIS_ Library.
