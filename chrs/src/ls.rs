@@ -1,18 +1,18 @@
-use anyhow::{bail, Context, Ok, Result};
+use anyhow::{bail, Ok, Result};
 use async_recursion::async_recursion;
 use async_stream::stream;
-use chris::filebrowser::{FileBrowser, FileBrowserPath, FileBrowserView};
 use chris::api::Downloadable;
+use chris::filebrowser::{FileBrowser, FileBrowserPath, FileBrowserView};
 use chris::ChrisClient;
 use console::{style, StyledObject};
-use futures::{pin_mut, StreamExt, TryStreamExt};
+use futures::TryStreamExt;
 use termtree::Tree;
 
 /// Show files in _ChRIS_ using the file browser API in a tree diagram.
 pub async fn ls(client: &ChrisClient, path: &FileBrowserPath, depth: u16) -> Result<()> {
     let fb = client.file_browser();
     match fb.browse(path).await? {
-        None => bail!("Not a directory: {}", path),
+        None => bail!("Cannot find: {}", path),
         Some(v) => {
             let top_path = v.path().to_string();
             println!("{}", construct(&fb, v, top_path, depth).await?);
@@ -35,38 +35,39 @@ async fn construct(
         return Ok(root);
     }
 
-    let mut futures = Vec::new();
-    for subfolder in v.subfolders() {
-        let child_path = format!("{}/{}", v.path(), subfolder);
-        let child = fb
-            .browse(&FileBrowserPath::new(&child_path))
-            .await
-            .with_context(|| {
-                format!(
-                    "Invalid child path: {}\n{}",
-                    &child_path,
-                    style(
-                        "This API is not capable of handling paths which contain commas. \
-                    See https://github.com/FNNDSC/ChRIS_ultron_backEnd/issues/384"
-                    )
-                    .yellow()
-                )
-            })?;
-        if let Some(c) = child {
-            futures.push(construct(&fb, c, subfolder.to_string(), depth - 1));
+    let subfolders = v.subfolders();
+    let path = v.path();
+    let subfolders_stream = stream! {
+        for subfolder in subfolders {
+            let child_path = format!("{}/{}", path, subfolder);
+            yield fb.browse(&FileBrowserPath::new(&child_path))
+                .await
+                .map(|m| m.map(|child| (subfolder.to_string(), child)))
+                .map_err(|_| format!("BUG: Invalid child path: {}", &child_path));
         }
-    }
+    };
+    let maybes: Vec<Option<(String, FileBrowserView)>> = subfolders_stream
+        .try_collect()
+        .await
+        .map_err(anyhow::Error::msg)?;
 
-    let mut leaves = Vec::with_capacity(futures.len());
-    for future in futures {
-        leaves.push(future.await?);
-    }
+    let subtree_stream = stream! {
+        for maybe in maybes {
+            if let Some((subfolder, child)) = maybe {
+                yield construct(fb, child, subfolder, depth - 1).await;
+            }
+        }
+    };
+    let mut subtrees: Vec<Tree<StyledObject<String>>> = subtree_stream.try_collect().await?;
 
-    let files_iter = v.iter_files();
-    pin_mut!(files_iter);
-    while let Some(file) = files_iter.next().await {
-        leaves.push(Tree::new(style(file?.fname().to_string())));
-    }
+    let files_stream = stream! {
+        for await file in v.iter_files() {
+            yield Ok(Tree::new(style(file?.fname().to_string())))
+        }
+    };
 
-    Ok(root.with_leaves(leaves))
+    let files: Vec<Tree<StyledObject<String>>> = files_stream.try_collect().await?;
+    subtrees.extend(files);
+
+    Ok(root.with_leaves(subtrees))
 }

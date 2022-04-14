@@ -47,7 +47,7 @@ impl FileBrowser {
             .send()
             .await?;
         let mut data: FileBrowserSearch = check(res).await?.json().await?;
-        if data.results.len() < 1 {
+        if data.results.is_empty() {
             return Ok(None);
         }
         let dir = data.results.swap_remove(0);
