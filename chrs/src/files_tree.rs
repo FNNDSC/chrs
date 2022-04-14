@@ -38,12 +38,12 @@ async fn print_tree_from(
     let main = async move {
         let spinner = ProgressBar::new_spinner();
         let mut count = 0;
-        while let Some(_) = rx.recv().await {
-            count = count + 1;
+        while (rx.recv().await).is_some() {
+            count += 1;
             spinner.set_message(format!("Getting information... {}", count));
         }
     };
-    let tree_builder = construct(&fb, tx, v, top_path, full, depth);
+    let tree_builder = construct(fb, tx, v, top_path, full, depth);
     let (_, tree) = join!(main, tree_builder);
     println!("{}", tree?);
     Ok(())
