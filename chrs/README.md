@@ -87,7 +87,7 @@ chrs logout
 List files and directories in _ChRIS_.
 
 ```shell
-$ tree -L 4 chris/feed_1443
+$ chrs tree -L 4 chris/feed_1443
 chris/feed_1443
 └── pl-dircopy_5827
     ├── data
@@ -101,7 +101,7 @@ chris/feed_1443
             ├── mgz2LUT_report.html
             └── input.meta.json
 
-$ tree -L 4 --full chris/feed_1443
+$ chrs tree -L 4 --full chris/feed_1443
 chris/feed_1443
 └── pl-dircopy_5827
     ├── data
