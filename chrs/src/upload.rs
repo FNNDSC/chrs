@@ -2,7 +2,7 @@ use crate::constants::BUG_REPORTS;
 use crate::executor::collect_then_do_with_progress;
 use anyhow::{bail, Context, Error, Ok, Result};
 use chris::api::FileUploadResponse;
-use chris::{ChrisClient, FileIOError};
+use chris::{errors::FileIOError, ChrisClient};
 use pathdiff::diff_paths;
 use std::fmt::Debug;
 use std::path::{Path, PathBuf};

@@ -2,8 +2,8 @@
 //! tokens or creating _ChRIS_ accounts.
 
 use crate::api::{UserId, UserUrl};
-use crate::client::CUBEError;
 use crate::common_types::{CUBEApiUrl, Username};
+use crate::errors::CUBEError;
 use crate::ChrisClient;
 use serde::{Deserialize, Serialize};
 

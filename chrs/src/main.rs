@@ -3,6 +3,7 @@ mod constants;
 mod download;
 mod executor;
 mod login;
+mod ls;
 mod pipeline_add;
 mod upload;
 
@@ -14,9 +15,11 @@ use clap::{Parser, Subcommand};
 use crate::config::ChrsConfig;
 use crate::download::download;
 use crate::login::get_client::get_client;
+use crate::ls::ls;
 use crate::pipeline_add::{add_pipeline, convert_pipeline};
 use crate::upload::upload;
 use chris::common_types::{CUBEApiUrl, Username};
+use chris::filebrowser::FileBrowserPath;
 
 #[derive(Parser)]
 #[clap(
@@ -71,9 +74,16 @@ enum Commands {
         #[clap(default_value = ".")]
         dst: PathBuf,
     },
-    //
-    // /// Search for files in ChRIS
-    // Ls {},
+
+    /// List files in ChRIS
+    Tree {
+        /// Maximum subdirectory depth
+        #[clap(short = 'L', long, default_value_t = 2)]
+        level: u16,
+        /// (Swift) data path
+        path: FileBrowserPath,
+    },
+
     //
     // /// Search for plugins and pipelines
     // Search {},
@@ -189,6 +199,10 @@ async fn main() -> Result<()> {
                     convert_pipeline(expand, &src, &dst).await
                 }
             }
+        }
+        Commands::Tree { level, path } => {
+            let client = get_client(address, username, password, vec![]).await?;
+            ls(&client, &path, level).await
         }
     }
 }

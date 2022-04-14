@@ -17,15 +17,20 @@ pub struct FeedsPaginatedUrl;
 
 #[derive(Debug, Deserialize)]
 pub struct CUBELinks {
-    pub files: AllFilesUrl,
+    pub files: FeedFilesUrl,
     pub uploadedfiles: UploadedFilesUrl,
     pub user: UserUrl,
     pub pipelines: PipelinesUrl,
+    pub filebrowser: FileBrowserUrl,
 }
+
+/// CUBE file browser API URL, e.g. `https://cube.chrisproject.org/api/v1/filebrowser/`
+#[braid(serde)]
+pub struct FileBrowserUrl;
 
 /// CUBE files resource URL, e.g. `https://cube.chrisproject.org/api/v1/files/`
 #[braid(serde)]
-pub struct AllFilesUrl;
+pub struct FeedFilesUrl;
 
 /// CUBE uploaded files resource URL, e.g. `https://cube.chrisproject.org/api/v1/uploadedfiles/`
 #[braid(serde)]

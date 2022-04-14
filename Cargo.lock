@@ -157,6 +157,17 @@ dependencies = [
 ]
 
 [[package]]
+name = "async-recursion"
+version = "1.0.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "2cda8f4bcc10624c4e85bc66b3f452cca98cfa5ca002dc83a16aad2367641bea"
+dependencies = [
+ "proc-macro2",
+ "quote",
+ "syn",
+]
+
+[[package]]
 name = "async-std"
 version = "1.11.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -370,6 +381,7 @@ name = "chrs"
 version = "0.0.5"
 dependencies = [
  "anyhow",
+ "async-recursion",
  "async-stream",
  "chris",
  "clap",
@@ -390,6 +402,7 @@ dependencies = [
  "serde_json",
  "serde_yaml",
  "tempfile",
+ "termtree",
  "thiserror",
  "tokio",
  "url",
@@ -2021,6 +2034,12 @@ dependencies = [
  "libc",
  "winapi",
 ]
+
+[[package]]
+name = "termtree"
+version = "0.4.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "95059e91184749cb66be6dc994f67f182b6d897cb3df74a5bf66b5e709295fd8"
 
 [[package]]
 name = "textwrap"

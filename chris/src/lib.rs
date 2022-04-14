@@ -9,4 +9,6 @@ pub mod common_types;
 mod pagination;
 pub mod pipeline;
 
-pub use client::{CUBEError, ChrisClient, FileIOError};
+pub use client::cube::ChrisClient;
+pub use client::errors;
+pub use client::filebrowser;

@@ -144,7 +144,7 @@ enum DownloadError {
 
     /// Error from downloading from a `file_resource`.
     #[error(transparent)]
-    Download(#[from] chris::FileIOError),
+    Download(#[from] chris::errors::FileIOError),
 
     #[error("Unable to create directory: {path:?}")]
     ParentDirectory {

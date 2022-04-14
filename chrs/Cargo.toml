@@ -23,6 +23,7 @@ thiserror = "1.0.30"
 tokio = { version = "1.17.0", features = ["full"] }
 futures = "0.3.21"
 async-stream = "0.3.3"
+async-recursion = "1.0.0"
 confy = "0.4.0"
 dialoguer = "0.10.0"
 indicatif = "0.17.0-rc.10"
@@ -36,6 +37,7 @@ pathdiff = "0.2.1"
 itertools = "0.10.3"
 regex = "1.5"
 url = "2.2.2"
+termtree = "0.4.0"
 
 [dev-dependencies]
 tempfile = "3.3.0"
