@@ -153,7 +153,7 @@ impl ChrisClient {
     ) -> impl Stream<Item = Result<R, reqwest::Error>> + 'a {
         // TODO check the error, if it's a problem with .json,
         // tell user to check documentation for supported URLs
-        paginate(&self.client, url)
+        paginate(&self.client, Some(url))
     }
 }
 

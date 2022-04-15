@@ -85,6 +85,7 @@ enum Commands {
         full: bool,
 
         /// (Swift) data path
+        #[clap(default_value = "")]
         path: FileBrowserPath,
     },
 

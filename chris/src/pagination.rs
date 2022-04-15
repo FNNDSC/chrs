@@ -18,10 +18,10 @@ pub(crate) trait PaginatedUrl: AsRef<str> + Clone + DeserializeOwned {}
 /// Limitation: Cannot produce [crate::client::CUBEError]
 pub(crate) fn paginate<'a, U: 'a + PaginatedUrl, R: 'a + DeserializeOwned>(
     client: &'a reqwest::Client,
-    url: &'a U,
+    url: Option<&'a U>,
 ) -> impl Stream<Item = Result<R, reqwest::Error>> + 'a {
     stream! {
-        let mut next_url = Some(url.clone());
+        let mut next_url = url.map(|i| i.clone());
         while let Some(u) = next_url {
             let res = client.get(u.as_ref()).send().await?;
             let page: Paginated<U, R> = res.json().await?;

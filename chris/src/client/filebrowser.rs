@@ -68,7 +68,7 @@ struct FileBrowserDir {
     path: FileBrowserPath,
     subfolders: String,
     // url: String,
-    files: FileBrowserFilesUrl,
+    files: Option<FileBrowserFilesUrl>,
 }
 
 #[braid(serde)]
@@ -81,7 +81,9 @@ pub struct FileBrowserView {
     path: FileBrowserPath,
     subfolders: String,
     // url: String,
-    files: FileBrowserFilesUrl,
+    /// API Url for files immediately under this path.
+    /// Is `None` if path is `""` (root).
+    files: Option<FileBrowserFilesUrl>,
 }
 
 impl FileBrowserView {
@@ -118,7 +120,7 @@ impl FileBrowserView {
 
     /// Iterate over files.
     pub fn iter_files(&self) -> impl Stream<Item = Result<DownloadableFile, reqwest::Error>> + '_ {
-        paginate(&self.client, &self.files)
+        paginate(&self.client, self.files.as_ref())
     }
 }
 
