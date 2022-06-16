@@ -102,7 +102,7 @@ impl TryFrom<TitleIndexedPipeline> for ExpandedTreePipeline {
         let mut non_roots = agg_by_previous(p.plugin_tree);
 
         pipings.push(root.into());
-        pipings.extend(drain_by_previous(&mut non_roots, 0, &pipings[0].title));
+        pipings.extend(drain_by_previous(&mut non_roots, 0, &pipings[0].title, 1));
 
         // There will be values remaining inside `non_roots` if there are any
         // elements of `plugin_tree` which specify a `previous` that doesn't exist,
@@ -191,20 +191,20 @@ fn drain_by_previous(
     m: &mut HashMap<PipingTitle, Vec<NRPiping>>,
     previous_index: usize,
     previous_title: &PipingTitle,
+    current_index: usize,
 ) -> Vec<NumericPreviousPiping> {
     match m.remove(previous_title) {
         None => vec![],
         Some(children) => {
-            let current_index = previous_index + 1;
+            let mut child_index = current_index + children.len();
             let mut pipings: Vec<NumericPreviousPiping> = children
                 .into_iter()
                 .map(|p| p.canonicalize(previous_index))
-                .collect();
-            let mut everything_else: Vec<NumericPreviousPiping> = Vec::new();
+                .collect();  // siblings
+            let mut everything_else: Vec<NumericPreviousPiping> = Vec::new();  // children
             for (i, child) in pipings.iter().enumerate() {
-                let next_index = current_index + i;
-                let next_title = &child.title;
-                let grandchildren = drain_by_previous(m, next_index, next_title);
+                let grandchildren = drain_by_previous(m, current_index + i, &child.title, child_index);
+                child_index += grandchildren.len();
                 everything_else.extend(grandchildren);
             }
             pipings.extend(everything_else);
