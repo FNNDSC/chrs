@@ -498,7 +498,7 @@ mod tests {
 
     #[rstest]
     fn test_drain_by_previous_empty() {
-        assert!(drain_by_previous(&mut HashMap::new(), 0, &PipingTitle::new("lol")).is_empty());
+        assert!(drain_by_previous(&mut HashMap::new(), 0, &PipingTitle::new("lol"), 1).is_empty());
     }
 
     #[rstest]
@@ -512,7 +512,7 @@ mod tests {
         m.insert(PipingTitle::new("b"), vec![c.clone()]);
 
         let expected = vec![a.canonicalize(0), b.canonicalize(1), c.canonicalize(2)];
-        let actual = drain_by_previous(&mut m, 0, &PipingTitle::new("root"));
+        let actual = drain_by_previous(&mut m, 0, &PipingTitle::new("root"), 1);
         assert_eq!(actual, expected);
     }
 
@@ -542,7 +542,7 @@ mod tests {
             e.canonicalize(1),
             f.canonicalize(2),
         ];
-        let actual = drain_by_previous(&mut m, 0, &PipingTitle::new("root"));
+        let actual = drain_by_previous(&mut m, 0, &PipingTitle::new("root"), 1);
         assert_eq!(actual, expected);
     }
 
