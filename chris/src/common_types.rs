@@ -44,7 +44,7 @@ mod tests {
     #[case("http://localhost:8000/api/v1/")]
     #[case("https://cube.chrisproject.org/api/v1/")]
     fn test_parse_url(#[case] url: &str) {
-        assert!(CUBEApiUrl::new(url).is_ok());
+        assert!(CUBEApiUrl::try_from(url).is_ok());
     }
 
     #[rstest]
@@ -52,7 +52,7 @@ mod tests {
     #[case("localhost/api/v1/")]
     fn test_reject_bad_protocol(#[case] url: &str) {
         assert!(matches!(
-            CUBEApiUrl::new(url).unwrap_err(),
+            CUBEApiUrl::try_from(url).unwrap_err(),
             InvalidCUBEUrl::Protocol { .. }
         ))
     }
@@ -64,7 +64,7 @@ mod tests {
     #[case("http://localhost/api/v1")]
     fn test_reject_bad_endpoint_version(#[case] url: &str) {
         assert!(matches!(
-            CUBEApiUrl::new(url).unwrap_err(),
+            CUBEApiUrl::try_from(url).unwrap_err(),
             InvalidCUBEUrl::EndpointVersion { .. }
         ))
     }

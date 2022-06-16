@@ -332,7 +332,7 @@ mod tests {
                 username.as_str().chars().rev().collect::<String>()
             ),
             username: Username::new(username),
-            url: CUBEApiUrl::new(CUBE_URL).unwrap(),
+            url: CUBEApiUrl::try_from(CUBE_URL).unwrap(),
             client: &reqwest::Client::new(),
         };
         account_creator.create_account(&email).await.unwrap();
@@ -350,17 +350,17 @@ mod tests {
             locked: false,
             plugin_tree: vec![
                 ExpandedTreePiping {
-                    plugin_name: PluginName::new("pl-simpledsapp"),
-                    plugin_version: PluginVersion::new("2.0.2"),
+                    plugin_name: PluginName::from("pl-simpledsapp"),
+                    plugin_version: PluginVersion::from("2.0.2"),
                     previous_index: None,
                     plugin_parameter_defaults: Some(vec![ExpandedTreeParameter {
-                        name: ParameterName::new("prefix"),
+                        name: ParameterName::from("prefix"),
                         default: ParameterValue::Str("chrs-test-".to_string()),
                     }]),
                 },
                 ExpandedTreePiping {
-                    plugin_name: PluginName::new("pl-simpledsapp"),
-                    plugin_version: PluginVersion::new("2.0.2"),
+                    plugin_name: PluginName::from("pl-simpledsapp"),
+                    plugin_version: PluginVersion::from("2.0.2"),
                     previous_index: Some(0),
                     plugin_parameter_defaults: None,
                 },

@@ -69,7 +69,7 @@ async fn construct(
     let subfolders_stream = stream! {
         for subfolder in subfolders {
             let child_path = format!("{}/{}", path, subfolder);
-            yield fb.browse(&FileBrowserPath::new(&child_path))
+            yield fb.browse(&FileBrowserPath::from(child_path.as_str()))
                 .await
                 .map(|m| m.map(|child| (subfolder.to_string(), child)))
                 .map_err(|_| format!("BUG: Invalid child path: {}", &child_path));

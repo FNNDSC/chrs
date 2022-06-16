@@ -79,7 +79,7 @@ impl CUBEAuth<'_> {
 
     pub async fn into_client(self) -> Result<ChrisClient, CUBEError> {
         let token = self.get_token().await?;
-        Ok(ChrisClient::new(self.url, self.username, token).await?)
+        ChrisClient::new(self.url, self.username, token).await
     }
 }
 
@@ -99,7 +99,7 @@ mod tests {
 
     #[fixture]
     fn cube_url() -> CUBEApiUrl {
-        CUBEApiUrl::new(CUBE_URL).unwrap()
+        CUBEApiUrl::try_from(CUBE_URL).unwrap()
     }
 
     #[rstest]

@@ -165,7 +165,7 @@ async fn main() -> Result<()> {
     let password = args.password;
 
     if let Some(given_address) = args.address {
-        address = Some(CUBEApiUrl::new(given_address)?);
+        address = Some(CUBEApiUrl::try_from(given_address)?);
     }
     if let Some(given_username) = args.username {
         username = Some(Username::new(given_username));

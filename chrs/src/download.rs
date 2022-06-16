@@ -43,7 +43,7 @@ pub(crate) async fn download(
 /// if not given an fname.
 fn parse_src(src: &str, address: &CUBEApiUrl) -> (AnyFilesUrl, usize) {
     if src.starts_with(address.as_str()) {
-        return (AnyFilesUrl::new(src), 0);
+        return (AnyFilesUrl::from(src), 0);
     }
     if src.starts_with("SERVICES") {
         if src.starts_with("SERVICES/PACS") {
@@ -73,7 +73,7 @@ fn to_search(address: &CUBEApiUrl, endpoint: &str, fname: &str) -> (AnyFilesUrl,
     // are file resource fnames without the leading
     // "chris/uploads/" prefix.
     let slash_len = if fname.ends_with('/') { 0 } else { 1 };
-    (AnyFilesUrl::new(url.as_str()), fname.len() + slash_len)
+    (AnyFilesUrl::from(url.as_str()), fname.len() + slash_len)
 }
 
 fn stream2download<'a>(
@@ -178,7 +178,7 @@ mod tests {
     fn test_parse_src(#[case] src: &str, #[case] expected: &str, example_address: &CUBEApiUrl) {
         assert_eq!(
             parse_src(src, example_address).0,
-            AnyFilesUrl::new(expected)
+            AnyFilesUrl::from(expected)
         );
     }
 
@@ -196,7 +196,7 @@ mod tests {
     #[fixture]
     #[once]
     fn example_address() -> CUBEApiUrl {
-        CUBEApiUrl::new("https://example.com/api/v1/").unwrap()
+        CUBEApiUrl::try_from("https://example.com/api/v1/").unwrap()
     }
 
     #[rstest]
@@ -225,7 +225,7 @@ mod tests {
     ) {
         assert_eq!(
             decide_target(
-                &FileResourceFname::new(fname),
+                &FileResourceFname::from(fname),
                 Path::new(dst),
                 parent_len,
                 shorten

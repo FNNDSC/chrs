@@ -331,7 +331,7 @@ fn parse_plugin(plugin: &UnparsedPlugin) -> Result<(PluginName, PluginVersion), 
     if !utn.ends_with(' ') {
         return Err(PluginParseError::NoSpaceBeforeV(plugin.to_owned()));
     }
-    Ok((PluginName::new(utn.trim_end()), PluginVersion::new(version)))
+    Ok((PluginName::from(utn.trim_end()), PluginVersion::from(version)))
 }
 
 #[derive(thiserror::Error, Debug, PartialEq)]
@@ -417,8 +417,8 @@ mod tests {
     #[case("vvvv v v4.5", "vvvv v", "4.5")]
     fn test_parse_plugin_ok(#[case] unparsed: &str, #[case] name: &str, #[case] version: &str) {
         assert_eq!(
-            parse_plugin(&UnparsedPlugin::new(unparsed)).unwrap(),
-            (PluginName::new(name), PluginVersion::new(version))
+            parse_plugin(&UnparsedPlugin::from(unparsed)).unwrap(),
+            (PluginName::from(name), PluginVersion::from(version))
         );
     }
 
@@ -427,7 +427,7 @@ mod tests {
     #[case("pl-dircopy 1.2.3")]
     #[case("pl-dircopyv 1.2.3")]
     fn test_parse_plugin_err(#[case] unparsed: &str) {
-        assert!(parse_plugin(&UnparsedPlugin::new(unparsed)).is_err())
+        assert!(parse_plugin(&UnparsedPlugin::from(unparsed)).is_err())
     }
 
     #[rstest]
@@ -489,9 +489,9 @@ mod tests {
             create_example("example5", Some("b")),
         ];
         let mut m = agg_by_previous(examples);
-        assert_set_title_eq(m.remove(&PipingTitle::new("a")).unwrap(), vec!["example3"]);
+        assert_set_title_eq(m.remove(&PipingTitle::from("a")).unwrap(), vec!["example3"]);
         assert_set_title_eq(
-            m.remove(&PipingTitle::new("b")).unwrap(),
+            m.remove(&PipingTitle::from("b")).unwrap(),
             vec!["example4", "example5"],
         );
         assert!(m.is_empty());
@@ -499,7 +499,7 @@ mod tests {
 
     #[rstest]
     fn test_drain_by_previous_empty() {
-        assert!(drain_by_previous(&mut HashMap::new(), 0, &PipingTitle::new("lol"), 1).is_empty());
+        assert!(drain_by_previous(&mut HashMap::new(), 0, &PipingTitle::from("lol"), 1).is_empty());
     }
 
     #[rstest]
@@ -508,12 +508,12 @@ mod tests {
         let a: NRPiping = create_example("a", Some("root")).try_into().unwrap();
         let b: NRPiping = create_example("b", Some("a")).try_into().unwrap();
         let c: NRPiping = create_example("c", Some("b")).try_into().unwrap();
-        m.insert(PipingTitle::new("root"), vec![a.clone()]);
-        m.insert(PipingTitle::new("a"), vec![b.clone()]);
-        m.insert(PipingTitle::new("b"), vec![c.clone()]);
+        m.insert(PipingTitle::from("root"), vec![a.clone()]);
+        m.insert(PipingTitle::from("a"), vec![b.clone()]);
+        m.insert(PipingTitle::from("b"), vec![c.clone()]);
 
         let expected = vec![a.canonicalize(0), b.canonicalize(1), c.canonicalize(2)];
-        let actual = drain_by_previous(&mut m, 0, &PipingTitle::new("root"), 1);
+        let actual = drain_by_previous(&mut m, 0, &PipingTitle::from("root"), 1);
         assert_eq!(actual, expected);
     }
 
@@ -539,11 +539,11 @@ mod tests {
         let i: NRPiping = create_example("i", Some("d")).try_into().unwrap();
         let j: NRPiping = create_example("j", Some("g")).try_into().unwrap();
         let k: NRPiping = create_example("k", Some("g")).try_into().unwrap();
-        m.insert(PipingTitle::new("root"), vec![a.clone(), b.clone()]);
-        m.insert(PipingTitle::new("a"), vec![c.clone(), d.clone(), e.clone()]);
-        m.insert(PipingTitle::new("b"), vec![f.clone(), g.clone()]);
-        m.insert(PipingTitle::new("d"), vec![h.clone(), i.clone()]);
-        m.insert(PipingTitle::new("g"), vec![j.clone(), k.clone()]);
+        m.insert(PipingTitle::from("root"), vec![a.clone(), b.clone()]);
+        m.insert(PipingTitle::from("a"), vec![c.clone(), d.clone(), e.clone()]);
+        m.insert(PipingTitle::from("b"), vec![f.clone(), g.clone()]);
+        m.insert(PipingTitle::from("d"), vec![h.clone(), i.clone()]);
+        m.insert(PipingTitle::from("g"), vec![j.clone(), k.clone()]);
 
         let expected = vec![
             a.canonicalize(0), //  1
@@ -558,7 +558,7 @@ mod tests {
             j.canonicalize(9), // 10
             k.canonicalize(9), // 11
         ];
-        let actual = drain_by_previous(&mut m, 0, &PipingTitle::new("root"), 1);
+        let actual = drain_by_previous(&mut m, 0, &PipingTitle::from("root"), 1);
         assert_eq!(actual, expected);
     }
 
@@ -580,7 +580,7 @@ mod tests {
         ]);
         assert_eq!(
             pipeline.unwrap_err(),
-            InvalidTitleIndexedPipeline::Disconnected([PipingTitle::new("dne")].into())
+            InvalidTitleIndexedPipeline::Disconnected([PipingTitle::from("dne")].into())
         );
     }
 
@@ -594,8 +594,8 @@ mod tests {
         assert_eq!(
             pipeline.unwrap_err(),
             InvalidTitleIndexedPipeline::PluralRoot(vec![
-                PipingTitle::new("root"),
-                PipingTitle::new("another_root")
+                PipingTitle::from("root"),
+                PipingTitle::from("another_root")
             ])
         );
     }
@@ -610,16 +610,16 @@ mod tests {
         assert_eq!(
             pipeline.unwrap_err(),
             InvalidTitleIndexedPipeline::Disconnected(
-                [PipingTitle::new("c"), PipingTitle::new("b")].into()
+                [PipingTitle::from("c"), PipingTitle::from("b")].into()
             )
         );
     }
 
     fn create_example(title: &str, previous: Option<&str>) -> TitleIndexedPiping {
         TitleIndexedPiping {
-            title: PipingTitle::new(title),
-            plugin: UnparsedPlugin::new(format!("pl-{} v0.0.0", title)),
-            previous: previous.map(PipingTitle::new),
+            title: PipingTitle::from(title),
+            plugin: UnparsedPlugin::from(format!("pl-{} v0.0.0", title)),
+            previous: previous.map(PipingTitle::from),
             plugin_parameter_defaults: None,
         }
     }
@@ -640,7 +640,7 @@ mod tests {
 
     fn assert_set_title_eq(left: Vec<impl Into<PipingTitle>>, right: Vec<&str>) {
         let left_set: HashSet<PipingTitle> = left.into_iter().map_into().collect();
-        let right_set: HashSet<PipingTitle> = right.into_iter().map(PipingTitle::new).collect();
+        let right_set: HashSet<PipingTitle> = right.into_iter().map(PipingTitle::from).collect();
         assert_eq!(left_set, right_set);
     }
 }

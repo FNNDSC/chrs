@@ -49,7 +49,7 @@ pub async fn get_client(
 fn get_url_from(args: &[&str]) -> Option<CUBEApiUrl> {
     for arg in args {
         if let Some(url) = CUBE_URL_RE.find(arg) {
-            if let Ok(url) = CUBEApiUrl::new(url.as_str()) {
+            if let Ok(url) = CUBEApiUrl::try_from(url.as_str()) {
                 return Some(url);
             }
         }
@@ -76,19 +76,19 @@ mod tests {
         assert_eq!(get_url_from(&vec!["one", "http://localhost"]), None);
         assert_eq!(
             get_url_from(&vec!["one", "http://localhost/api/v1/"]),
-            Some(CUBEApiUrl::new("http://localhost/api/v1/").unwrap())
+            Some(CUBEApiUrl::try_from("http://localhost/api/v1/").unwrap())
         );
         assert_eq!(
             get_url_from(&vec!["http://localhost/api/v1/uploadedfiles/"]),
-            Some(CUBEApiUrl::new("http://localhost/api/v1/").unwrap())
+            Some(CUBEApiUrl::try_from("http://localhost/api/v1/").unwrap())
         );
         assert_eq!(
             get_url_from(&vec!["http://localhost:8000/api/v1/uploadedfiles/"]),
-            Some(CUBEApiUrl::new("http://localhost:8000/api/v1/").unwrap())
+            Some(CUBEApiUrl::try_from("http://localhost:8000/api/v1/").unwrap())
         );
         assert_eq!(
             get_url_from(&vec!["https://cube.chrisproject.org/api/v1/uploadedfiles/"]),
-            Some(CUBEApiUrl::new("https://cube.chrisproject.org/api/v1/").unwrap())
+            Some(CUBEApiUrl::try_from("https://cube.chrisproject.org/api/v1/").unwrap())
         );
     }
 }
