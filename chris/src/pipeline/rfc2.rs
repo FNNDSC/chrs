@@ -520,27 +520,42 @@ mod tests {
     fn test_drain_by_previous_branching() {
         //       root
         //       / \
-        //      a   b
-        //    / | \   \
-        //   c  d  e   f
+        //      /   \
+        //     a     b
+        //   / | \   | \
+        //  c  d  e  f  g
+        //    / \      / \
+        //   h   i    j   k
         let mut m: HashMap<PipingTitle, Vec<NRPiping>> = HashMap::new();
         let a: NRPiping = create_example("a", Some("root")).try_into().unwrap();
-        let b: NRPiping = create_example("b", Some("a")).try_into().unwrap();
+        let b: NRPiping = create_example("b", Some("root")).try_into().unwrap();
         let c: NRPiping = create_example("c", Some("a")).try_into().unwrap();
         let d: NRPiping = create_example("d", Some("a")).try_into().unwrap();
         let e: NRPiping = create_example("e", Some("a")).try_into().unwrap();
         let f: NRPiping = create_example("f", Some("b")).try_into().unwrap();
+        let g: NRPiping = create_example("g", Some("b")).try_into().unwrap();
+        let h: NRPiping = create_example("h", Some("d")).try_into().unwrap();
+        let i: NRPiping = create_example("i", Some("d")).try_into().unwrap();
+        let j: NRPiping = create_example("j", Some("g")).try_into().unwrap();
+        let k: NRPiping = create_example("k", Some("g")).try_into().unwrap();
         m.insert(PipingTitle::new("root"), vec![a.clone(), b.clone()]);
         m.insert(PipingTitle::new("a"), vec![c.clone(), d.clone(), e.clone()]);
-        m.insert(PipingTitle::new("b"), vec![f.clone()]);
+        m.insert(PipingTitle::new("b"), vec![f.clone(), g.clone()]);
+        m.insert(PipingTitle::new("d"), vec![h.clone(), i.clone()]);
+        m.insert(PipingTitle::new("g"), vec![j.clone(), k.clone()]);
 
         let expected = vec![
-            a.canonicalize(0),
-            b.canonicalize(0),
-            c.canonicalize(1),
-            d.canonicalize(1),
-            e.canonicalize(1),
-            f.canonicalize(2),
+            a.canonicalize(0),  //  1
+            b.canonicalize(0),  //  2
+            c.canonicalize(1),  //  3
+            d.canonicalize(1),  //  4
+            e.canonicalize(1),  //  5
+            h.canonicalize(4),  //  6
+            i.canonicalize(4),  //  7
+            f.canonicalize(2),  //  8
+            g.canonicalize(2),  //  9
+            j.canonicalize(9),  // 10
+            k.canonicalize(9),  // 11
         ];
         let actual = drain_by_previous(&mut m, 0, &PipingTitle::new("root"), 1);
         assert_eq!(actual, expected);
