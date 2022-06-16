@@ -200,10 +200,11 @@ fn drain_by_previous(
             let mut pipings: Vec<NumericPreviousPiping> = children
                 .into_iter()
                 .map(|p| p.canonicalize(previous_index))
-                .collect();  // siblings
-            let mut everything_else: Vec<NumericPreviousPiping> = Vec::new();  // children
+                .collect(); // siblings
+            let mut everything_else: Vec<NumericPreviousPiping> = Vec::new(); // children
             for (i, child) in pipings.iter().enumerate() {
-                let grandchildren = drain_by_previous(m, current_index + i, &child.title, child_index);
+                let grandchildren =
+                    drain_by_previous(m, current_index + i, &child.title, child_index);
                 child_index += grandchildren.len();
                 everything_else.extend(grandchildren);
             }
@@ -545,17 +546,17 @@ mod tests {
         m.insert(PipingTitle::new("g"), vec![j.clone(), k.clone()]);
 
         let expected = vec![
-            a.canonicalize(0),  //  1
-            b.canonicalize(0),  //  2
-            c.canonicalize(1),  //  3
-            d.canonicalize(1),  //  4
-            e.canonicalize(1),  //  5
-            h.canonicalize(4),  //  6
-            i.canonicalize(4),  //  7
-            f.canonicalize(2),  //  8
-            g.canonicalize(2),  //  9
-            j.canonicalize(9),  // 10
-            k.canonicalize(9),  // 11
+            a.canonicalize(0), //  1
+            b.canonicalize(0), //  2
+            c.canonicalize(1), //  3
+            d.canonicalize(1), //  4
+            e.canonicalize(1), //  5
+            h.canonicalize(4), //  6
+            i.canonicalize(4), //  7
+            f.canonicalize(2), //  8
+            g.canonicalize(2), //  9
+            j.canonicalize(9), // 10
+            k.canonicalize(9), // 11
         ];
         let actual = drain_by_previous(&mut m, 0, &PipingTitle::new("root"), 1);
         assert_eq!(actual, expected);

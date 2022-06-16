@@ -23,7 +23,7 @@ mod tests {
 
     #[fixture]
     #[once]
-    fn canon() -> ExpandedTreePipeline {
+    fn canon_linear() -> ExpandedTreePipeline {
         let converted: CanonPipeline =
             read_example_json("fetal_brain_reconstruction_canon.json").into();
         converted.into()
@@ -31,7 +31,7 @@ mod tests {
 
     #[fixture]
     #[once]
-    fn json_example() -> ExpandedTreePipeline {
+    fn json_example_linear() -> ExpandedTreePipeline {
         let converted: CanonPipeline =
             read_example_json("fetal_brain_reconstruction_expanded.json").into();
         converted.into()
@@ -39,20 +39,47 @@ mod tests {
 
     #[fixture]
     #[once]
-    fn yaml_example() -> ExpandedTreePipeline {
+    fn json_snapshot_branching() -> ExpandedTreePipeline {
+        let fname = "fetal_brain_mri_surface_extraction_pipeline.converted.expanded.json";
+        let converted: CanonPipeline = read_example_json(fname).into();
+        converted.into()
+    }
+
+    #[fixture]
+    #[once]
+    fn yaml_example_linear() -> ExpandedTreePipeline {
         read_example_yaml("fetal_brain_reconstruction.yml")
             .try_into()
             .unwrap()
     }
 
-    #[rstest]
-    fn test_json(canon: &ExpandedTreePipeline, json_example: &ExpandedTreePipeline) {
-        assert_eq!(canon, json_example);
+    #[fixture]
+    #[once]
+    fn yaml_example_branching() -> ExpandedTreePipeline {
+        read_example_yaml("fetal_brain_mri_surface_extraction_pipeline.yml")
+            .try_into()
+            .unwrap()
     }
 
     #[rstest]
-    fn test_yaml(canon: &ExpandedTreePipeline, yaml_example: &ExpandedTreePipeline) {
-        cmp_unordered(canon, yaml_example);
+    fn test_json(canon_linear: &ExpandedTreePipeline, json_example_linear: &ExpandedTreePipeline) {
+        assert_eq!(canon_linear, json_example_linear);
+    }
+
+    #[rstest]
+    fn test_yaml_linear(
+        canon_linear: &ExpandedTreePipeline,
+        yaml_example_linear: &ExpandedTreePipeline,
+    ) {
+        cmp_unordered(canon_linear, yaml_example_linear);
+    }
+
+    #[rstest]
+    fn test_yaml_branching(
+        json_snapshot_branching: &ExpandedTreePipeline,
+        yaml_example_branching: &ExpandedTreePipeline,
+    ) {
+        cmp_unordered(json_snapshot_branching, yaml_example_branching);
     }
 
     fn read_example_json(fname: &str) -> PossiblyExpandedTreePipeline {
