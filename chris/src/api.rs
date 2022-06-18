@@ -22,6 +22,7 @@ pub struct CUBELinks {
     pub user: UserUrl,
     pub pipelines: PipelinesUrl,
     pub filebrowser: FileBrowserUrl,
+    pub plugins: PluginsUrl,
 }
 
 /// CUBE file browser API URL, e.g. `https://cube.chrisproject.org/api/v1/filebrowser/`
@@ -36,9 +37,13 @@ pub struct FeedFilesUrl;
 #[braid(serde)]
 pub struct UploadedFilesUrl;
 
+/// CUBE plugins resource URL, e.g. `https://cube.chrisproject.org/api/v1/plugins/`
+#[braid(serde)]
+pub struct PluginsUrl;
+
 /// CUBE User ID
 #[derive(Shrinkwrap, Deserialize)]
-pub struct UserId(u16);
+pub struct UserId(u32);
 
 /// CUBE user resource URL, e.g. `https://cube.chrisproject.org/api/v1/users/3/`
 #[braid(serde)]
@@ -70,7 +75,7 @@ pub enum ParameterValue {
 pub struct PipelineUrl;
 
 #[derive(Shrinkwrap, Deserialize, Debug)]
-pub struct PipelineId(u16);
+pub struct PipelineId(u32);
 
 #[braid(serde)]
 pub struct PipelinePluginsUrl;
@@ -171,4 +176,135 @@ impl Downloadable for FileUploadResponse {
     fn fname(&self) -> &FileResourceFname {
         &self.fname
     }
+}
+
+/// Plugin URL.
+#[braid(serde)]
+pub struct PluginUrl;
+
+/// Plugin ID
+#[derive(Shrinkwrap, Deserialize, Debug)]
+pub struct PluginId(u32);
+
+/// Container image name of a plugin.
+#[braid(serde)]
+pub struct DockImage;
+
+/// Public source code repository of a plugin.
+#[braid(serde)]
+pub struct PluginRepo;
+
+/// Plugin type. One of: "fs", "ds", "ts"
+#[braid(serde)]
+pub struct PluginType;
+// validation would be nice...
+
+/// Plugin meta URL.
+#[braid(serde)]
+pub struct PluginMetaUrl;
+
+/// Plugin parameters URL.
+#[braid(serde)]
+pub struct PluginParametersUrl;
+
+/// Plugin instances URL.
+#[braid(serde)]
+pub struct PluginInstancesUrl;
+
+/// Plugin compute resources URL.
+#[braid(serde)]
+pub struct PluginComputeResourcesUrl;
+
+#[derive(Debug, Deserialize)]
+pub struct PluginResponse {
+    pub url: PluginUrl,
+    pub id: PluginId,
+    pub creation_date: String,
+    pub name: PluginName,
+    pub version: PluginVersion,
+    pub dock_image: DockImage,
+    pub public_repo: PluginRepo,
+    pub icon: String,
+    #[serde(rename = "type")]
+    pub plugin_type: PluginType,
+    pub stars: u32,
+    pub authors: String,
+    pub title: String,
+    pub category: String,
+    pub description: String,
+    pub documentation: String,
+    pub license: String,
+    pub execshell: String,
+    pub selfpath: String,
+    pub selfexec: String,
+    pub min_number_of_workers: u32,
+    pub max_number_of_workers: u32,
+    pub min_cpu_limit: u32,
+    pub max_cpu_limit: u32,
+    pub min_memory_limit: u32,
+    pub max_memory_limit: u32,
+    pub min_gpu_limit: u32,
+    pub max_gpu_limit: u32,
+    pub meta: PluginMetaUrl,
+    pub parameters: PluginParametersUrl,
+    pub instances: PluginInstancesUrl,
+    pub compute_resources: PluginComputeResourcesUrl,
+}
+
+#[braid(serde)]
+pub struct PluginInstanceUrl;
+
+#[braid(serde)]
+pub struct FeedUrl;
+
+#[derive(Shrinkwrap, Deserialize, Debug)]
+pub struct PluginInstanceId(u32);
+
+#[braid(serde)]
+pub struct DescendantsUrl;
+
+#[braid(serde)]
+pub struct PluginInstanceParametersUrl;
+
+#[braid(serde)]
+pub struct PluginInstanceSplitsUrl;
+
+#[braid(serde)]
+pub struct ComputeResourceUrl;
+
+#[braid(serde)]
+pub struct ComputeResourceName;
+
+#[derive(Deserialize, Debug)]
+pub struct PluginInstanceCreatedResponse {
+    pub url: PluginInstanceUrl,
+    pub id: PluginInstanceId,
+    pub title: String,
+    pub compute_resource_name: ComputeResourceName,
+    pub plugin_id: PluginId,
+    pub plugin_name: PluginName,
+    pub plugin_version: PluginVersion,
+    pub plugin_type: PluginType,
+    // pipeline_inst: Option<String>,  // TODO
+    pub start_date: String,
+    pub end_date: String,
+    pub output_path: String,
+    pub status: String,
+    pub summary: String,
+    pub raw: String,
+    pub owner_username: Username,
+    pub cpu_limit: u32,
+    pub memory_limit: u32,
+    pub number_of_workers: u32,
+    pub gpu_limit: u32,
+    pub size: u64,
+    pub error_code: String,
+    pub previous: Option<PluginInstanceUrl>,
+    pub feed: FeedUrl,
+    pub plugin: PluginUrl,
+    pub descendants: DescendantsUrl,
+    pub files: AnyFilesUrl,
+    pub parameters: PluginInstanceParametersUrl,
+    pub compute_resource: ComputeResourceUrl,
+    pub splits: PluginInstanceSplitsUrl,
 }

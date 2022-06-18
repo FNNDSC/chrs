@@ -6,6 +6,7 @@ pub mod api;
 pub mod auth;
 mod client;
 pub mod common_types;
+mod constants;
 mod pagination;
 pub mod pipeline;
 

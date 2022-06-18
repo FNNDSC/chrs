@@ -1,3 +1,4 @@
+use crate::api::{PluginName, PluginVersion};
 use reqwest::StatusCode;
 
 /// Errors representing failed interactions with CUBE.
@@ -15,10 +16,15 @@ pub enum CUBEError {
     /// Error response without explanation from CUBE (badness 100000).
     #[error(transparent)]
     Raw(#[from] reqwest::Error),
+}
 
-    /// An unexpected error with the client.
-    #[error("{0}")]
-    Client(String),
+#[derive(thiserror::Error, Debug)]
+pub enum DircopyError {
+    #[error(transparent)]
+    CUBEError(#[from] CUBEError),
+
+    #[error("\"{0}\" version {1} not found")]
+    DircopyNotFound(&'static PluginName, &'static PluginVersion),
 }
 
 pub(crate) async fn check(res: reqwest::Response) -> Result<reqwest::Response, CUBEError> {

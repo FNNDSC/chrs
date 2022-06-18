@@ -331,7 +331,10 @@ fn parse_plugin(plugin: &UnparsedPlugin) -> Result<(PluginName, PluginVersion), 
     if !utn.ends_with(' ') {
         return Err(PluginParseError::NoSpaceBeforeV(plugin.to_owned()));
     }
-    Ok((PluginName::from(utn.trim_end()), PluginVersion::from(version)))
+    Ok((
+        PluginName::from(utn.trim_end()),
+        PluginVersion::from(version),
+    ))
 }
 
 #[derive(thiserror::Error, Debug, PartialEq)]
@@ -540,7 +543,10 @@ mod tests {
         let j: NRPiping = create_example("j", Some("g")).try_into().unwrap();
         let k: NRPiping = create_example("k", Some("g")).try_into().unwrap();
         m.insert(PipingTitle::from("root"), vec![a.clone(), b.clone()]);
-        m.insert(PipingTitle::from("a"), vec![c.clone(), d.clone(), e.clone()]);
+        m.insert(
+            PipingTitle::from("a"),
+            vec![c.clone(), d.clone(), e.clone()],
+        );
         m.insert(PipingTitle::from("b"), vec![f.clone(), g.clone()]);
         m.insert(PipingTitle::from("d"), vec![h.clone(), i.clone()]);
         m.insert(PipingTitle::from("g"), vec![j.clone(), k.clone()]);

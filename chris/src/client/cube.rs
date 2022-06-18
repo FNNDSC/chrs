@@ -1,17 +1,20 @@
-use futures::{Stream, TryStreamExt};
+use futures::{pin_mut, Stream, TryStreamExt};
 use std::path::Path;
 
 use super::errors::{check, CUBEError, FileIOError};
 use super::filebrowser::FileBrowser;
 use crate::api::*;
+use crate::client::plugin::Plugin;
 use crate::common_types::{CUBEApiUrl, Username};
+use crate::constants::{DIRCOPY_NAME, DIRCOPY_VERSION};
+use crate::errors::DircopyError;
 use crate::pagination::*;
 use crate::pipeline::CanonPipeline;
 use reqwest::header::{HeaderMap, HeaderValue, ACCEPT, AUTHORIZATION};
 use reqwest::multipart::{Form, Part};
 use reqwest::Body;
 use serde::de::DeserializeOwned;
-use serde::Deserialize;
+use serde::{Deserialize, Serialize};
 use tokio::fs::{self, File, OpenOptions};
 use tokio_util::codec::{BytesCodec, FramedRead};
 use tokio_util::io::StreamReader;
@@ -35,8 +38,7 @@ impl ChrisClient {
             .default_headers(token2header(&token))
             .build()?;
         let res = client.get(url.as_str()).query(&LIMIT_ZERO).send().await?;
-        res.error_for_status_ref()?;
-        let base_response: BaseResponse = res.json().await?;
+        let base_response: BaseResponse = check(res).await?.json().await?;
         Ok(ChrisClient {
             client,
             url,
@@ -155,6 +157,38 @@ impl ChrisClient {
         // tell user to check documentation for supported URLs
         paginate(&self.client, Some(url))
     }
+
+    /// Get a specific plugin by (name_exact, version).
+    pub async fn get_plugin(
+        &self,
+        name_exact: &PluginName,
+        version: &PluginVersion,
+    ) -> Result<Option<PluginResponse>, CUBEError> {
+        let query = &[
+            ("name_exact", name_exact.as_str()),
+            ("version", version.as_str()),
+        ];
+        let url = SearchUrl::of(&self.links.plugins, query).unwrap();
+        let results = self.paginate(&url);
+        pin_mut!(results);
+        let first_plugin = results.try_next().await?;
+        Ok(first_plugin)
+        // invariant: only one search result will be found by (name_exact, version)
+    }
+
+    /// Create a plugin instance of (i.e. run) `pl-dircopy`
+    pub async fn dircopy(&self, dir: &str) -> Result<PluginInstanceCreatedResponse, DircopyError> {
+        let plugin_response = self
+            .get_plugin(&DIRCOPY_NAME, &DIRCOPY_VERSION)
+            .await
+            .map_err(DircopyError::CUBEError)?
+            .ok_or(DircopyError::DircopyNotFound(
+                &DIRCOPY_NAME,
+                &DIRCOPY_VERSION,
+            ))?;
+        let plugin = Plugin::new(self.client.clone(), plugin_response);
+        Ok(plugin.create_instance(&DircopyPayload { dir }).await?)
+    }
 }
 
 // ============================== HELPERS ==============================
@@ -177,6 +211,11 @@ fn token2header(token: &str) -> HeaderMap {
 #[derive(Deserialize)]
 struct HasCount {
     count: u32,
+}
+
+#[derive(Serialize)]
+struct DircopyPayload<'a> {
+    dir: &'a str,
 }
 
 // ============================== TESTS ==============================
@@ -202,7 +241,7 @@ mod tests {
     #[rstest]
     #[tokio::test]
     async fn test_download(#[future] future_client: ChrisClient) -> AnyResult {
-        let client: ChrisClient = future_client.await;
+        let chris: ChrisClient = future_client.await;
         let data = b"finally some good content";
         let tmp_path = TempDir::new()?.into_path();
         let input_file = tmp_path.join(Path::new("hello.txt"));
@@ -210,10 +249,10 @@ mod tests {
         {
             fs::File::create(&input_file).await?.write_all(data).await?;
         }
-        let upload = client
+        let upload = chris
             .upload_file(&input_file, "test_files_upload_iter.txt")
             .await?;
-        client.download_file(&upload, &output_file, false).await?;
+        chris.download_file(&upload, &output_file, false).await?;
         let downloaded = tokio::fs::read(output_file).await?;
         assert_eq!(data, downloaded.as_slice());
         Ok(())
@@ -224,7 +263,7 @@ mod tests {
     async fn test_files_upload_iter(#[future] future_client: ChrisClient) -> AnyResult {
         // ---------- create some test files ----------
         let num_files = 42;
-        let client: ChrisClient = future_client.await;
+        let chris: ChrisClient = future_client.await;
         let tmp_dir = TempDir::new()?;
         let tmp_path = tmp_dir.path();
         let file_names: Vec<PathBuf> = (0..num_files)
@@ -248,7 +287,7 @@ mod tests {
         let future_uploads = file_names
             .iter()
             .zip(upload_paths.as_slice())
-            .map(|(f, upload_path)| client.upload_file(f, upload_path));
+            .map(|(f, upload_path)| chris.upload_file(f, upload_path));
 
         // ---------- check for errors ----------
         let results = join_all(future_uploads).await;
@@ -269,15 +308,15 @@ mod tests {
         let search = AnyFilesUrl::new(format!(
             "http://localhost:8000/api/v1/uploadedfiles/search/\
         ?fname_icontains={}/uploads/{}&fname_nslashes=3",
-            client.username, &parent
+            chris.username, &parent
         ));
 
-        assert_eq!(num_files, client.get_count(search.as_str()).await?);
+        assert_eq!(num_files, chris.get_count(search.as_str()).await?);
 
         // ---------- test pagination ----------
         // Get the fnames of all the file we just uploaded,
         // and make sure that they match the upload paths we specified.
-        let s = client.iter_files(&search);
+        let s = chris.iter_files(&search);
         pin_mut!(s);
         while let Some(f) = s.next().await {
             let file = f?;
@@ -367,5 +406,39 @@ mod tests {
             ],
         }
         .into()
+    }
+
+    #[rstest]
+    #[tokio::test]
+    async fn test_get_plugin(#[future] future_client: ChrisClient) -> AnyResult {
+        let chris: ChrisClient = future_client.await;
+        let plugin = chris
+            .get_plugin(&DIRCOPY_NAME, &DIRCOPY_VERSION)
+            .await?
+            .unwrap();
+        assert_eq!(&plugin.name, &*DIRCOPY_NAME);
+        assert_eq!(&plugin.version, &*DIRCOPY_VERSION);
+        Ok(())
+    }
+
+    #[rstest]
+    #[tokio::test]
+    async fn test_dircopy(#[future] future_client: ChrisClient) -> AnyResult {
+        let chris: ChrisClient = future_client.await;
+        let data = b"finally some good content";
+        let tmp_path = TempDir::new()?.into_path();
+        let input_file = tmp_path.join(Path::new("hello.txt"));
+        {
+            fs::File::create(&input_file).await?.write_all(data).await?;
+        }
+        let upload_path = format!(
+            "{}/{}",
+            "test-chrs-upload",
+            Generator::default().next().unwrap()
+        );
+        let upload = chris.upload_file(&input_file, upload_path.as_str()).await?;
+        let dircopy_instance = chris.dircopy(upload.fname().as_str()).await?;
+        assert_eq!(&dircopy_instance.plugin_name, &*DIRCOPY_NAME);
+        Ok(())
     }
 }

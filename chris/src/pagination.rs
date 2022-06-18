@@ -1,6 +1,8 @@
-use crate::api::AnyFilesUrl;
+use crate::api::{AnyFilesUrl, PluginsUrl};
+use aliri_braid::braid;
 use async_stream::stream;
 use futures::Stream;
+use reqwest::Url;
 use serde::{de::DeserializeOwned, Deserialize, Serialize};
 
 /// Query string parameters for paginated GET endpoints.
@@ -44,3 +46,45 @@ pub(crate) struct Paginated<U, T> {
 }
 
 impl PaginatedUrl for AnyFilesUrl {}
+impl PaginatedUrl for PluginsUrl {}
+impl PaginatedUrl for SearchUrl {}
+
+/// Plugin meta URL.
+#[braid(serde)]
+pub struct SearchUrl;
+
+impl From<Url> for SearchUrl {
+    fn from(url: Url) -> Self {
+        Self::from(url.as_ref())
+    }
+}
+
+impl SearchUrl {
+    pub(crate) fn of<T: Serialize + ?Sized>(
+        u: &impl PaginatedUrl,
+        query: &T,
+    ) -> Result<Self, serde_urlencoded::ser::Error> {
+        let mut url = Url::parse(u.as_ref()).unwrap().join("search/").unwrap();
+        {
+            let mut pairs = url.query_pairs_mut();
+            let serializer = serde_urlencoded::Serializer::new(&mut pairs);
+            query.serialize(serializer)?;
+        }
+        Ok(Self::from(url.as_ref()))
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_search_url() {
+        let example = "https://example.com/api/v1/plugins/";
+        let expected = "https://example.com/api/v1/plugins/search/?name=dolphin";
+        assert_eq!(
+            SearchUrl::of(&PluginsUrl::from(example), &[("name", "dolphin")]),
+            Ok(SearchUrl::from(expected))
+        );
+    }
+}
