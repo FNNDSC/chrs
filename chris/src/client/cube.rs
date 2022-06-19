@@ -5,6 +5,7 @@ use super::errors::{check, CUBEError, FileIOError};
 use super::filebrowser::FileBrowser;
 use crate::api::*;
 use crate::client::plugin::Plugin;
+use crate::client::plugininstance::PluginInstance;
 use crate::common_types::{CUBEApiUrl, Username};
 use crate::constants::{DIRCOPY_NAME, DIRCOPY_VERSION};
 use crate::errors::DircopyError;
@@ -177,7 +178,7 @@ impl ChrisClient {
     }
 
     /// Create a plugin instance of (i.e. run) `pl-dircopy`
-    pub async fn dircopy(&self, dir: &str) -> Result<PluginInstanceCreatedResponse, DircopyError> {
+    pub async fn dircopy(&self, dir: &str) -> Result<PluginInstance, DircopyError> {
         let plugin_response = self
             .get_plugin(&DIRCOPY_NAME, &DIRCOPY_VERSION)
             .await
@@ -438,7 +439,15 @@ mod tests {
         );
         let upload = chris.upload_file(&input_file, upload_path.as_str()).await?;
         let dircopy_instance = chris.dircopy(upload.fname().as_str()).await?;
-        assert_eq!(&dircopy_instance.plugin_name, &*DIRCOPY_NAME);
+        assert_eq!(
+            &dircopy_instance.plugin_instance.plugin_name,
+            &*DIRCOPY_NAME
+        );
+
+        // TODO move this test somewhere else
+        let feed = dircopy_instance.get_feed();
+        let feed_details = feed.set_name("a new name").await?;
+        assert_eq!(feed_details.name.as_str(), "a new name");
         Ok(())
     }
 }

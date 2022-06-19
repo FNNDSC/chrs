@@ -1,4 +1,5 @@
 use crate::api::*;
+use crate::client::plugininstance::PluginInstance;
 use crate::errors::{check, CUBEError};
 use reqwest::Client;
 use serde::Serialize;
@@ -19,13 +20,14 @@ impl Plugin {
     pub async fn create_instance<T: Serialize + ?Sized>(
         &self,
         body: &T,
-    ) -> Result<PluginInstanceCreatedResponse, CUBEError> {
+    ) -> Result<PluginInstance, CUBEError> {
         let res = self
             .client
             .post(self.plugin.instances.as_str())
             .json(body)
             .send()
             .await?;
-        Ok(check(res).await?.json().await?)
+        let data = check(res).await?.json().await?;
+        Ok(PluginInstance::new(self.client.clone(), data))
     }
 }

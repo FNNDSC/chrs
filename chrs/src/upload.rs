@@ -11,17 +11,57 @@ use std::path::{Path, PathBuf};
 ///
 /// WARNING: uses std::path to iterate over filesystem instead of tokio::fs,
 /// meaning that part of its execution is synchronous.
-pub async fn upload(client: &ChrisClient, files: &[PathBuf], path: &str) -> Result<()> {
+pub async fn upload(
+    chris: &ChrisClient,
+    files: &[PathBuf],
+    path: &str,
+    feed: Option<String>,
+) -> Result<()> {
+    if feed.is_some() && files.len() != 1 && path.is_empty() {
+        bail!("A feed can only be created when only one item is specified or when --path is specified.");
+    }
     let path = append_slash_if_not_empty(path);
-    let uploads = discover_input_files(files)?
+    let all_files = discover_input_files(files)?;
+    let dircopy_dir = choose_dircopy_path(chris, &all_files, &*path);
+    let uploads = all_files
         .into_iter()
         .map(|file| FileToUpload {
             name: format!("{}{}", path, file.name),
             path: file.path,
         })
-        .map(|f| f.upload_using(client));
+        .map(|f| f.upload_using(chris));
     collect_then_do_with_progress(uploads, false).await?;
+
+    if let Some(feed_name) = feed {
+        if let Some(uploaded_dir) = dircopy_dir {
+            create_feed(chris, &*uploaded_dir, &*feed_name).await?;
+        } else {
+            bail!("Upload path unknown --- this is a bug.");
+        }
+    }
+
     Ok(())
+}
+
+async fn create_feed(chris: &ChrisClient, uploaded_dir: &str, feed_name: &str) -> Result<()> {
+    let dircopy = chris.dircopy(uploaded_dir).await?;
+    let feed = dircopy.get_feed();
+    let details = feed.set_name(feed_name).await?;
+    println!("{}", details.url);
+    Ok(())
+}
+
+fn choose_dircopy_path(
+    chris: &ChrisClient,
+    files: &[FileToUpload],
+    given_path: &str,
+) -> Option<String> {
+    let subdir = if !given_path.is_empty() {
+        Some(given_path)
+    } else {
+        files.first().map(|f| f.name.as_str())
+    };
+    subdir.map(|d| format!("{}/{}/{}", chris.username(), "uploads", d))
 }
 
 fn append_slash_if_not_empty(s: &str) -> String {

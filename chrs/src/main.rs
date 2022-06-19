@@ -52,6 +52,10 @@ enum Commands {
         #[clap(short, long, default_value_t=String::from(""))]
         path: String,
 
+        /// Run pl-dircopy to create a feed given name
+        #[clap(short, long)]
+        feed: Option<String>,
+
         /// Files and directories to upload
         #[clap(required = true)]
         files: Vec<PathBuf>,
@@ -172,9 +176,9 @@ async fn main() -> Result<()> {
     }
 
     match args.command {
-        Commands::Upload { files, path } => {
+        Commands::Upload { files, feed, path } => {
             let client = get_client(address, username, password, vec![]).await?;
-            upload(&client, &files, &path).await
+            upload(&client, &files, &path, feed).await
         }
         Commands::Download { shorten, src, dst } => {
             let client = get_client(address, username, password, vec![src.as_str()]).await?;
