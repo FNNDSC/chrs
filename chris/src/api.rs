@@ -139,7 +139,7 @@ impl Downloadable for DownloadableFile {
 }
 
 #[derive(Debug, Deserialize)]
-pub struct PipelineUploadResponse {
+pub struct PipelineResponse {
     pub url: PipelineUrl,
     pub id: PipelineId,
     pub name: String,

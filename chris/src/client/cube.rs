@@ -8,7 +8,7 @@ use crate::client::plugin::Plugin;
 use crate::client::plugininstance::PluginInstance;
 use crate::common_types::{CUBEApiUrl, Username};
 use crate::constants::{DIRCOPY_NAME, DIRCOPY_VERSION};
-use crate::errors::DircopyError;
+use crate::errors::{DircopyError, GetError};
 use crate::pagination::*;
 use crate::pipeline::CanonPipeline;
 use reqwest::header::{HeaderMap, HeaderValue, ACCEPT, AUTHORIZATION};
@@ -19,6 +19,7 @@ use serde::{Deserialize, Serialize};
 use tokio::fs::{self, File, OpenOptions};
 use tokio_util::codec::{BytesCodec, FramedRead};
 use tokio_util::io::StreamReader;
+use crate::client::pipeline::Pipeline;
 
 /// _ChRIS_ client object.
 #[derive(Debug)]
@@ -67,7 +68,7 @@ impl ChrisClient {
     pub async fn upload_pipeline(
         &self,
         pipeline: &CanonPipeline,
-    ) -> Result<PipelineUploadResponse, CUBEError> {
+    ) -> Result<PipelineResponse, CUBEError> {
         let res = self
             .client
             .post(&self.links.pipelines.to_string())
@@ -169,12 +170,21 @@ impl ChrisClient {
             ("name_exact", name_exact.as_str()),
             ("version", version.as_str()),
         ];
-        let url = SearchUrl::of(&self.links.plugins, query).unwrap();
+        // invariant: only one search result will be found by (name_exact, version)
+        let plugin = self.get_first(&self.links.plugins, query).await?;
+        Ok(plugin)
+    }
+
+    /// Get the first object from a search.
+    async fn get_first<T: Serialize + ?Sized, R: DeserializeOwned>(
+        &self,
+        base_url: &impl PaginatedUrl,
+        query: &T,
+    ) -> Result<Option<R>, reqwest::Error> {
+        let url = SearchUrl::of(base_url, query).unwrap();
         let results = self.paginate(&url);
         pin_mut!(results);
-        let first_plugin = results.try_next().await?;
-        Ok(first_plugin)
-        // invariant: only one search result will be found by (name_exact, version)
+        results.try_next().await
     }
 
     /// Create a plugin instance of (i.e. run) `pl-dircopy`
@@ -189,6 +199,13 @@ impl ChrisClient {
             ))?;
         let plugin = Plugin::new(self.client.clone(), plugin_response);
         Ok(plugin.create_instance(&DircopyPayload { dir }).await?)
+    }
+
+    pub async fn get_pipeline(&self, name: &str) -> Result<Option<Pipeline>, GetError> {
+        let query = &[("name", name)];
+        let pipeline = self.get_first(&self.links.pipelines, query)
+            .await.map_err(CUBEError::from)?;
+        Ok(pipeline.map(|p| Pipeline::new(self.client.clone(), p)))
     }
 }
 
@@ -223,6 +240,7 @@ struct DircopyPayload<'a> {
 
 #[cfg(test)]
 mod tests {
+    use std::fmt::format;
     use super::*;
     use crate::api::{ParameterName, ParameterValue, PluginName, PluginVersion};
     use crate::auth::CUBEAuth;
@@ -345,15 +363,20 @@ mod tests {
 
     #[rstest]
     #[tokio::test]
-    async fn test_upload_pipeline(
+    async fn test_upload_and_get_pipeline(
         #[future] future_client: ChrisClient,
         example_pipeline: CanonPipeline,
     ) -> AnyResult {
-        let uploaded_pipeline = future_client
-            .await
-            .upload_pipeline(&example_pipeline)
-            .await?;
-        assert_eq!(uploaded_pipeline.name, example_pipeline.name);
+        let chris: ChrisClient = future_client.await;
+        let uploaded_pipeline = chris.upload_pipeline(&example_pipeline).await?;
+        assert_eq!(&uploaded_pipeline.name, &example_pipeline.name);
+        let gotten = chris.get_pipeline(&example_pipeline.name)
+            .await?
+            .expect(format!(
+                "Just uploaded the pipeline \"{}\" but cannot find it",
+                &example_pipeline.name
+            ).as_str());
+        assert_eq!(&gotten.pipeline.name, &example_pipeline.name);
         Ok(())
     }
 

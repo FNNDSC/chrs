@@ -4,3 +4,4 @@ mod feed;
 pub mod filebrowser;
 mod plugin;
 mod plugininstance;
+mod pipeline;

@@ -27,6 +27,16 @@ pub enum DircopyError {
     DircopyNotFound(&'static PluginName, &'static PluginVersion),
 }
 
+#[derive(thiserror::Error, Debug)]
+pub enum GetError {
+    #[error(transparent)]
+    CUBEError(#[from] CUBEError),
+
+    /// Error when trying to get an object but it is not found.
+    #[error("\"{0}\" not found")]
+    NotFound(String),
+}
+
 pub(crate) async fn check(res: reqwest::Response) -> Result<reqwest::Response, CUBEError> {
     match res.error_for_status_ref() {
         Ok(_) => Ok(res),
