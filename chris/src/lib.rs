@@ -8,7 +8,7 @@ mod client;
 pub mod common_types;
 mod constants;
 mod pagination;
-pub(crate) mod pipeline;
+pub mod pipeline;
 
 pub use client::cube::ChrisClient;
 pub use client::errors;
