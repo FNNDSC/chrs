@@ -49,12 +49,16 @@ enum Commands {
     /// Upload files to my ChRIS library
     Upload {
         /// Path prefix, i.e. subdir of <username>/uploads to upload to
-        #[clap(short, long, default_value_t=String::from(""))]
+        #[clap(short='P', long, default_value_t=String::from(""))]
         path: String,
 
-        /// Run pl-dircopy to create a feed given name
+        /// Create a feed with a name
         #[clap(short, long)]
         feed: Option<String>,
+
+        /// Run a pipeline
+        #[clap(short = 'p', long)]
+        pipeline: Option<String>,
 
         /// Files and directories to upload
         #[clap(required = true)]
@@ -176,9 +180,14 @@ async fn main() -> Result<()> {
     }
 
     match args.command {
-        Commands::Upload { files, feed, path } => {
+        Commands::Upload {
+            files,
+            feed,
+            pipeline,
+            path,
+        } => {
             let client = get_client(address, username, password, vec![]).await?;
-            upload(&client, &files, &path, feed).await
+            upload(&client, &files, &path, feed, pipeline).await
         }
         Commands::Download { shorten, src, dst } => {
             let client = get_client(address, username, password, vec![src.as_str()]).await?;

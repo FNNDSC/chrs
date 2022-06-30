@@ -139,7 +139,7 @@ impl Downloadable for DownloadableFile {
 }
 
 #[derive(Debug, Deserialize)]
-pub struct PipelineUploadResponse {
+pub struct PipelineResponse {
     pub url: PipelineUrl,
     pub id: PipelineId,
     pub name: String,
@@ -257,7 +257,7 @@ pub struct PluginInstanceUrl;
 #[braid(serde)]
 pub struct FeedUrl;
 
-#[derive(Shrinkwrap, Deserialize, Debug)]
+#[derive(Shrinkwrap, Serialize, Deserialize, Debug)]
 pub struct PluginInstanceId(u32);
 
 #[braid(serde)]
@@ -307,4 +307,22 @@ pub struct PluginInstanceCreatedResponse {
     pub parameters: PluginInstanceParametersUrl,
     pub compute_resource: ComputeResourceUrl,
     pub splits: PluginInstanceSplitsUrl,
+}
+
+#[derive(Shrinkwrap, Deserialize, Debug)]
+pub struct WorkflowId(u32);
+
+#[braid(serde)]
+pub struct WorkflowUrl;
+
+#[derive(Debug, Deserialize)]
+pub struct WorkflowCreatedResponse {
+    pub url: WorkflowUrl,
+    pub id: WorkflowId,
+    pub creation_date: String,
+    pub created_plugin_inst_ids: String,
+    pub pipeline_id: PipelineId,
+    pub pipeline_name: String,
+    pub owner_username: Username,
+    pub pipeline: PipelineUrl,
 }

@@ -16,7 +16,10 @@ pub async fn upload(
     files: &[PathBuf],
     path: &str,
     feed: Option<String>,
+    pipeline: Option<String>,
 ) -> Result<()> {
+    let feed = feed.or_else(|| pipeline.clone()); // bad clone
+
     if feed.is_some() && files.len() != 1 && path.is_empty() {
         bail!("A feed can only be created when only one item is specified or when --path is specified.");
     }

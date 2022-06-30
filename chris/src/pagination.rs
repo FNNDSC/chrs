@@ -1,4 +1,4 @@
-use crate::api::{AnyFilesUrl, PluginsUrl};
+use crate::api::{AnyFilesUrl, PipelinesUrl, PluginsUrl};
 use aliri_braid::braid;
 use async_stream::stream;
 use futures::Stream;
@@ -47,6 +47,7 @@ pub(crate) struct Paginated<U, T> {
 
 impl PaginatedUrl for AnyFilesUrl {}
 impl PaginatedUrl for PluginsUrl {}
+impl PaginatedUrl for PipelinesUrl {}
 impl PaginatedUrl for SearchUrl {}
 
 /// Plugin meta URL.

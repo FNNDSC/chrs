@@ -4,11 +4,12 @@ use std::path::Path;
 use super::errors::{check, CUBEError, FileIOError};
 use super::filebrowser::FileBrowser;
 use crate::api::*;
+use crate::client::pipeline::Pipeline;
 use crate::client::plugin::Plugin;
 use crate::client::plugininstance::PluginInstance;
 use crate::common_types::{CUBEApiUrl, Username};
 use crate::constants::{DIRCOPY_NAME, DIRCOPY_VERSION};
-use crate::errors::DircopyError;
+use crate::errors::{DircopyError, GetError};
 use crate::pagination::*;
 use crate::pipeline::CanonPipeline;
 use reqwest::header::{HeaderMap, HeaderValue, ACCEPT, AUTHORIZATION};
@@ -67,7 +68,7 @@ impl ChrisClient {
     pub async fn upload_pipeline(
         &self,
         pipeline: &CanonPipeline,
-    ) -> Result<PipelineUploadResponse, CUBEError> {
+    ) -> Result<PipelineResponse, CUBEError> {
         let res = self
             .client
             .post(&self.links.pipelines.to_string())
@@ -169,12 +170,21 @@ impl ChrisClient {
             ("name_exact", name_exact.as_str()),
             ("version", version.as_str()),
         ];
-        let url = SearchUrl::of(&self.links.plugins, query).unwrap();
+        // invariant: only one search result will be found by (name_exact, version)
+        let plugin = self.get_first(&self.links.plugins, query).await?;
+        Ok(plugin)
+    }
+
+    /// Get the first object from a search.
+    async fn get_first<T: Serialize + ?Sized, R: DeserializeOwned>(
+        &self,
+        base_url: &impl PaginatedUrl,
+        query: &T,
+    ) -> Result<Option<R>, reqwest::Error> {
+        let url = SearchUrl::of(base_url, query).unwrap();
         let results = self.paginate(&url);
         pin_mut!(results);
-        let first_plugin = results.try_next().await?;
-        Ok(first_plugin)
-        // invariant: only one search result will be found by (name_exact, version)
+        results.try_next().await
     }
 
     /// Create a plugin instance of (i.e. run) `pl-dircopy`
@@ -189,6 +199,15 @@ impl ChrisClient {
             ))?;
         let plugin = Plugin::new(self.client.clone(), plugin_response);
         Ok(plugin.create_instance(&DircopyPayload { dir }).await?)
+    }
+
+    pub async fn get_pipeline(&self, name: &str) -> Result<Option<Pipeline>, GetError> {
+        let query = &[("name", name)];
+        let pipeline = self
+            .get_first(&self.links.pipelines, query)
+            .await
+            .map_err(CUBEError::from)?;
+        Ok(pipeline.map(|p| Pipeline::new(self.client.clone(), p)))
     }
 }
 
@@ -343,20 +362,6 @@ mod tests {
         Ok(())
     }
 
-    #[rstest]
-    #[tokio::test]
-    async fn test_upload_pipeline(
-        #[future] future_client: ChrisClient,
-        example_pipeline: CanonPipeline,
-    ) -> AnyResult {
-        let uploaded_pipeline = future_client
-            .await
-            .upload_pipeline(&example_pipeline)
-            .await?;
-        assert_eq!(uploaded_pipeline.name, example_pipeline.name);
-        Ok(())
-    }
-
     #[fixture]
     async fn future_client() -> ChrisClient {
         // due to a limitation of rstest, we cannot have a once setup async fixture
@@ -380,7 +385,7 @@ mod tests {
     }
 
     #[fixture]
-    fn example_pipeline() -> CanonPipeline {
+    fn example_pipeline() -> ExpandedTreePipeline {
         let mut name_generator = Generator::default();
         ExpandedTreePipeline {
             authors: name_generator.next().unwrap(),
@@ -406,7 +411,6 @@ mod tests {
                 },
             ],
         }
-        .into()
     }
 
     #[rstest]
@@ -424,8 +428,14 @@ mod tests {
 
     #[rstest]
     #[tokio::test]
-    async fn test_dircopy(#[future] future_client: ChrisClient) -> AnyResult {
+    async fn test_e2e(
+        example_pipeline: ExpandedTreePipeline,
+        #[future] future_client: ChrisClient,
+    ) -> AnyResult {
         let chris: ChrisClient = future_client.await;
+
+        ////////////////
+        // upload file
         let data = b"finally some good content";
         let tmp_path = TempDir::new()?.into_path();
         let input_file = tmp_path.join(Path::new("hello.txt"));
@@ -438,16 +448,45 @@ mod tests {
             Generator::default().next().unwrap()
         );
         let upload = chris.upload_file(&input_file, upload_path.as_str()).await?;
+
+        ////////////////
+        // run pl-dircopy
         let dircopy_instance = chris.dircopy(upload.fname().as_str()).await?;
         assert_eq!(
             &dircopy_instance.plugin_instance.plugin_name,
             &*DIRCOPY_NAME
         );
 
-        // TODO move this test somewhere else
+        ////////////////
+        // name created feed
         let feed = dircopy_instance.get_feed();
         let feed_details = feed.set_name("a new name").await?;
         assert_eq!(feed_details.name.as_str(), "a new name");
+
+        ////////////////
+        // upload pipeline
+        let num_pipings = example_pipeline.plugin_tree.len();
+        let pipeline_name = example_pipeline.name.clone();
+        let uploaded_pipeline = chris.upload_pipeline(&example_pipeline.into()).await?;
+        assert_eq!(&uploaded_pipeline.name, &pipeline_name);
+        let gotten = chris.get_pipeline(&pipeline_name).await?.expect(
+            format!(
+                "Just uploaded the pipeline \"{}\" but cannot find it",
+                &pipeline_name
+            )
+            .as_str(),
+        );
+        assert_eq!(&gotten.pipeline.name, &pipeline_name);
+
+        ////////////////
+        // create workflow
+        let workflow = gotten
+            .create_workflow(dircopy_instance.plugin_instance.id)
+            .await?;
+        assert_eq!(&workflow.pipeline_name, &pipeline_name);
+        let n_created_plugin_inst = workflow.created_plugin_inst_ids.split(',').count();
+        assert_eq!(n_created_plugin_inst, num_pipings);
+
         Ok(())
     }
 }
