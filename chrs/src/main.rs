@@ -46,7 +46,7 @@ struct Cli {
 
 #[derive(Subcommand)]
 enum Commands {
-    /// Upload files to my ChRIS library
+    /// Upload files and run workflows
     Upload {
         /// Path prefix, i.e. subdir of <username>/uploads to upload to
         #[clap(short='P', long, default_value_t=String::from(""))]

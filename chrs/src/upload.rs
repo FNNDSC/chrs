@@ -1,8 +1,10 @@
 use crate::constants::BUG_REPORTS;
 use crate::executor::collect_then_do_with_progress;
 use anyhow::{bail, Context, Error, Ok, Result};
-use chris::api::FileUploadResponse;
-use chris::{errors::FileIOError, ChrisClient};
+use chris::api::{FileUploadResponse, PluginInstanceId};
+use chris::errors::CUBEError;
+use chris::{errors::FileIOError, ChrisClient, Pipeline};
+use futures::try_join;
 use pathdiff::diff_paths;
 use std::fmt::Debug;
 use std::path::{Path, PathBuf};
@@ -19,10 +21,11 @@ pub async fn upload(
     pipeline: Option<String>,
 ) -> Result<()> {
     let feed = feed.or_else(|| pipeline.clone()); // bad clone
-
     if feed.is_some() && files.len() != 1 && path.is_empty() {
         bail!("A feed can only be created when only one item is specified or when --path is specified.");
     }
+    let found_pipeline = get_pipeline(chris, &feed, pipeline).await?;
+
     let path = append_slash_if_not_empty(path);
     let all_files = discover_input_files(files)?;
     let dircopy_dir = choose_dircopy_path(chris, &all_files, &*path);
@@ -37,7 +40,7 @@ pub async fn upload(
 
     if let Some(feed_name) = feed {
         if let Some(uploaded_dir) = dircopy_dir {
-            create_feed(chris, &*uploaded_dir, &*feed_name).await?;
+            create_feed(chris, &*uploaded_dir, &*feed_name, found_pipeline).await?;
         } else {
             bail!("Upload path unknown --- this is a bug.");
         }
@@ -46,12 +49,50 @@ pub async fn upload(
     Ok(())
 }
 
-async fn create_feed(chris: &ChrisClient, uploaded_dir: &str, feed_name: &str) -> Result<()> {
+async fn get_pipeline(
+    chris: &ChrisClient,
+    feed: &Option<String>,
+    pipeline: Option<String>,
+) -> Result<Option<Pipeline>> {
+    if feed.is_some() {
+        if let Some(pipeline_name) = pipeline {
+            let found_pipeline = chris.get_pipeline(&*pipeline_name).await?;
+            found_pipeline
+                .ok_or_else(|| Error::msg(format!("Pipeline not found: \"{}\"", pipeline_name)))
+                .map(Some)
+        } else {
+            Ok(None)
+        }
+    } else {
+        Ok(None)
+    }
+}
+
+async fn create_feed(
+    chris: &ChrisClient,
+    uploaded_dir: &str,
+    feed_name: &str,
+    pipeline: Option<Pipeline>,
+) -> Result<()> {
     let dircopy = chris.dircopy(uploaded_dir).await?;
     let feed = dircopy.get_feed();
-    let details = feed.set_name(feed_name).await?;
+    let feed_name_task = feed.set_name(feed_name);
+    let dircopy_id = dircopy.plugin_instance.id;
+    let pipeline_task = maybe_create_workflow(pipeline, dircopy_id);
+    let (details, _) = try_join!(feed_name_task, pipeline_task)?;
     println!("{}", details.url);
     Ok(())
+}
+
+async fn maybe_create_workflow(
+    pipeline: Option<Pipeline>,
+    previous_plugin_inst_id: PluginInstanceId,
+) -> core::result::Result<(), CUBEError> {
+    if let Some(p) = pipeline {
+        p.create_workflow(previous_plugin_inst_id).await.map(|_| ())
+    } else {
+        core::result::Result::Ok(())
+    }
 }
 
 fn choose_dircopy_path(

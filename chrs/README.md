@@ -118,14 +118,22 @@ chris/feed_1443
 
 ### `chrs upload FILE...`
 
-Upload files to my _ChRIS_ Library.
+Upload files and run workflows.
 
 ```shell
 # upload some files
 chrs upload one_file.txt another_file.txt
 
 # upload all files in a directory
-chrs upload my_data/ 
+chrs upload my_data/
+
+# upload directory and create a feed with the name "Tractography Study"
+chrs upload --feed "Tractography Study" my_data/
+
+# upload directory, create a feed, and run a workflow
+chrs upload --feed "Surface Extraction" \
+            --pipeline "Fetal Brain Surface Extraction v1.0.0" \
+            my_data/
 ```
 
 ### `chrs download SRC [DST]`
