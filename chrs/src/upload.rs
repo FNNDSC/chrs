@@ -148,25 +148,26 @@ fn discover_input_files(paths: &[PathBuf]) -> Result<Vec<FileToUpload>> {
 /// of files discovered under a specified directory will be the
 /// path relative to the basename of the directory.
 fn files_under(path: &Path) -> Result<Vec<FileToUpload>> {
-    if path.is_file() {
-        let base = path
+    let canon_path = path.canonicalize()
+        .with_context(|| format!("Error reading path (it might not exist): {:?}", path))?;
+    if canon_path.is_file() {
+        let base = canon_path
             .file_name()
             .with_context(|| format!("Invalid path: {:?}", path))?;
         let file = FileToUpload {
             name: base.to_string_lossy().to_string(),
-            path: path.to_path_buf(),
+            path: canon_path,
         };
         return Ok(vec![file]);
     }
-    if !path.is_dir() {
+    if !canon_path.is_dir() {
         bail!(format!("File not found: {:?}", path));
     }
-    if path.file_name().is_none() {
-        // it's too hard to figure out the appropriate name for parent paths such as ".." or "../.."
+    if canon_path.file_name().is_none() {
         bail!("Unsupported path: {:?}", path);
     }
-    let parent = path.parent().unwrap_or(path);
-    files_under_dir(path, parent)
+    let parent = canon_path.parent().unwrap_or(canon_path.as_path());
+    files_under_dir(canon_path.as_path(), parent)
 }
 
 fn files_under_dir(dir: &Path, parent: &Path) -> Result<Vec<FileToUpload>> {
