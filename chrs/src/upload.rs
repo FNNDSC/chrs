@@ -149,7 +149,7 @@ fn discover_input_files(paths: &[PathBuf]) -> Result<Vec<FileToUpload>> {
 /// path relative to the basename of the directory.
 fn files_under(path: &Path) -> Result<Vec<FileToUpload>> {
     let canon_path = path.canonicalize()
-        .with_context(|| format!("Error reading path (it might not exist): {:?}", path))?;
+        .with_context(|| format!("File not found: {:?}", path))?;
     if canon_path.is_file() {
         let base = canon_path
             .file_name()
@@ -161,7 +161,7 @@ fn files_under(path: &Path) -> Result<Vec<FileToUpload>> {
         return Ok(vec![file]);
     }
     if !canon_path.is_dir() {
-        bail!(format!("File not found: {:?}", path));
+        bail!(format!("Path is neither a file nor a directory: {:?}", path));
     }
     if canon_path.file_name().is_none() {
         bail!("Unsupported path: {:?}", path);
@@ -284,13 +284,6 @@ mod tests {
         assert_eq!(
             files_under(Path::new("../../../seaweed"))?[0].name.as_str(),
             "seaweed/filling"
-        );
-        assert_eq!(
-            files_under(Path::new("../.."))
-                .unwrap_err()
-                .to_string()
-                .as_str(),
-            "Unsupported path: \"../..\""
         );
 
         std::env::set_current_dir(&pwd)?;
