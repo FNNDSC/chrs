@@ -2,6 +2,7 @@ use crate::constants::BUG_REPORTS;
 use crate::executor::collect_then_do_with_progress;
 use anyhow::{bail, Context, Error, Ok, Result};
 use chris::api::{FileUploadResponse, PluginInstanceId};
+use chris::common_types::Username;
 use chris::errors::CUBEError;
 use chris::{errors::FileIOError, ChrisClient, Pipeline};
 use futures::try_join;
@@ -16,23 +17,23 @@ use std::path::{Path, PathBuf};
 pub async fn upload(
     chris: &ChrisClient,
     files: &[PathBuf],
-    path: &str,
+    upload_path: &str,
     feed: Option<String>,
     pipeline: Option<String>,
 ) -> Result<()> {
     let feed = feed.or_else(|| pipeline.clone()); // bad clone
-    if feed.is_some() && files.len() != 1 && path.is_empty() {
+    if feed.is_some() && files.len() != 1 && upload_path.is_empty() {
         bail!("A feed can only be created when only one item is specified or when --path is specified.");
     }
     let found_pipeline = get_pipeline(chris, &feed, pipeline).await?;
 
-    let path = append_slash_if_not_empty(path);
-    let all_files = discover_input_files(files)?;
-    let dircopy_dir = choose_dircopy_path(chris, &all_files, &*path);
-    let uploads = all_files
+    let upload_path = append_slash_if_not_empty(upload_path);
+    let files_to_upload = discover_input_files(files)?;
+    let dircopy_dir = choose_dircopy_path(chris.username(), files, &*upload_path);
+    let uploads = files_to_upload
         .into_iter()
         .map(|file| FileToUpload {
-            name: format!("{}{}", path, file.name),
+            name: format!("{}{}", upload_path, file.name),
             path: file.path,
         })
         .map(|f| f.upload_using(chris));
@@ -95,17 +96,24 @@ async fn maybe_create_workflow(
     }
 }
 
-fn choose_dircopy_path(
-    chris: &ChrisClient,
-    files: &[FileToUpload],
-    given_path: &str,
-) -> Option<String> {
+fn choose_dircopy_path(username: &Username, files: &[PathBuf], given_path: &str) -> Option<String> {
     let subdir = if !given_path.is_empty() {
-        Some(given_path)
+        Some(given_path.to_string())
     } else {
-        files.first().map(|f| f.name.as_str())
+        files
+            .first()
+            .map(|f| {
+                f.canonicalize()
+                    .map(|c| {
+                        c.file_name()
+                            .map(|n| n.to_string_lossy().to_string())
+                            .or(None)
+                    })
+                    .unwrap_or(None)
+            })
+            .unwrap_or(None)
     };
-    subdir.map(|d| format!("{}/{}/{}", chris.username(), "uploads", d))
+    subdir.map(|d| format!("{}/{}/{}", username, "uploads", d))
 }
 
 fn append_slash_if_not_empty(s: &str) -> String {
@@ -148,7 +156,8 @@ fn discover_input_files(paths: &[PathBuf]) -> Result<Vec<FileToUpload>> {
 /// of files discovered under a specified directory will be the
 /// path relative to the basename of the directory.
 fn files_under(path: &Path) -> Result<Vec<FileToUpload>> {
-    let canon_path = path.canonicalize()
+    let canon_path = path
+        .canonicalize()
         .with_context(|| format!("File not found: {:?}", path))?;
     if canon_path.is_file() {
         let base = canon_path
@@ -161,7 +170,10 @@ fn files_under(path: &Path) -> Result<Vec<FileToUpload>> {
         return Ok(vec![file]);
     }
     if !canon_path.is_dir() {
-        bail!(format!("Path is neither a file nor a directory: {:?}", path));
+        bail!(format!(
+            "Path is neither a file nor a directory: {:?}",
+            path
+        ));
     }
     if canon_path.file_name().is_none() {
         bail!("Unsupported path: {:?}", path);
@@ -206,6 +218,26 @@ mod tests {
     use std::fs;
     use std::path::Path;
     use tempfile::{NamedTempFile, TempDir};
+
+    #[test]
+    fn test_choose_dircopy_path() -> Result<()> {
+        let username = Username::from("jack");
+
+        let tmp_dir = TempDir::new()?;
+        let given_path = tmp_dir.path().join(Path::new("fruit"));
+        fs::create_dir_all(&given_path)?;
+        let files = &[given_path];
+
+        assert_eq!(
+            choose_dircopy_path(&username, files, ""),
+            Some(String::from("jack/uploads/fruit"))
+        );
+        assert_eq!(
+            choose_dircopy_path(&username, files, "vegetables"),
+            Some(String::from("jack/uploads/vegetables"))
+        );
+        Ok(())
+    }
 
     #[test]
     fn test_files_under_file() -> Result<()> {
