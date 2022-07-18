@@ -2,6 +2,7 @@ mod constants;
 mod download;
 mod executor;
 mod files_tree;
+mod info;
 mod login;
 mod pipeline_add;
 mod upload;
@@ -13,6 +14,7 @@ use clap::{Parser, Subcommand};
 
 use crate::download::download;
 use crate::files_tree::files_tree;
+use crate::info::cube_info;
 use crate::login::get_client::get_client;
 use crate::pipeline_add::{add_pipeline, convert_pipeline};
 use crate::upload::upload;
@@ -46,6 +48,9 @@ struct Cli {
 
 #[derive(Subcommand)]
 enum Commands {
+    /// Get information about the ChRIS backend.
+    Info {},
+
     /// Upload files and run workflows
     Upload {
         /// Path prefix, i.e. subdir of <username>/uploads to upload to
@@ -180,6 +185,11 @@ async fn main() -> Result<()> {
     }
 
     match args.command {
+        Commands::Info {} => {
+            let client = get_client(address, username, password, vec![]).await?;
+            cube_info(&client).await
+        }
+
         Commands::Upload {
             files,
             feed,
