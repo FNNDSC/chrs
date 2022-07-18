@@ -16,7 +16,7 @@ jobs:
     name: Publish to crates.io
     steps:
       - name: Git checkout
-        uses: actions/checkout@v2
+        uses: actions/checkout@v3
       - name: Setup rust
         uses: actions-rs/toolchain@v1
         with:
@@ -122,7 +122,7 @@ jobs:
 
     steps:
       - name: Checkout repository
-        uses: actions/checkout@v2
+        uses: actions/checkout@v3
         with:
           fetch-depth: 1
 
@@ -175,7 +175,7 @@ jobs:
           mkdir -v release
           mv -v ${{ env.ASSET }} release/
       - name: Save release as artifact
-        uses: actions/upload-artifact@v2
+        uses: actions/upload-artifact@v3
         with:
           retention-days: 3
           name: release
@@ -232,7 +232,7 @@ jobs:
         run: cp -v target/release/chrs release/
 
       - name: Save release as artifact
-        uses: actions/upload-artifact@v2
+        uses: actions/upload-artifact@v3
         with:
           retention-days: 3
           name: release
@@ -244,7 +244,7 @@ jobs:
     needs: [build-release, build-deb]
     steps:
       - name: Get release artifacts
-        uses: actions/download-artifact@v2
+        uses: actions/download-artifact@v3
         with:
           name: release
           path: release

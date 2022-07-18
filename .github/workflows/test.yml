@@ -19,10 +19,10 @@ jobs:
           sudo apt update -y
           sudo apt install -y gnome-keyring
       - name: Run ChRIS backend
-        uses: FNNDSC/miniChRIS-docker@20220701
+        uses: FNNDSC/miniChRIS-docker@20220718
 
       - name: Git checkout
-        uses: actions/checkout@v2
+        uses: actions/checkout@v3
       - name: Setup rust toolchain
         uses: actions-rs/toolchain@v1
         with:
