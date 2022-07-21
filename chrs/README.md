@@ -14,7 +14,7 @@ There are two ways to install `chrs`.
 
 ### Download
 
-Pre-compiled binaries are automatically built and uploaded to
+You can download `chrs` from
 [Github Releases](https://github.com/FNNDSC/chrs/releases).
 Get the latest version here:
 
