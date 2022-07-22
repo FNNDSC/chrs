@@ -103,13 +103,13 @@ chris/feed_1443
 
 $ chrs tree -L 4 --full chris/feed_1443
 chris/feed_1443
-└── pl-dircopy_5827
-    ├── data
+└── chris/feed_1443/pl-dircopy_5827
+    ├── chris/feed_1443/pl-dircopy_5827/data
     │   ├── chris/feed_1443/pl-dircopy_5827/data/output.meta.json
     │   ├── chris/feed_1443/pl-dircopy_5827/data/input.meta.json
     │   └── chris/feed_1443/pl-dircopy_5827/data/aparc.a2009saseg.mgz
-    └── pl-mgz2LUT_report_5836
-        └── data
+    └── chris/feed_1443/pl-dircopy_5827/pl-mgz2LUT_report_5836
+        └── chris/feed_1443/pl-dircopy_5827/pl-mgz2LUT_report_5836/data
             ├── chris/feed_1443/pl-dircopy_5827/pl-mgz2LUT_report_5836/data/output.meta.json
             ├── chris/feed_1443/pl-dircopy_5827/pl-mgz2LUT_report_5836/data/mgz2LUT_report.pdf
             ├── chris/feed_1443/pl-dircopy_5827/pl-mgz2LUT_report_5836/data/mgz2LUT_report.html
@@ -173,3 +173,8 @@ Convert between supported pipeline file formats.
 ````shell
 chrs pipeline-file convert pipeline.json pipeline.yml
 ````
+
+### Feedback
+
+Please report bugs and/or request features here:
+https://github.com/FNNDSC/chrs/issues
