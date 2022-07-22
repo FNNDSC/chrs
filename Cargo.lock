@@ -350,7 +350,7 @@ dependencies = [
 
 [[package]]
 name = "chrs"
-version = "0.0.14"
+version = "0.0.15"
 dependencies = [
  "anyhow",
  "async-recursion",

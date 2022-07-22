@@ -14,7 +14,7 @@ pub(crate) async fn download(
     client: &ChrisClient,
     src: &str,
     dst: &Path,
-    shorten: bool,
+    shorten: u8,
 ) -> anyhow::Result<()> {
     if dst.exists() && !dst.is_dir() {
         bail!("Not a directory: {:?}", dst);
@@ -81,7 +81,7 @@ fn stream2download<'a>(
     url: &'a AnyFilesUrl,
     dst: &'a Path,
     parent_len: usize,
-    shorten: bool,
+    shorten: u8,
 ) -> impl Stream<Item = Result<impl Future<Output = Result<(), DownloadError>> + 'a, DownloadError>> + 'a
 {
     stream! {
@@ -101,7 +101,7 @@ async fn download_helper(
     downloadable: impl Downloadable,
     dst: &Path,
     parent_len: usize,
-    shorten: bool,
+    shorten: u8,
 ) -> Result<(), DownloadError> {
     let dst = decide_target(downloadable.fname(), dst, parent_len, shorten);
     if let Some(parent) = dst.parent() {
@@ -115,23 +115,30 @@ async fn download_helper(
     client
         .download_file(&downloadable, dst.as_path(), false)
         .await
-        .map_err(|e| e.into())
+        .map_err(|e| DownloadError::IO {
+            fname: downloadable.fname().to_owned(),
+            path: dst.as_path().to_path_buf(),
+            source: e,
+        })
 }
 
-fn decide_target(
-    fname: &FileResourceFname,
-    dst: &Path,
-    parent_len: usize,
-    shorten: bool,
-) -> PathBuf {
+/// Choose path on host where to save the file.
+fn decide_target(fname: &FileResourceFname, dst: &Path, parent_len: usize, shorten: u8) -> PathBuf {
     let fname: &str = fname.as_str();
-    let mut shortened = &fname[parent_len..fname.len()];
-    if shorten {
-        if let Some((_, s)) = shortened.split_once("/data/") {
-            shortened = s;
-        }
-    }
+    let base = &fname[parent_len..fname.len()];
+    let shortened = shorten_target(base, shorten);
     dst.join(shortened)
+}
+
+/// Shorten a fname by truncating the parent directories before and including "/data/"
+fn shorten_target(path: &str, shorten: u8) -> &str {
+    if shorten == 0 {
+        return path;
+    }
+    if let Some((_, s)) = path.split_once("/data/") {
+        return shorten_target(s, shorten - 1);
+    }
+    return path;
 }
 
 /// Errors which might occur when trying to download many files from
@@ -143,8 +150,13 @@ enum DownloadError {
     Pagination(#[from] reqwest::Error),
 
     /// Error from downloading from a `file_resource`.
-    #[error(transparent)]
-    Download(#[from] chris::errors::FileIOError),
+    #[error("Cannot write \"{fname}\" to \"{path}\": {source}")]
+    IO {
+        fname: FileResourceFname,
+        path: PathBuf,
+        #[source]
+        source: chris::errors::FileIOError,
+    },
 
     #[error("Unable to create directory: {path:?}")]
     ParentDirectory {
@@ -200,27 +212,27 @@ mod tests {
     }
 
     #[rstest]
-    #[case("chris/uploads/brain.nii", ".", 0, false, "./chris/uploads/brain.nii")]
+    #[case("chris/uploads/brain.nii", ".", 0, 0, "./chris/uploads/brain.nii")]
     #[case(
         "chris/uploads/brain.nii",
         "output",
         0,
-        false,
+        0,
         "output/chris/uploads/brain.nii"
     )]
-    #[case("chris/uploads/brain.nii", "output", 14, false, "output/brain.nii")]
+    #[case("chris/uploads/brain.nii", "output", 14, 0, "output/brain.nii")]
     #[case(
         "chris/feed_1/pl-dircopy/data/brain.nii",
         "output",
         0,
-        true,
+        1,
         "output/brain.nii"
     )]
     fn test_decide_target(
         #[case] fname: &str,
         #[case] dst: &str,
         #[case] parent_len: usize,
-        #[case] shorten: bool,
+        #[case] shorten: u8,
         #[case] expected: &str,
     ) {
         assert_eq!(
@@ -232,5 +244,42 @@ mod tests {
             ),
             PathBuf::from(expected)
         )
+    }
+
+    #[rstest]
+    #[case("chris/uploads/brain.nii", 0, "chris/uploads/brain.nii")]
+    #[case("chris/uploads/brain.nii", 1, "chris/uploads/brain.nii")]
+    #[case(
+        "jennings/feed_82/pl-dircopy_532/data/something.txt",
+        0,
+        "jennings/feed_82/pl-dircopy_532/data/something.txt"
+    )]
+    #[case(
+        "jennings/feed_82/pl-dircopy_532/data/something.txt",
+        1,
+        "something.txt"
+    )]
+    #[case(
+        "jennings/feed_82/pl-dircopy_532/data/something.txt",
+        5,
+        "something.txt"
+    )]
+    #[case(
+        "jennings/feed_82/pl-dircopy_532/data/rudolphs_change_goes_here/data/something.txt",
+        0,
+        "jennings/feed_82/pl-dircopy_532/data/rudolphs_change_goes_here/data/something.txt"
+    )]
+    #[case(
+        "jennings/feed_82/pl-dircopy_532/data/rudolphs_change_goes_here/data/something.txt",
+        1,
+        "rudolphs_change_goes_here/data/something.txt"
+    )]
+    #[case(
+        "jennings/feed_82/pl-dircopy_532/data/rudolphs_change_goes_here/data/something.txt",
+        2,
+        "something.txt"
+    )]
+    fn test_shorten_target(#[case] fname: &str, #[case] shorten: u8, #[case] expected: &str) {
+        assert_eq!(shorten_target(fname, shorten), expected)
     }
 }

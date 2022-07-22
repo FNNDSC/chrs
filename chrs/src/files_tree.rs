@@ -87,11 +87,7 @@ fn style_folder(
     folder_name: String,
     full: bool,
 ) -> Tree<StyledObject<String>> {
-    let display_name = if full {
-        v.to_string()
-    } else {
-        folder_name
-    };
+    let display_name = if full { v.to_string() } else { folder_name };
     Tree::new(style(display_name).bright().blue())
 }
 

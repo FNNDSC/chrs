@@ -74,8 +74,11 @@ enum Commands {
     Download {
         /// Save files from under plugin instances' "data" subdirectory at
         /// the top-level, instead of under the nested parent directory.
-        #[clap(short, long)]
-        shorten: bool,
+        ///
+        /// May be repeated to handle cases where the `data` subdirectory
+        /// is deeply nested under parent `data` subdirectoies, e.g. `-sssss`.
+        #[clap(short, long, action = clap::ArgAction::Count)]
+        shorten: u8,
 
         /// What to download. Can either be a ChRIS Library files path or
         /// a files resource URL (such as a files search query or a feed
