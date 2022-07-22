@@ -396,7 +396,7 @@ mod tests {
             plugin_tree: vec![
                 ExpandedTreePiping {
                     plugin_name: PluginName::from("pl-simpledsapp"),
-                    plugin_version: PluginVersion::from("2.0.2"),
+                    plugin_version: PluginVersion::from("2.1.0"),
                     previous_index: None,
                     plugin_parameter_defaults: Some(vec![ExpandedTreeParameter {
                         name: ParameterName::from("prefix"),
@@ -405,7 +405,7 @@ mod tests {
                 },
                 ExpandedTreePiping {
                     plugin_name: PluginName::from("pl-simpledsapp"),
-                    plugin_version: PluginVersion::from("2.0.2"),
+                    plugin_version: PluginVersion::from("2.1.0"),
                     previous_index: Some(0),
                     plugin_parameter_defaults: None,
                 },

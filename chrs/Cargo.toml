@@ -1,6 +1,6 @@
 [package]
 name = "chrs"
-version = "0.0.13"
+version = "0.0.14"
 authors = ["FNNDSC <dev@babyMRI.org>"]
 
 edition = "2021"
@@ -14,7 +14,7 @@ categories = ["command-line-utilities", "science"]
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [dependencies]
-chris = { path = "../chris", version = "0.0.8" }
+chris = { path = "../chris", version = "0.0.9" }
 clap = { version = "3.1.6", features = ["derive"] }
 lazy_static = "1.4.0"
 keyring = "1.1.2"
@@ -41,7 +41,7 @@ termtree = "0.4.0"
 
 [dev-dependencies]
 tempfile = "3.3.0"
-rstest = "0.13.0"
+rstest = "0.15.0"
 
 [features]
 default = ["chris/default"]
