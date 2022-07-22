@@ -64,6 +64,33 @@ async fn construct(
         return Ok(root);
     }
 
+    let maybe_subfolders = subfolders(fb, &v).await.map_err(anyhow::Error::msg)?;
+
+    let stx = tx.clone();
+    let subtree_stream = stream! {
+        for maybe in maybe_subfolders {
+            if let Some((subfolder, child)) = maybe {
+                yield construct(fb, stx.clone(), child, subfolder, full, depth - 1).await;
+                stx.send(()).unwrap();
+            }
+        }
+    };
+
+    let mut subtrees: Vec<Tree<StyledObject<String>>> = subtree_stream.try_collect().await?;
+    let files = subfiles(&v, full).await?;
+    subtrees.extend(files);
+    Ok(root.with_leaves(subtrees))
+}
+
+/// Get subfolders under a given filebrowser path. Returns 2-tuples of (name, object)
+///
+/// The FileBrowser API is susceptible to producing erroneous subfolder names
+/// in the cases where path names contain the special character `,` because
+/// `,` is used as a deliminiter.
+async fn subfolders(
+    fb: &FileBrowser,
+    v: &FileBrowserView,
+) -> core::result::Result<Vec<Option<(String, FileBrowserView)>>, String> {
     let subfolders = v.subfolders();
     let path = v.path();
     let subfolders_stream = stream! {
@@ -75,37 +102,26 @@ async fn construct(
                 .map_err(|_| format!("BUG: Invalid child path: {}", &child_path));
         }
     };
-    let maybes: Vec<Option<(String, FileBrowserView)>> = subfolders_stream
-        .try_collect()
-        .await
-        .map_err(anyhow::Error::msg)?;
+    subfolders_stream.try_collect().await
+}
 
-    let stx = tx.clone();
-    let subtree_stream = stream! {
-        for maybe in maybes {
-            if let Some((subfolder, child)) = maybe {
-                yield construct(fb, stx.clone(), child, subfolder, full, depth - 1).await;
-                stx.send(()).unwrap();
-            }
-        }
-    };
-    let mut subtrees: Vec<Tree<StyledObject<String>>> = subtree_stream.try_collect().await?;
-
-    let files_stream = stream! {
-        for await file in v.iter_files() {
-            yield file;
-        }
-    };
-    let file_infos: Vec<DownloadableFile> = files_stream.try_collect().await?;
+/// Get file names under a given filebrowser path and apply console output styling to them.
+async fn subfiles(
+    v: &FileBrowserView,
+    full: bool,
+) -> Result<impl Iterator<Item = Tree<StyledObject<String>>>, reqwest::Error> {
+    // calling collect so that we can use .map instead of streams
+    let file_infos: Vec<DownloadableFile> = v.iter_files().try_collect().await?;
     let files = file_infos
         .into_iter()
         .map(namer(full))
         .map(style)
         .map(Tree::new);
-    subtrees.extend(files);
-    Ok(root.with_leaves(subtrees))
+    core::result::Result::Ok(files)
 }
 
+/// Resolves a helper function depending on the value for `full`.
+/// The reason for this helper function is just to clarify opaque types for rustc.
 fn namer(full: bool) -> fn(DownloadableFile) -> String {
     if full {
         file2string
