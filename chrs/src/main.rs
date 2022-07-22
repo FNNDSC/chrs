@@ -25,12 +25,12 @@ use login::config::ChrsConfig;
 #[derive(Parser)]
 #[clap(
     version,
-    about = "Manage ChRIS files, plugins, and pipelines.",
+    about = "Manage ChRIS files and run pipelines.",
     propagate_version = false,
     disable_help_subcommand = true
 )]
 struct Cli {
-    /// CUBE address
+    /// ChRIS backend URL
     #[clap(short, long, global = true)]
     address: Option<String>,
 
@@ -87,13 +87,13 @@ enum Commands {
         dst: PathBuf,
     },
 
-    /// List files in ChRIS
+    /// Browse files in ChRIS
     Tree {
         /// Maximum subdirectory depth
         #[clap(short = 'L', long, default_value_t = 2)]
         level: u16,
 
-        /// Show full path of files
+        /// Show full paths, which may be convenient for copy-paste
         #[clap(short, long)]
         full: bool,
 
