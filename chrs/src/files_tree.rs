@@ -104,11 +104,9 @@ async fn subfolders(
     fb: &FileBrowser,
     v: &FileBrowserView,
 ) -> core::result::Result<Vec<Option<(String, FileBrowserView)>>, String> {
-    let subfolders = v.subfolders();
-    let path = v.path();
     let subfolders_stream = stream! {
-        for subfolder in subfolders {
-            let child_path = format!("{}/{}", path, subfolder);
+        for subfolder in v.subfolders() {
+            let child_path = format!("{}/{}", v.path(), subfolder);
             yield fb.browse(&FileBrowserPath::from(child_path.as_str()))
                 .await
                 .map(|m| m.map(|child| (subfolder.to_string(), child)))
