@@ -55,11 +55,11 @@ async fn construct(
     fb: &FileBrowser,
     tx: UnboundedSender<()>,
     v: FileBrowserView,
-    current_path: String,
+    folder_name: String,
     full: bool,
     depth: u16,
 ) -> Result<Tree<StyledObject<String>>> {
-    let root = Tree::new(style(current_path).bright().blue());
+    let root = style_folder(v.path(), folder_name, full);
     if depth == 0 {
         return Ok(root);
     }
@@ -80,6 +80,19 @@ async fn construct(
     let files = subfiles(&v, full).await?;
     subtrees.extend(files);
     Ok(root.with_leaves(subtrees))
+}
+
+fn style_folder(
+    parent: &FileBrowserPath,
+    folder_name: String,
+    full: bool,
+) -> Tree<StyledObject<String>> {
+    let display_name = if full {
+        parent.to_string()
+    } else {
+        folder_name
+    };
+    Tree::new(style(display_name).bright().blue())
 }
 
 /// Get subfolders under a given filebrowser path. Returns 2-tuples of (name, object)
