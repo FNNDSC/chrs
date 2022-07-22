@@ -83,12 +83,12 @@ async fn construct(
 }
 
 fn style_folder(
-    parent: &FileBrowserPath,
+    v: &FileBrowserPath,
     folder_name: String,
     full: bool,
 ) -> Tree<StyledObject<String>> {
     let display_name = if full {
-        parent.to_string()
+        v.to_string()
     } else {
         folder_name
     };
