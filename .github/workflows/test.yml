@@ -19,7 +19,7 @@ jobs:
           sudo apt update -y
           sudo apt install -y gnome-keyring
       - name: Run ChRIS backend
-        uses: FNNDSC/miniChRIS-docker@20220718
+        uses: FNNDSC/miniChRIS-docker@20220721
 
       - name: Git checkout
         uses: actions/checkout@v3
