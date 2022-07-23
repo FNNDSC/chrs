@@ -66,14 +66,24 @@ fn to_search(address: &CUBEApiUrl, endpoint: &str, fname: &str) -> (AnyFilesUrl,
     )
     .unwrap();
 
-    // Return length of the parent dir.
-    // Later on, the parent dir is truncated by that len, so that
-    // if a user wants to download all files under the parent dir
-    // "chris/uploads" or "chris/uploads/", the destination paths
-    // are file resource fnames without the leading
-    // "chris/uploads/" prefix.
-    let slash_len = if fname.ends_with('/') { 0 } else { 1 };
-    (AnyFilesUrl::from(url.as_str()), fname.len() + slash_len)
+    (AnyFilesUrl::from(url.as_str()), parent_len_of(fname))
+}
+
+
+/// Return length of the parent dir, including the trailing slash.
+///
+/// Later on, the parent dir is truncated by that len, so that
+/// if a user wants to download all files under the parent dir
+/// "chris/uploads" or "chris/uploads/", the destination paths
+/// are file resource fnames without the leading
+/// "chris/" prefix.
+fn parent_len_of(fname: &str) -> usize {
+    let canon_fname = fname.strip_suffix("/").unwrap_or(fname);
+    if let Some((parent, _basename)) = canon_fname.rsplit_once("/") {
+        parent.len() + 1
+    } else {
+        0
+    }
 }
 
 fn stream2download<'a>(
@@ -187,7 +197,7 @@ mod tests {
         "cereal/feed_1/pl-dircopy_1",
         "https://example.com/api/v1/files/search/?fname=cereal%2Ffeed_1%2Fpl-dircopy_1"
     )]
-    fn test_parse_src(#[case] src: &str, #[case] expected: &str, example_address: &CUBEApiUrl) {
+    fn test_parse_src_url(#[case] src: &str, #[case] expected: &str, example_address: &CUBEApiUrl) {
         assert_eq!(
             parse_src(src, example_address).0,
             AnyFilesUrl::from(expected)
@@ -195,14 +205,14 @@ mod tests {
     }
 
     #[rstest]
-    #[case("cereal/feed_1/pl-dircopy_1", 27)]
-    #[case("cereal/feed_1/pl-dircopy_1/", 27)]
-    fn test_parse_src_len(
-        #[case] src: &str,
-        #[case] expected: usize,
-        example_address: &CUBEApiUrl,
-    ) {
-        assert_eq!(parse_src(src, example_address).1, expected);
+    #[case("chris/uploads", 6)]
+    #[case("chris/uploads/file.txt", 14)]
+    #[case("chris/feed_14/data/pl-brainmgz_14/data", 34)]
+    #[case("chris/feed_14/data/pl-brainmgz_14/data/", 34)]
+    #[case("chris/", 0)]
+    #[case("chris", 0)]
+    fn test_parent_len_of(#[case] fname: &str, #[case] expected: usize) {
+        assert_eq!(parent_len_of(fname), expected);
     }
 
     #[fixture]
