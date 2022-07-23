@@ -86,8 +86,7 @@ enum Commands {
         src: String,
 
         /// Directory where to download
-        #[clap(default_value = ".")]
-        dst: PathBuf,
+        dst: Option<PathBuf>,
     },
 
     /// Browse files in ChRIS
@@ -204,7 +203,8 @@ async fn main() -> Result<()> {
         }
         Commands::Download { shorten, src, dst } => {
             let client = get_client(address, username, password, vec![src.as_str()]).await?;
-            download(&client, &src, &dst, shorten).await
+            let dst = dst.as_ref().map(|p| p.as_path());
+            download(&client, &src, dst, shorten).await
         }
         Commands::Login {
             no_keyring,

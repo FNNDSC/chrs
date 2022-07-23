@@ -13,9 +13,10 @@ use url::Url;
 pub(crate) async fn download(
     client: &ChrisClient,
     src: &str,
-    dst: &Path,
+    dst: Option<&Path>,
     shorten: u8,
 ) -> anyhow::Result<()> {
+    let dst = dst.unwrap_or(Path::new("."));
     if dst.exists() && !dst.is_dir() {
         bail!("Not a directory: {:?}", dst);
     }
