@@ -20,7 +20,8 @@ pub(crate) async fn download(
         bail!("Not a directory: {:?}", dst);
     }
 
-    let (url, parent_len) = parse_src(src, client.url());
+    let url = parse_src(src, client.url());
+    let parent_len = parent_len_of(client.url(), src, dst);
     let count = client.get_count(url.as_str()).await.with_context(|| {
         format!(
             "Could not get count of files from {} -- is it a files URL?",
@@ -41,9 +42,9 @@ pub(crate) async fn download(
 ///
 /// Returns the URL and the length of the given fname, or 0
 /// if not given an fname.
-fn parse_src(src: &str, address: &CUBEApiUrl) -> (AnyFilesUrl, usize) {
+fn parse_src(src: &str, address: &CUBEApiUrl) -> AnyFilesUrl {
     if src.starts_with(address.as_str()) {
-        return (AnyFilesUrl::from(src), 0);
+        return src.into();
     }
     if src.starts_with("SERVICES") {
         if src.starts_with("SERVICES/PACS") {
@@ -59,26 +60,29 @@ fn parse_src(src: &str, address: &CUBEApiUrl) -> (AnyFilesUrl, usize) {
     to_search(address, "files", src)
 }
 
-fn to_search(address: &CUBEApiUrl, endpoint: &str, fname: &str) -> (AnyFilesUrl, usize) {
-    let url = Url::parse_with_params(
+fn to_search(address: &CUBEApiUrl, endpoint: &str, fname: &str) -> AnyFilesUrl {
+    Url::parse_with_params(
         &*format!("{}{}/search/", address, endpoint),
         &[("fname", fname)],
     )
-    .unwrap();
-
-    (AnyFilesUrl::from(url.as_str()), parent_len_of(fname))
+    .unwrap()
+    .as_str()
+    .into()
 }
 
-
-/// Return length of the parent dir, including the trailing slash.
+/// If src is a path, length of the parent dir, including the trailing slash.
 ///
 /// Later on, the parent dir is truncated by that len, so that
 /// if a user wants to download all files under the parent dir
 /// "chris/uploads" or "chris/uploads/", the destination paths
 /// are file resource fnames without the leading
 /// "chris/" prefix.
-fn parent_len_of(fname: &str) -> usize {
-    let canon_fname = fname.strip_suffix("/").unwrap_or(fname);
+fn parent_len_of(address: &CUBEApiUrl, src: &str, dst: &Path) -> usize {
+    if src.starts_with(address.as_str()) {
+        return 0;
+    }
+
+    let canon_fname = src.strip_suffix("/").unwrap_or(src);
     if let Some((parent, _basename)) = canon_fname.rsplit_once("/") {
         parent.len() + 1
     } else {
@@ -198,21 +202,25 @@ mod tests {
         "https://example.com/api/v1/files/search/?fname=cereal%2Ffeed_1%2Fpl-dircopy_1"
     )]
     fn test_parse_src_url(#[case] src: &str, #[case] expected: &str, example_address: &CUBEApiUrl) {
-        assert_eq!(
-            parse_src(src, example_address).0,
-            AnyFilesUrl::from(expected)
-        );
+        assert_eq!(parse_src(src, example_address), AnyFilesUrl::from(expected));
     }
 
     #[rstest]
-    #[case("chris/uploads", 6)]
-    #[case("chris/uploads/file.txt", 14)]
-    #[case("chris/feed_14/data/pl-brainmgz_14/data", 34)]
-    #[case("chris/feed_14/data/pl-brainmgz_14/data/", 34)]
-    #[case("chris/", 0)]
-    #[case("chris", 0)]
-    fn test_parent_len_of(#[case] fname: &str, #[case] expected: usize) {
-        assert_eq!(parent_len_of(fname), expected);
+    #[case("chris/uploads", ".", 6)]
+    #[case("chris/uploads", ".", 6)]
+    #[case("chris/uploads/file.txt", ".", 14)]
+    #[case("chris/feed_14/data/pl-brainmgz_14/data", ".", 34)]
+    #[case("chris/feed_14/data/pl-brainmgz_14/data/", ".", 34)]
+    #[case("chris/", ".", 0)]
+    #[case("chris", ".", 0)]
+    fn test_parent_len_of(
+        example_address: &CUBEApiUrl,
+        #[case] src: &str,
+        #[case] dst: &str,
+        #[case] expected: usize,
+    ) {
+        let actual = parent_len_of(example_address, src, Path::new(dst));
+        assert_eq!(actual, expected);
     }
 
     #[fixture]
