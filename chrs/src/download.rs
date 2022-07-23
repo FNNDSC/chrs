@@ -16,13 +16,9 @@ pub(crate) async fn download(
     dst: Option<&Path>,
     shorten: u8,
 ) -> anyhow::Result<()> {
-    let dst = dst.unwrap_or(Path::new("."));
-    if dst.exists() && !dst.is_dir() {
-        bail!("Not a directory: {:?}", dst);
-    }
+    let dst = choose_dst(client.url(), src, dst);
 
     let url = parse_src(src, client.url());
-    let parent_len = parent_len_of(client.url(), src, dst);
     let count = client.get_count(url.as_str()).await.with_context(|| {
         format!(
             "Could not get count of files from {} -- is it a files URL?",
@@ -33,9 +29,32 @@ pub(crate) async fn download(
         bail!("No files found under {} (resolved as {})", src, url);
     }
 
-    let stream = stream2download(client, &url, dst, parent_len, shorten);
-    do_with_progress(stream, count as u64, false).await?;
+    if count == 1 {
+        // download file
+        todo!();
+    } else {
+        // download directory
+        if dst.exists() && !dst.is_dir() {
+            bail!("Not a directory: {:?}", dst);
+        }
+        let parent_len = dir_length_of(client.url(), src);
+        let stream = stream2download(client, &url, &dst, parent_len, shorten);
+        do_with_progress(stream, count as u64, false).await?;
+    }
+
     anyhow::Ok(())
+}
+
+/// Decide where to save output files to.
+fn choose_dst(url: &CUBEApiUrl, src: &str, dst: Option<&Path>) -> PathBuf {
+    if let Some(given_dst) = dst {
+        return given_dst.to_path_buf();
+    }
+    if src.starts_with(url.as_str()) {
+        return PathBuf::from(".");
+    }
+    let (_parent, basename) = split_path(src);
+    PathBuf::from(basename)
 }
 
 /// Figure out whether the input is a URL or a path.
@@ -71,23 +90,25 @@ fn to_search(address: &CUBEApiUrl, endpoint: &str, fname: &str) -> AnyFilesUrl {
     .into()
 }
 
-/// If src is a path, length of the parent dir, including the trailing slash.
-///
-/// Later on, the parent dir is truncated by that len, so that
-/// if a user wants to download all files under the parent dir
-/// "chris/uploads" or "chris/uploads/", the destination paths
-/// are file resource fnames without the leading
-/// "chris/" prefix.
-fn parent_len_of(address: &CUBEApiUrl, src: &str, dst: &Path) -> usize {
+/// If src is a path, assume it's a directory and
+/// return the length of its name with a trailing slash.
+fn dir_length_of(address: &CUBEApiUrl, src: &str) -> usize {
     if src.starts_with(address.as_str()) {
-        return 0;
-    }
-
-    let canon_fname = src.strip_suffix("/").unwrap_or(src);
-    if let Some((parent, _basename)) = canon_fname.rsplit_once("/") {
-        parent.len() + 1
-    } else {
         0
+    } else if src.ends_with("/") {
+        src.len()
+    } else {
+        src.len() + 1
+    }
+}
+
+/// Return the parent directory and basename of a given path.
+fn split_path(src: &str) -> (&str, &str) {
+    let canon_fname = src.strip_suffix("/").unwrap_or(src);
+    if let Some(t) = canon_fname.rsplit_once("/") {
+        t
+    } else {
+        ("", canon_fname)
     }
 }
 
@@ -186,6 +207,40 @@ mod tests {
     use rstest::*;
 
     #[rstest]
+    #[case("chris/uploads", "chris", "uploads")]
+    #[case("chris/uploads/my_study", "chris/uploads", "my_study")]
+    #[case("chris/uploads/my_study/", "chris/uploads", "my_study")]
+    #[case("chris", "", "chris")]
+    #[case("", "", "")]
+    fn test_split_path(#[case] src: &str, #[case] parent: &str, #[case] basename: &str) {
+        assert_eq!(split_path(src), (parent, basename))
+    }
+
+    #[rstest]
+    #[case(
+        "https://example.com/api/v1/files/search/?fname_icontains=gluten",
+        None,
+        "."
+    )]
+    #[case(
+        "https://example.com/api/v1/files/search/?fname_icontains=gluten",
+        Some("my_output"),
+        "my_output"
+    )]
+    #[case("iamme/uploads", Some("my_output"), "my_output")]
+    #[case("iamme/uploads", None, "uploads")]
+    #[case("iamme/uploads/", None, "uploads")]
+    fn test_choose_dst(
+        example_address: &CUBEApiUrl,
+        #[case] src: &str,
+        #[case] dst: Option<&str>,
+        #[case] expected: &str,
+    ) {
+        let actual = choose_dst(example_address, src, dst.map(Path::new));
+        assert_eq!(actual.as_path(), Path::new(expected))
+    }
+
+    #[rstest]
     #[case(
         "https://example.com/api/v1/uploadedfiles/search/?fname_icontains=gluten",
         "https://example.com/api/v1/uploadedfiles/search/?fname_icontains=gluten"
@@ -207,20 +262,18 @@ mod tests {
     }
 
     #[rstest]
-    #[case("chris/uploads", ".", 6)]
-    #[case("chris/uploads", ".", 6)]
-    #[case("chris/uploads/file.txt", ".", 14)]
-    #[case("chris/feed_14/data/pl-brainmgz_14/data", ".", 34)]
-    #[case("chris/feed_14/data/pl-brainmgz_14/data/", ".", 34)]
-    #[case("chris/", ".", 0)]
-    #[case("chris", ".", 0)]
-    fn test_parent_len_of(
+    #[case(
+        "https://example.com/api/v1/files/search/?fname=cereal%2Ffeed_1%2Fpl-dircopy_1",
+        0
+    )]
+    #[case("chris/feed_14/data/pl-brainmgz_14/data", 39)]
+    #[case("chris/feed_14/data/pl-brainmgz_14/data/", 39)]
+    fn test_dir_length_of(
         example_address: &CUBEApiUrl,
         #[case] src: &str,
-        #[case] dst: &str,
         #[case] expected: usize,
     ) {
-        let actual = parent_len_of(example_address, src, Path::new(dst));
+        let actual = dir_length_of(example_address, src);
         assert_eq!(actual, expected);
     }
 
