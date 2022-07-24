@@ -89,10 +89,12 @@ fn bytes_style() -> ProgressStyle {
 async fn peek_file(chris: &ChrisClient, url: &AnyFilesUrl) -> anyhow::Result<DownloadableFile> {
     let files = chris.iter_files(url);
     pin_mut!(files);
-    let downloadable = files.next().await.ok_or(anyhow::Error::msg(format!(
-        "BACKEND BUG: count>0 but results are empty: {}\n",
-        url
-    )))??;
+    let downloadable = files.next().await.ok_or_else(|| {
+        anyhow::Error::msg(format!(
+            "BACKEND BUG: count>0 but results are empty: {}\n",
+            url
+        ))
+    })??;
     Ok(downloadable)
 }
 
@@ -174,7 +176,7 @@ fn to_search(address: &CUBEApiUrl, endpoint: &str, fname: &str) -> AnyFilesUrl {
 fn dir_length_of(address: &CUBEApiUrl, src: &str) -> usize {
     if src.starts_with(address.as_str()) {
         0
-    } else if src.ends_with("/") {
+    } else if src.ends_with('/') {
         src.len()
     } else {
         src.len() + 1
@@ -183,8 +185,8 @@ fn dir_length_of(address: &CUBEApiUrl, src: &str) -> usize {
 
 /// Return the parent directory and basename of a given path.
 fn split_path(src: &str) -> (&str, &str) {
-    let canon_fname = src.strip_suffix("/").unwrap_or(src);
-    if let Some(t) = canon_fname.rsplit_once("/") {
+    let canon_fname = src.strip_suffix('/').unwrap_or(src);
+    if let Some(t) = canon_fname.rsplit_once('/') {
         t
     } else {
         ("", canon_fname)
@@ -234,7 +236,7 @@ fn shorten_target(path: &str, shorten: u8) -> &str {
     if let Some((_, s)) = path.split_once("/data/") {
         return shorten_target(s, shorten - 1);
     }
-    return path;
+    path
 }
 
 /// Errors which might occur when trying to download many files from

@@ -145,7 +145,7 @@ impl ChrisClient {
             .file_name()
             .ok_or_else(|| FileIOError::PathError(local_file.to_string_lossy().to_string()))?
             .to_string_lossy()
-            .to_string();  // gives it 'static lifetime (?)
+            .to_string(); // gives it 'static lifetime (?)
         let file = File::open(local_file).await.map_err(FileIOError::IO)?;
         let content_length = fs::metadata(local_file).await?.len();
         self.upload_stream(file, filename, path, content_length)

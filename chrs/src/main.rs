@@ -203,8 +203,7 @@ async fn main() -> Result<()> {
         }
         Commands::Download { shorten, src, dst } => {
             let client = get_client(address, username, password, vec![src.as_str()]).await?;
-            let dst = dst.as_ref().map(|p| p.as_path());
-            download(&client, &src, dst, shorten).await
+            download(&client, &src, dst.as_deref(), shorten).await
         }
         Commands::Login {
             no_keyring,
