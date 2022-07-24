@@ -1,4 +1,5 @@
-use futures::{pin_mut, Stream, TryStreamExt};
+use bytes::Bytes;
+use futures::{pin_mut, Stream, TryStream, TryStreamExt};
 use std::borrow::Cow;
 use std::path::Path;
 
@@ -19,7 +20,6 @@ use reqwest::Body;
 use serde::de::DeserializeOwned;
 use serde::{Deserialize, Serialize};
 use tokio::fs::{self, File, OpenOptions};
-use tokio::io::AsyncRead;
 use tokio_util::codec::{BytesCodec, FramedRead};
 use tokio_util::io::StreamReader;
 
@@ -108,19 +108,22 @@ impl ChrisClient {
     /// - stream: stream of byte data
     /// - filename: included in the multi-part post request (not the _ChRIS_ file path)
     /// - path: _ChRIS_ file path starting with `"<username>/uploads/"`
-    pub async fn upload_stream<F, P>(
+    pub async fn upload_stream<S, F, P>(
         &self,
-        stream: impl AsyncRead + Send + Sync + 'static,
+        stream: S,
         filename: F,
         path: P,
         content_length: u64,
     ) -> Result<FileUploadResponse, FileIOError>
     where
+        S: TryStream + Send + Sync + 'static,
+        S::Error: Into<Box<dyn std::error::Error + Send + Sync>>,
+        Bytes: From<S::Ok>,
         F: Into<Cow<'static, str>>,
         P: Into<Cow<'static, str>>,
     {
         // https://github.com/seanmonstar/reqwest/issues/646#issuecomment-616985015
-        let reader = Body::wrap_stream(FramedRead::new(stream, BytesCodec::new()));
+        let reader = Body::wrap_stream(stream);
         let form = Form::new().text("upload_path", path).part(
             "fname",
             Part::stream_with_length(reader, content_length).file_name(filename),
@@ -147,8 +150,9 @@ impl ChrisClient {
             .to_string_lossy()
             .to_string(); // gives it 'static lifetime (?)
         let file = File::open(local_file).await.map_err(FileIOError::IO)?;
+        let stream = FramedRead::new(file, BytesCodec::new());
         let content_length = fs::metadata(local_file).await?.len();
-        self.upload_stream(file, filename, path, content_length)
+        self.upload_stream(stream, filename, path, content_length)
             .await
     }
 
