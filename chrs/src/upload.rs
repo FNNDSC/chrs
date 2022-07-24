@@ -26,10 +26,33 @@ pub async fn upload(
         bail!("A feed can only be created when only one item is specified or when --path is specified.");
     }
     let found_pipeline = get_pipeline(chris, &feed, pipeline).await?;
-
-    let upload_path = append_slash_if_not_empty(upload_path);
     let files_to_upload = discover_input_files(files)?;
-    let dircopy_dir = choose_dircopy_path(chris.username(), files, &*upload_path);
+
+    let dircopy_dir = if files_to_upload.len() == 1 {
+        upload_single(chris, first(files_to_upload).unwrap(), upload_path).await
+    } else {
+        let uploaded_path = upload_multiple(chris, files_to_upload, &upload_path).await?;
+        choose_dircopy_path(chris.username(), files, &*uploaded_path)
+            .context("Upload path unknown --- this is a bug.")
+    }?;
+
+    if let Some(feed_name) = feed {
+        create_feed(chris, &*dircopy_dir, &*feed_name, found_pipeline).await?;
+    }
+
+    Ok(())
+}
+
+fn first<I>(v: Vec<I>) -> Option<I> {
+    v.into_iter().next()
+}
+
+async fn upload_single(chris: &ChrisClient, file: FileToUpload, upload_path: &str) -> Result<String> {
+    todo!()
+}
+
+async fn upload_multiple(chris: &ChrisClient, files_to_upload: Vec<FileToUpload>, upload_path: &str) -> Result<String> {
+    let upload_path = append_slash_if_not_empty(upload_path);
     let uploads = files_to_upload
         .into_iter()
         .map(|file| FileToUpload {
@@ -38,16 +61,7 @@ pub async fn upload(
         })
         .map(|f| f.upload_using(chris));
     collect_then_do_with_progress(uploads, false).await?;
-
-    if let Some(feed_name) = feed {
-        if let Some(uploaded_dir) = dircopy_dir {
-            create_feed(chris, &*uploaded_dir, &*feed_name, found_pipeline).await?;
-        } else {
-            bail!("Upload path unknown --- this is a bug.");
-        }
-    }
-
-    Ok(())
+    Ok(upload_path)
 }
 
 async fn get_pipeline(
@@ -97,23 +111,32 @@ async fn maybe_create_workflow(
 }
 
 fn choose_dircopy_path(username: &Username, files: &[PathBuf], given_path: &str) -> Option<String> {
+    files
+        .first()
+        .map(|p| p.canonicalize())
+        .map(|r| r.ok())
+        .unwrap_or(None)
+        .as_deref()
+        .map(|first_dir| choose_upload_path(username, first_dir, given_path))
+        .unwrap_or(None)
+}
+
+/// Figure out which path in ChRIS should be used as the argument for pl-dircopy, assuming either:
+///
+/// - `given_path` is a non-empty string
+/// - `files` is a list with a length of exactly one
+fn choose_upload_path(username: &Username, first_file: &Path, given_path: &str) -> Option<String> {
     let subdir = if !given_path.is_empty() {
         Some(given_path.to_string())
     } else {
-        files
-            .first()
-            .map(|f| {
-                f.canonicalize()
-                    .map(|c| {
-                        c.file_name()
-                            .map(|n| n.to_string_lossy().to_string())
-                            .or(None)
-                    })
-                    .unwrap_or(None)
-            })
-            .unwrap_or(None)
+        basename(first_file)
     };
     subdir.map(|d| format!("{}/{}/{}", username, "uploads", d))
+}
+
+fn basename(path: &Path) -> Option<String> {
+    path.file_name()
+        .map(|n| n.to_string_lossy().to_string())
 }
 
 fn append_slash_if_not_empty(s: &str) -> String {
@@ -229,11 +252,11 @@ mod tests {
         let files = &[given_path];
 
         assert_eq!(
-            choose_dircopy_path(&username, files, ""),
+            choose_upload_path(&username, files, ""),
             Some(String::from("jack/uploads/fruit"))
         );
         assert_eq!(
-            choose_dircopy_path(&username, files, "vegetables"),
+            choose_upload_path(&username, files, "vegetables"),
             Some(String::from("jack/uploads/vegetables"))
         );
         Ok(())
