@@ -4,12 +4,11 @@ use async_stream::stream;
 use chris::api::{AnyFilesUrl, Downloadable, FileResourceFname};
 use chris::common_types::CUBEApiUrl;
 use chris::ChrisClient;
-use futures::Stream;
-use std::future::Future;
 use std::path::{Path, PathBuf};
 use tokio::fs;
 use url::Url;
 
+/// `chrs download` command.
 pub(crate) async fn download(
     client: &ChrisClient,
     src: &str,
@@ -30,19 +29,49 @@ pub(crate) async fn download(
     }
 
     if count == 1 {
-        // download file
-        todo!();
+        download_single_file(client, &url, src, &dst, shorten).await
     } else {
-        // download directory
-        if dst.exists() && !dst.is_dir() {
-            bail!("Not a directory: {:?}", dst);
-        }
-        let parent_len = dir_length_of(client.url(), src);
-        let stream = stream2download(client, &url, &dst, parent_len, shorten);
-        do_with_progress(stream, count as u64, false).await?;
+        download_directory(client, &url, src, &dst, shorten, count).await
     }
+}
 
-    anyhow::Ok(())
+/// Download a single file from a ChRIS files URL.
+/// The given `url` is assumed to be a collection API endpoint with exactly one item.
+async fn download_single_file<'a>(
+    chris: &'a ChrisClient,
+    url: &'a AnyFilesUrl,
+    src: &'a str,
+    dst: &'a Path,
+    shorten: u8
+) -> anyhow::Result<()> {
+    todo!()
+}
+
+/// Download all files from a ChRIS files URL.
+/// The given `url` is assumed to be of a collection API endpoint with more than one item.
+async fn download_directory<'a>(
+    chris: &'a ChrisClient,
+    url: &'a AnyFilesUrl,
+    src: &'a str,
+    dst: &'a Path,
+    shorten: u8,
+    count: u32,
+) -> anyhow::Result<()> {
+    if dst.exists() && !dst.is_dir() {
+        bail!("Not a directory: {:?}", dst);
+    }
+    let parent_len = dir_length_of(chris.url(), src);
+
+    let stream = stream! {
+        for await page in chris.iter_files(url) {
+            yield page
+                .map(|d| download_helper(chris, d, dst, parent_len, shorten))
+                .map_err(DownloadError::Pagination)
+        }
+    };
+
+    do_with_progress(stream, count as u64, false).await?;
+    Ok(())
 }
 
 /// Decide where to save output files to.
@@ -80,6 +109,7 @@ fn parse_src(src: &str, address: &CUBEApiUrl) -> AnyFilesUrl {
     to_search(address, "files", src)
 }
 
+/// Create a search API URL for the endpoint and fname.
 fn to_search(address: &CUBEApiUrl, endpoint: &str, fname: &str) -> AnyFilesUrl {
     Url::parse_with_params(
         &*format!("{}{}/search/", address, endpoint),
@@ -112,26 +142,7 @@ fn split_path(src: &str) -> (&str, &str) {
     }
 }
 
-fn stream2download<'a>(
-    client: &'a ChrisClient,
-    url: &'a AnyFilesUrl,
-    dst: &'a Path,
-    parent_len: usize,
-    shorten: u8,
-) -> impl Stream<Item = Result<impl Future<Output = Result<(), DownloadError>> + 'a, DownloadError>> + 'a
-{
-    stream! {
-        for await page in client.iter_files(url) {
-            yield match page {
-                Err(e) => Err(DownloadError::Pagination(e)),
-                Ok(downloadable) => {
-                    Ok(download_helper(client, downloadable, dst, parent_len, shorten))
-                }
-            };
-        }
-    }
-}
-
+/// Download a file to a destination, creating parent directories as needed.
 async fn download_helper(
     client: &ChrisClient,
     downloadable: impl Downloadable,
