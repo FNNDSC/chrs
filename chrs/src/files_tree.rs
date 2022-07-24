@@ -128,7 +128,6 @@ async fn subfiles(
 }
 
 /// Resolves a helper function depending on the value for `full`.
-/// The reason for this helper function is just to clarify opaque types for rustc.
 fn namer(full: bool) -> fn(DownloadableFile) -> String {
     if full {
         file2string
