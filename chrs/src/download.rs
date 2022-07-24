@@ -1,11 +1,11 @@
 use crate::executor::do_with_progress;
+use crate::io_helper::progress_bar_bytes;
 use anyhow::{bail, Context};
 use async_stream::stream;
 use chris::api::{AnyFilesUrl, Downloadable, DownloadableFile, FileResourceFname};
 use chris::common_types::CUBEApiUrl;
 use chris::ChrisClient;
 use futures::{pin_mut, StreamExt, TryStreamExt};
-use indicatif::{ProgressBar, ProgressDrawTarget, ProgressStyle};
 use std::path::{Path, PathBuf};
 use tokio::fs;
 use tokio::fs::File;
@@ -60,9 +60,7 @@ async fn download_to_file_with_progress(
     downloadable: &DownloadableFile,
     mut file: File,
 ) -> anyhow::Result<()> {
-    let stderr = ProgressDrawTarget::stderr_with_hz(2);
-    let bar =
-        ProgressBar::with_draw_target(Some(downloadable.fsize()), stderr).with_style(bytes_style());
+    let bar = progress_bar_bytes(downloadable.fsize());
     let stream = chris
         .stream_file(downloadable)
         .await?
@@ -75,15 +73,6 @@ async fn download_to_file_with_progress(
     tokio::io::copy(&mut reader, &mut file).await?;
     bar.finish();
     Ok(())
-}
-
-/// Progress bar style.
-fn bytes_style() -> ProgressStyle {
-    ProgressStyle::default_bar()
-        .template(
-            "[{elapsed_precise}] {wide_bar} ({bytes}/{total_bytes} @ {bytes_per_sec}, ETA {eta})",
-        )
-        .unwrap()
 }
 
 async fn peek_file(chris: &ChrisClient, url: &AnyFilesUrl) -> anyhow::Result<DownloadableFile> {

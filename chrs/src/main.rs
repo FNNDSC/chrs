@@ -3,6 +3,7 @@ mod download;
 mod executor;
 mod files_tree;
 mod info;
+mod io_helper;
 mod login;
 mod pipeline_add;
 mod upload;

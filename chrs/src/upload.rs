@@ -1,14 +1,18 @@
 use crate::constants::BUG_REPORTS;
 use crate::executor::collect_then_do_with_progress;
+use crate::io_helper::progress_bar_bytes;
 use anyhow::{bail, Context, Error, Ok, Result};
-use chris::api::{FileUploadResponse, PluginInstanceId};
+use chris::api::{Downloadable, FileUploadResponse, PluginInstanceId};
 use chris::common_types::Username;
 use chris::errors::CUBEError;
 use chris::{errors::FileIOError, ChrisClient, Pipeline};
-use futures::try_join;
+use futures::{try_join, TryStreamExt};
 use pathdiff::diff_paths;
 use std::fmt::Debug;
 use std::path::{Path, PathBuf};
+use tokio::fs;
+use tokio::fs::File;
+use tokio_util::codec::{BytesCodec, FramedRead};
 
 /// Upload local files and directories to my ChRIS Library.
 ///
@@ -31,7 +35,7 @@ pub async fn upload(
     let dircopy_dir = if files_to_upload.len() == 1 {
         upload_single(chris, first(files_to_upload).unwrap(), upload_path).await
     } else {
-        let uploaded_path = upload_multiple(chris, files_to_upload, &upload_path).await?;
+        let uploaded_path = upload_multiple(chris, files_to_upload, upload_path).await?;
         choose_dircopy_path(chris.username(), files, &*uploaded_path)
             .context("Upload path unknown --- this is a bug.")
     }?;
@@ -47,11 +51,36 @@ fn first<I>(v: Vec<I>) -> Option<I> {
     v.into_iter().next()
 }
 
-async fn upload_single(chris: &ChrisClient, file: FileToUpload, upload_path: &str) -> Result<String> {
-    todo!()
+/// Upload a single file to _ChRIS_, showing a progress bar for the bytes uploaded.
+async fn upload_single(
+    chris: &ChrisClient,
+    file: FileToUpload,
+    upload_path: &str,
+) -> Result<String> {
+    let path = choose_upload_path(chris.username(), file.path.as_path(), upload_path)
+        .with_context(|| format!("Unable to decide upload path for {:?}", file.path))?;
+
+    let open_file = File::open(&file.path).await?;
+    let stream = FramedRead::new(open_file, BytesCodec::new());
+    let content_length = fs::metadata(&file.path).await?.len();
+    let bar = progress_bar_bytes(content_length);
+    let wrapped_stream = stream.map_ok(move |bytes| {
+        bar.inc(bytes.len() as u64);
+        bytes
+    });
+
+    let upload = chris
+        .upload_stream(wrapped_stream, file.name, path, content_length)
+        .await?;
+    Ok(upload.fname().to_string())
 }
 
-async fn upload_multiple(chris: &ChrisClient, files_to_upload: Vec<FileToUpload>, upload_path: &str) -> Result<String> {
+/// Upload multiple files to _ChRIS_, showing a progress bar which updates once for every file.
+async fn upload_multiple(
+    chris: &ChrisClient,
+    files_to_upload: Vec<FileToUpload>,
+    upload_path: &str,
+) -> Result<String> {
     let upload_path = append_slash_if_not_empty(upload_path);
     let uploads = files_to_upload
         .into_iter()
@@ -135,8 +164,7 @@ fn choose_upload_path(username: &Username, first_file: &Path, given_path: &str) 
 }
 
 fn basename(path: &Path) -> Option<String> {
-    path.file_name()
-        .map(|n| n.to_string_lossy().to_string())
+    path.file_name().map(|n| n.to_string_lossy().to_string())
 }
 
 fn append_slash_if_not_empty(s: &str) -> String {
