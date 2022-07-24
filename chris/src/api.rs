@@ -140,7 +140,7 @@ impl Downloadable for DownloadableFile {
     }
 
     fn fsize(&self) -> u64 {
-        (&self).fsize
+        self.fsize
     }
 }
 
@@ -184,7 +184,7 @@ impl Downloadable for FileUploadResponse {
     }
 
     fn fsize(&self) -> u64 {
-        (&self).fsize
+        self.fsize
     }
 }
 

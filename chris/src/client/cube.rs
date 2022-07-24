@@ -1,4 +1,5 @@
 use futures::{pin_mut, Stream, TryStreamExt};
+use std::borrow::Cow;
 use std::path::Path;
 
 use super::errors::{check, CUBEError, FileIOError};
@@ -18,6 +19,7 @@ use reqwest::Body;
 use serde::de::DeserializeOwned;
 use serde::{Deserialize, Serialize};
 use tokio::fs::{self, File, OpenOptions};
+use tokio::io::AsyncRead;
 use tokio_util::codec::{BytesCodec, FramedRead};
 use tokio_util::io::StreamReader;
 
@@ -95,25 +97,31 @@ impl ChrisClient {
         Ok(data.count)
     }
 
-    /// Upload a file to ChRIS. `upload_path` is a fname relative to `"<username>/uploads/"`.
-    pub async fn upload_file(
+    /// Create a _ChRIS_ uploadedfile from a stream of bytes.
+    ///
+    /// [`ChrisClient::upload_file`] is a lower-level function called by
+    /// [`ChrisClient::upload_stream`]. Most often, developers would be
+    /// interested in the former.
+    ///
+    /// # Arguments
+    ///
+    /// - stream: stream of byte data
+    /// - filename: included in the multi-part post request (not the _ChRIS_ file path)
+    /// - path: _ChRIS_ file path starting with `"<username>/uploads/"`
+    pub async fn upload_stream<F, P>(
         &self,
-        local_file: &Path,
-        upload_path: &str,
-    ) -> Result<FileUploadResponse, FileIOError> {
-        let swift_path = format!("{}/uploads/{}", self.username, upload_path);
-
+        stream: impl AsyncRead + Send + Sync + 'static,
+        filename: F,
+        path: P,
+        content_length: u64,
+    ) -> Result<FileUploadResponse, FileIOError>
+    where
+        F: Into<Cow<'static, str>>,
+        P: Into<Cow<'static, str>>,
+    {
         // https://github.com/seanmonstar/reqwest/issues/646#issuecomment-616985015
-        let filename = local_file
-            .file_name()
-            .ok_or_else(|| FileIOError::PathError(local_file.to_string_lossy().to_string()))?
-            .to_string_lossy()
-            .to_string();
-        let file = File::open(local_file).await.map_err(FileIOError::IO)?;
-        let content_length = fs::metadata(local_file).await?.len();
-        let reader = Body::wrap_stream(FramedRead::new(file, BytesCodec::new()));
-
-        let form = Form::new().text("upload_path", swift_path).part(
+        let reader = Body::wrap_stream(FramedRead::new(stream, BytesCodec::new()));
+        let form = Form::new().text("upload_path", path).part(
             "fname",
             Part::stream_with_length(reader, content_length).file_name(filename),
         );
@@ -123,6 +131,25 @@ impl ChrisClient {
             .multipart(form);
         let res = req.send().await?;
         Ok(check(res).await?.json().await?)
+    }
+
+    /// Upload a file to ChRIS. `upload_path` is a fname relative to `"<username>/uploads/"`.
+    pub async fn upload_file(
+        &self,
+        local_file: &Path,
+        upload_path: &str,
+    ) -> Result<FileUploadResponse, FileIOError> {
+        let path = format!("{}/uploads/{}", self.username, upload_path);
+
+        let filename = local_file
+            .file_name()
+            .ok_or_else(|| FileIOError::PathError(local_file.to_string_lossy().to_string()))?
+            .to_string_lossy()
+            .to_string();  // gives it 'static lifetime (?)
+        let file = File::open(local_file).await.map_err(FileIOError::IO)?;
+        let content_length = fs::metadata(local_file).await?.len();
+        self.upload_stream(file, filename, path, content_length)
+            .await
     }
 
     /// Stream the bytes data of a file from _ChRIS_.
