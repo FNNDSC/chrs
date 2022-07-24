@@ -378,6 +378,7 @@ dependencies = [
  "termtree",
  "thiserror",
  "tokio",
+ "tokio-util",
  "url",
 ]
 

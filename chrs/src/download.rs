@@ -1,11 +1,15 @@
 use crate::executor::do_with_progress;
 use anyhow::{bail, Context};
 use async_stream::stream;
-use chris::api::{AnyFilesUrl, Downloadable, FileResourceFname};
+use chris::api::{AnyFilesUrl, Downloadable, DownloadableFile, FileResourceFname};
 use chris::common_types::CUBEApiUrl;
 use chris::ChrisClient;
+use futures::{pin_mut, StreamExt, TryStreamExt};
+use indicatif::{ProgressBar, ProgressDrawTarget, ProgressStyle};
 use std::path::{Path, PathBuf};
 use tokio::fs;
+use tokio::fs::File;
+use tokio_util::io::StreamReader;
 use url::Url;
 
 /// `chrs download` command.
@@ -29,7 +33,7 @@ pub(crate) async fn download(
     }
 
     if count == 1 {
-        download_single_file(client, &url, src, &dst, shorten).await
+        download_single_file(client, &url, &dst).await
     } else {
         download_directory(client, &url, src, &dst, shorten, count).await
     }
@@ -40,11 +44,56 @@ pub(crate) async fn download(
 async fn download_single_file<'a>(
     chris: &'a ChrisClient,
     url: &'a AnyFilesUrl,
-    src: &'a str,
     dst: &'a Path,
-    shorten: u8
 ) -> anyhow::Result<()> {
-    todo!()
+    let file = File::create(dst)
+        .await
+        .with_context(|| format!("Cannot open {:?} for writing", dst))?;
+    let downloadable = peek_file(chris, url).await?;
+    download_to_file_with_progress(chris, &downloadable, file).await?;
+    Ok(())
+}
+
+/// Download a file from _ChRIS_ to an open file using streaming with a progress bar.
+async fn download_to_file_with_progress(
+    chris: &ChrisClient,
+    downloadable: &DownloadableFile,
+    mut file: File,
+) -> anyhow::Result<()> {
+    let stderr = ProgressDrawTarget::stderr_with_hz(2);
+    let bar =
+        ProgressBar::with_draw_target(Some(downloadable.fsize()), stderr).with_style(bytes_style());
+    let stream = chris
+        .stream_file(downloadable)
+        .await?
+        .map_ok(|bytes| {
+            bar.inc(bytes.len() as u64);
+            bytes
+        })
+        .map_err(|e| std::io::Error::new(std::io::ErrorKind::ConnectionAborted, e));
+    let mut reader = StreamReader::new(stream);
+    tokio::io::copy(&mut reader, &mut file).await?;
+    bar.finish();
+    Ok(())
+}
+
+/// Progress bar style.
+fn bytes_style() -> ProgressStyle {
+    ProgressStyle::default_bar()
+        .template(
+            "[{elapsed_precise}] {wide_bar} ({bytes}/{total_bytes} @ {bytes_per_sec}, ETA {eta})",
+        )
+        .unwrap()
+}
+
+async fn peek_file(chris: &ChrisClient, url: &AnyFilesUrl) -> anyhow::Result<DownloadableFile> {
+    let files = chris.iter_files(url);
+    pin_mut!(files);
+    let downloadable = files.next().await.ok_or(anyhow::Error::msg(format!(
+        "BACKEND BUG: count>0 but results are empty: {}\n",
+        url
+    )))??;
+    Ok(downloadable)
 }
 
 /// Download all files from a ChRIS files URL.
