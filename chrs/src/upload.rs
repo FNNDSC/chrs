@@ -280,11 +280,11 @@ mod tests {
         let files = &[given_path];
 
         assert_eq!(
-            choose_upload_path(&username, files, ""),
+            choose_dircopy_path(&username, files, ""),
             Some(String::from("jack/uploads/fruit"))
         );
         assert_eq!(
-            choose_upload_path(&username, files, "vegetables"),
+            choose_dircopy_path(&username, files, "vegetables"),
             Some(String::from("jack/uploads/vegetables"))
         );
         Ok(())
