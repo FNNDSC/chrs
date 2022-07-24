@@ -130,17 +130,10 @@ impl ChrisClient {
     pub async fn stream_file(
         &self,
         src: &impl Downloadable,
-    ) -> Result<
-        (
-            impl Stream<Item = Result<bytes::Bytes, reqwest::Error>>,
-            Option<u64>,
-        ),
-        CUBEError,
-    > {
+    ) -> Result<impl Stream<Item = Result<bytes::Bytes, reqwest::Error>>, CUBEError> {
         let res = self.client.get(src.file_resource().as_str()).send().await?;
-        let content_length = res.content_length();
         let stream = check(res).await?.bytes_stream();
-        Ok((stream, content_length))
+        Ok(stream)
     }
 
     /// Download a file from _ChRIS_ to a local path.
@@ -160,9 +153,11 @@ impl ChrisClient {
                 .await
         }
         .map_err(FileIOError::IO)?;
-        let (stream, _content_length) = self.stream_file(src).await?;
-        let s = stream.map_err(|e| std::io::Error::new(std::io::ErrorKind::ConnectionAborted, e));
-        let mut reader = StreamReader::new(s);
+        let stream = self
+            .stream_file(src)
+            .await?
+            .map_err(|e| std::io::Error::new(std::io::ErrorKind::ConnectionAborted, e));
+        let mut reader = StreamReader::new(stream);
         tokio::io::copy(&mut reader, &mut file).await?;
         Ok(())
     }

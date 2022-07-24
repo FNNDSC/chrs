@@ -120,12 +120,14 @@ pub struct FileResourceFname;
 pub trait Downloadable {
     fn file_resource(&self) -> &FileResourceUrl;
     fn fname(&self) -> &FileResourceFname;
+    fn fsize(&self) -> u64;
 }
 
 #[derive(Deserialize)]
 pub struct DownloadableFile {
     file_resource: FileResourceUrl,
     fname: FileResourceFname,
+    fsize: u64,
 }
 
 impl Downloadable for DownloadableFile {
@@ -135,6 +137,10 @@ impl Downloadable for DownloadableFile {
 
     fn fname(&self) -> &FileResourceFname {
         &self.fname
+    }
+
+    fn fsize(&self) -> u64 {
+        (&self).fsize
     }
 }
 
@@ -163,7 +169,7 @@ pub struct FileUploadResponse {
     pub id: u32,
     pub creation_date: String,
     fname: FileResourceFname,
-    pub fsize: u32,
+    fsize: u64,
     file_resource: FileResourceUrl,
     pub owner: String,
 }
@@ -175,6 +181,10 @@ impl Downloadable for FileUploadResponse {
 
     fn fname(&self) -> &FileResourceFname {
         &self.fname
+    }
+
+    fn fsize(&self) -> u64 {
+        (&self).fsize
     }
 }
 
