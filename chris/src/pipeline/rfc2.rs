@@ -352,30 +352,21 @@ impl From<NRPiping> for PipingTitle {
 
 impl From<ExpandedTreePipeline> for TitleIndexedPipeline {
     fn from(p: ExpandedTreePipeline) -> Self {
-        // we need to make up unique titles for every piping
-        let titles: Vec<PipingTitle> = p
-            .plugin_tree
-            .iter()
-            .enumerate()
-            .map(|(i, p)| PipingTitle::new(format!("{}-{}", &p.plugin_name, i)))
-            .collect();
         let plugin_tree = p
             .plugin_tree
-            .into_iter()
-            .enumerate()
-            .map(|(i, piping)| {
+            .iter()
+            .map(|piping| {
                 let plugin = UnparsedPlugin::new(format!(
                     "{} v{}",
-                    &piping.plugin_name, &piping.plugin_version
+                    piping.plugin_name, piping.plugin_version
                 ));
-                let title = titles[i].clone();
-                let previous = piping.previous_index.map(|pi| titles[pi].clone());
-                // let title = PipingTitle::new(format!("{}-{}", &piping.plugin_name, i));
+                let title = piping.title.clone();
+                let previous = piping.previous_index.map(|i| p.plugin_tree[i].title.clone());
 
-                let plugin_parameter_defaults = piping.plugin_parameter_defaults.map(|params| {
+                let plugin_parameter_defaults = piping.plugin_parameter_defaults.as_ref().map(|params| {
                     params
                         .into_iter()
-                        .map(|param| (param.name, param.default))
+                        .map(|param| (param.name.clone(), param.default.clone()))
                         .collect()
                 });
 
