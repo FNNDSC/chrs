@@ -287,7 +287,7 @@ mod tests {
     use super::*;
     use crate::api::{ParameterName, ParameterValue, PluginName, PluginVersion};
     use crate::auth::CUBEAuth;
-    use crate::pipeline::canon::{ExpandedTreeParameter, ExpandedTreePipeline, ExpandedTreePiping};
+    use crate::pipeline::canon::{ExpandedTreeParameter, ExpandedTreePipeline, ExpandedTreePiping, PipingTitle};
     use futures::future::{join_all, try_join_all};
     use futures::{pin_mut, StreamExt};
     use names::Generator;
@@ -437,6 +437,7 @@ mod tests {
             locked: false,
             plugin_tree: vec![
                 ExpandedTreePiping {
+                    title: PipingTitle::from("first"),
                     plugin_name: PluginName::from("pl-simpledsapp"),
                     plugin_version: PluginVersion::from("2.1.0"),
                     previous_index: None,
@@ -446,6 +447,7 @@ mod tests {
                     }]),
                 },
                 ExpandedTreePiping {
+                    title: PipingTitle::from("second"),
                     plugin_name: PluginName::from("pl-simpledsapp"),
                     plugin_version: PluginVersion::from("2.1.0"),
                     previous_index: Some(0),
@@ -507,7 +509,6 @@ mod tests {
 
         ////////////////
         // upload pipeline
-        let num_pipings = example_pipeline.plugin_tree.len();
         let pipeline_name = example_pipeline.name.clone();
         let uploaded_pipeline = chris.upload_pipeline(&example_pipeline.into()).await?;
         assert_eq!(&uploaded_pipeline.name, &pipeline_name);
@@ -526,9 +527,6 @@ mod tests {
             .create_workflow(dircopy_instance.plugin_instance.id)
             .await?;
         assert_eq!(&workflow.pipeline_name, &pipeline_name);
-        let n_created_plugin_inst = workflow.created_plugin_inst_ids.split(',').count();
-        assert_eq!(n_created_plugin_inst, num_pipings);
-
         Ok(())
     }
 }

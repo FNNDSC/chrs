@@ -1,6 +1,6 @@
 //! Simplified, human-friendly pipeline representation as described in
 //! [_ChRIS_ RFC #2: _ChRIS_ Pipeline YAML Schema](https://github.com/FNNDSC/CHRIS_docs/blob/master/rfcs/2-pipeline_yaml.adoc).
-use super::canon::{default_locked, ExpandedTreeParameter, ExpandedTreePipeline};
+use super::canon::{default_locked, ExpandedTreeParameter, ExpandedTreePipeline, PipingTitle};
 use crate::api::*;
 use crate::pipeline::canon::ExpandedTreePiping;
 use crate::pipeline::CanonPipeline;
@@ -12,12 +12,6 @@ use std::collections::{HashMap, HashSet};
 // ================================================================================
 //                                 DATA DEFINITIONS
 // ================================================================================
-
-/// Title of an element of a `plugin_tree` of a
-/// [_ChRIS_ RFC #2](https://github.com/FNNDSC/CHRIS_docs/blob/master/rfcs/2-pipeline_yaml.adoc)
-/// pipeline.
-#[braid(serde)]
-pub struct PipingTitle;
 
 /// `plugin_name` and `plugin_version` as a single string. See
 /// <https://github.com/FNNDSC/CHRIS_docs/blob/master/rfcs/2-pipeline_yaml.adoc#plugin_treeplugin>
@@ -304,6 +298,7 @@ impl TryFrom<NumericPreviousPiping> for ExpandedTreePiping {
     fn try_from(p: NumericPreviousPiping) -> Result<ExpandedTreePiping, Self::Error> {
         let (plugin_name, plugin_version) = parse_plugin(&p.plugin)?;
         Ok(ExpandedTreePiping {
+            title: p.title,
             plugin_name,
             plugin_version,
             previous_index: p.previous_index,

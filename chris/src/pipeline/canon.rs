@@ -2,6 +2,13 @@
 use crate::api::{ParameterName, ParameterValue, PluginName, PluginVersion};
 use serde::{Deserialize, Serialize};
 use std::convert::From;
+use aliri_braid::braid;
+
+/// Title of an element of a `plugin_tree` of a
+/// [_ChRIS_ RFC #2](https://github.com/FNNDSC/CHRIS_docs/blob/master/rfcs/2-pipeline_yaml.adoc)
+/// pipeline.
+#[braid(serde)]
+pub struct PipingTitle;
 
 /// A pipeline the way CUBE wants it (where `plugin_tree` is a string).
 #[derive(Serialize, Debug, PartialEq)]
@@ -58,6 +65,7 @@ pub enum PossiblyExpandedPluginTree {
 
 #[derive(Debug, Serialize, Deserialize, PartialEq, Clone)]
 pub struct ExpandedTreePiping {
+    pub title: PipingTitle,
     pub plugin_name: PluginName,
     pub plugin_version: PluginVersion,
     pub previous_index: Option<usize>,

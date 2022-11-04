@@ -41,7 +41,7 @@ plugin_tree:
 - title: "Smoothness error (right)"
   plugin: pl-smoothness-error v2.0.1
   previous: "Marching-cubes surface extraction (right)"
-- title: "Distance error (left)"
+- title: "Distance error (right)"
   plugin: pl-surfdisterr v1.2.0
   previous: "Marching-cubes surface extraction (right)"
 

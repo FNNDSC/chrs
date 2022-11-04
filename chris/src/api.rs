@@ -330,7 +330,6 @@ pub struct WorkflowCreatedResponse {
     pub url: WorkflowUrl,
     pub id: WorkflowId,
     pub creation_date: String,
-    pub created_plugin_inst_ids: String,
     pub pipeline_id: PipelineId,
     pub pipeline_name: String,
     pub owner_username: Username,
