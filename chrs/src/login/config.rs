@@ -107,13 +107,13 @@ impl ChrsConfig {
 
     /// Load config from file.
     pub fn load() -> Result<Self> {
-        let c: Self = confy::load(APP_NAME).context("Couldn't load config file")?;
+        let c: Self = confy::load(APP_NAME, None).context("Couldn't load config file")?;
         Ok(c)
     }
 
     /// Write config to file.
     pub fn store(&self) -> Result<()> {
-        confy::store(APP_NAME, self).context("Couldn't write config file")
+        confy::store(APP_NAME, None, self).context("Couldn't write config file")
     }
 }
 
