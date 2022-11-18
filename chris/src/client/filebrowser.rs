@@ -1,8 +1,8 @@
 //! Beware: code quality here is much lower than the rest of the
 //! code base because I'm running out of steam.
 
-use crate::models::{DownloadableFile, FileBrowserUrl};
 use crate::errors::{check, CUBEError};
+use crate::models::{DownloadableFile, FileBrowserUrl};
 use crate::pagination::{paginate, PaginatedUrl};
 use aliri_braid::braid;
 use futures::Stream;

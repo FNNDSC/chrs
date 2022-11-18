@@ -5,13 +5,13 @@ use std::path::Path;
 
 use super::errors::{check, CUBEError, FileIOError};
 use super::filebrowser::FileBrowser;
-use crate::models::*;
 use crate::client::pipeline::Pipeline;
 use crate::client::plugin::Plugin;
 use crate::client::plugininstance::PluginInstance;
 use crate::common_types::{CUBEApiUrl, Username};
 use crate::constants::{DIRCOPY_NAME, DIRCOPY_VERSION};
 use crate::errors::{DircopyError, GetError};
+use crate::models::*;
 use crate::pagination::*;
 use crate::pipeline::CanonPipeline;
 use reqwest::header::{HeaderMap, HeaderValue, ACCEPT, AUTHORIZATION};
@@ -216,8 +216,12 @@ impl ChrisClient {
     }
 
     /// Get the latest version of a plugin by name.
-    pub async fn get_plugin_latest(&self, name_exact: &PluginName) -> Result<Option<Plugin>, CUBEError> {
-        self.get_first_plugin(&[("name_exact", name_exact.as_str())]).await
+    pub async fn get_plugin_latest(
+        &self,
+        name_exact: &PluginName,
+    ) -> Result<Option<Plugin>, CUBEError> {
+        self.get_first_plugin(&[("name_exact", name_exact.as_str())])
+            .await
     }
 
     async fn get_first_plugin(&self, query: &[(&str, &str)]) -> Result<Option<Plugin>, CUBEError> {
@@ -293,9 +297,11 @@ struct DircopyPayload<'a> {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::models::{ParameterName, ParameterValue, PluginName, PluginVersion};
     use crate::auth::CUBEAuth;
-    use crate::pipeline::canon::{ExpandedTreeParameter, ExpandedTreePipeline, ExpandedTreePiping, PipingTitle};
+    use crate::models::{ParameterName, ParameterValue, PluginName, PluginVersion};
+    use crate::pipeline::canon::{
+        ExpandedTreeParameter, ExpandedTreePipeline, ExpandedTreePiping, PipingTitle,
+    };
     use futures::future::{join_all, try_join_all};
     use futures::{pin_mut, StreamExt};
     use names::Generator;
@@ -478,14 +484,16 @@ mod tests {
         Ok(())
     }
 
-
     /// This test can fail if `pl-simpledsapp` is changed upstream.
     #[rstest]
     #[tokio::test]
-    async fn test_get_plugin_latest_and_parameters(#[future] future_client: ChrisClient) -> AnyResult {
+    async fn test_get_plugin_latest_and_parameters(
+        #[future] future_client: ChrisClient,
+    ) -> AnyResult {
         let chris: ChrisClient = future_client.await;
         let plugin_name = PluginName::from("pl-simpledsapp");
-        let simpledsapp = chris.get_plugin_latest(&plugin_name)
+        let simpledsapp = chris
+            .get_plugin_latest(&plugin_name)
             .await?
             .expect("Test requires pl-simpledsapp to be registered in CUBE.");
 
@@ -500,7 +508,7 @@ mod tests {
         Ok(())
     }
 
-        #[rstest]
+    #[rstest]
     #[tokio::test]
     async fn test_e2e(
         example_pipeline: ExpandedTreePipeline,

@@ -44,7 +44,7 @@ pub struct TitleIndexedPiping {
 }
 
 /// Various explanations for invalid user input.
-#[derive(thiserror::Error, Debug, PartialEq)]
+#[derive(thiserror::Error, Debug, Eq, PartialEq)]
 pub enum InvalidTitleIndexedPipeline {
     #[error("At lease one element of `plugin_tree` must be the root (i.e. `previous` is null)")]
     NoRoot,
@@ -332,7 +332,7 @@ fn parse_plugin(plugin: &UnparsedPlugin) -> Result<(PluginName, PluginVersion), 
     ))
 }
 
-#[derive(thiserror::Error, Debug, PartialEq)]
+#[derive(thiserror::Error, Debug, Eq, PartialEq)]
 pub enum PluginParseError {
     #[error("\"{0}\" cannot be parsed as (plugin_name, plugin_version)")]
     NoV(UnparsedPlugin),
@@ -361,14 +361,17 @@ impl From<ExpandedTreePipeline> for TitleIndexedPipeline {
                     piping.plugin_name, piping.plugin_version
                 ));
                 let title = piping.title.clone();
-                let previous = piping.previous_index.map(|i| p.plugin_tree[i].title.clone());
+                let previous = piping
+                    .previous_index
+                    .map(|i| p.plugin_tree[i].title.clone());
 
-                let plugin_parameter_defaults = piping.plugin_parameter_defaults.as_ref().map(|params| {
-                    params
-                        .into_iter()
-                        .map(|param| (param.name.clone(), param.default.clone()))
-                        .collect()
-                });
+                let plugin_parameter_defaults =
+                    piping.plugin_parameter_defaults.as_ref().map(|params| {
+                        params
+                            .iter()
+                            .map(|param| (param.name.clone(), param.default.clone()))
+                            .collect()
+                    });
 
                 TitleIndexedPiping {
                     title,

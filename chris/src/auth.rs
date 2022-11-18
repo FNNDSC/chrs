@@ -1,9 +1,9 @@
 //! Predecessors to [crate::ChrisClient] for getting _ChRIS_ authorization
 //! tokens or creating _ChRIS_ accounts.
 
-use crate::models::{UserId, UserUrl};
 use crate::common_types::{CUBEApiUrl, Username};
 use crate::errors::CUBEError;
+use crate::models::{UserId, UserUrl};
 use crate::ChrisClient;
 use serde::{Deserialize, Serialize};
 

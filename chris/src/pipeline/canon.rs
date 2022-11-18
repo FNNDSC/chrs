@@ -1,8 +1,8 @@
 /// Canonical _ChRIS_ pipeline representations.
 use crate::models::{ParameterName, ParameterValue, PluginName, PluginVersion};
+use aliri_braid::braid;
 use serde::{Deserialize, Serialize};
 use std::convert::From;
-use aliri_braid::braid;
 
 /// Title of an element of a `plugin_tree` of a
 /// [_ChRIS_ RFC #2](https://github.com/FNNDSC/CHRIS_docs/blob/master/rfcs/2-pipeline_yaml.adoc)
@@ -11,7 +11,7 @@ use aliri_braid::braid;
 pub struct PipingTitle;
 
 /// A pipeline the way CUBE wants it (where `plugin_tree` is a string).
-#[derive(Serialize, Debug, PartialEq)]
+#[derive(Serialize, Debug, Eq, PartialEq)]
 pub struct CanonPipeline {
     pub authors: String,
     pub name: String,

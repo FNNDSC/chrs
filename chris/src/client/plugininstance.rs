@@ -1,5 +1,5 @@
-use crate::models::PluginInstanceCreatedResponse;
 use crate::client::feed::ShallowFeed;
+use crate::models::PluginInstanceCreatedResponse;
 use reqwest::Client;
 
 pub struct PluginInstance {

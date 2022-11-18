@@ -43,7 +43,7 @@ pub struct PluginsUrl;
 
 /// CUBE User ID
 #[derive(Shrinkwrap, Deserialize)]
-pub struct UserId(u32);
+pub struct UserId(pub u32);
 
 /// CUBE user resource URL, e.g. `https://cube.chrisproject.org/api/v1/users/3/`
 #[braid(serde)]
@@ -75,7 +75,7 @@ pub enum ParameterValue {
 pub struct PipelineUrl;
 
 #[derive(Shrinkwrap, Deserialize, Debug)]
-pub struct PipelineId(u32);
+pub struct PipelineId(pub u32);
 
 #[braid(serde)]
 pub struct PipelinePluginsUrl;
@@ -194,7 +194,7 @@ pub struct PluginUrl;
 
 /// Plugin ID
 #[derive(Shrinkwrap, Deserialize, Debug)]
-pub struct PluginId(u32);
+pub struct PluginId(pub u32);
 
 /// Container image name of a plugin.
 #[braid(serde)]
@@ -204,10 +204,14 @@ pub struct DockImage;
 #[braid(serde)]
 pub struct PluginRepo;
 
-/// Plugin type. One of: "fs", "ds", "ts"
-#[braid(serde)]
-pub struct PluginType;
-// validation would be nice...
+/// <https://github.com/FNNDSC/CHRIS_docs/blob/master/specs/ChRIS_Plugins.adoc#plugin-type>
+#[derive(Deserialize, Debug, Clone, Eq, PartialEq)]
+#[serde(rename_all = "lowercase")]
+pub enum PluginType {
+    Fs,
+    Ds,
+    Ts,
+}
 
 /// Plugin meta URL.
 #[braid(serde)]
@@ -268,7 +272,7 @@ pub struct PluginInstanceUrl;
 pub struct FeedUrl;
 
 #[derive(Shrinkwrap, Serialize, Deserialize, Debug)]
-pub struct PluginInstanceId(u32);
+pub struct PluginInstanceId(pub u32);
 
 #[braid(serde)]
 pub struct DescendantsUrl;
@@ -322,50 +326,60 @@ pub struct PluginInstanceCreatedResponse {
 #[braid(serde)]
 pub struct PluginParameterUrl;
 
-#[derive(Shrinkwrap, Deserialize, Debug)]
-pub struct PluginParameterId(u32);
+#[derive(Shrinkwrap, Deserialize, Debug, Copy, Clone, Eq, PartialEq)]
+pub struct PluginParameterId(pub u32);
 
-#[derive(Deserialize, Debug)]
+#[derive(Deserialize, Debug, Clone, PartialEq)]
 pub struct PluginParameter {
     pub url: PluginParameterUrl,
     pub id: PluginParameterId,
     pub name: String,
     #[serde(rename = "type")]
-    pub parameter_type: String,
+    pub parameter_type: PluginParameterType,
     pub optional: bool,
-    pub default: PluginParameterDefault,
+    pub default: PluginParameterValue,
     pub flag: String,
     pub short_flag: String,
     pub action: PluginParameterAction,
     pub help: String,
     pub ui_exposed: bool,
-    pub plugin: PluginUrl
+    pub plugin: PluginUrl,
 }
 
-#[derive(Deserialize, Debug)]
+#[derive(Deserialize, Debug, Clone, Eq, PartialEq)]
+#[serde(rename_all = "lowercase")]
+pub enum PluginParameterType {
+    Boolean,
+    Integer,
+    Float,
+    String,
+    Path,
+    Unextpath,
+}
+
+#[derive(Deserialize, Debug, Clone, PartialEq)]
 #[serde(untagged)]
-pub enum PluginParameterDefault {
-    Bool(bool),
-    Int(i64),
+pub enum PluginParameterValue {
+    Boolean(bool),
+    Integer(i64),
     Float(f64),
 
     /// Either a `str`, `path`, or `unextpath`
-    Stringish(String)
+    Stringish(String),
 }
 
-#[derive(Deserialize, Debug)]
-
+#[derive(Deserialize, Debug, Copy, Clone, Eq, PartialEq)]
 pub enum PluginParameterAction {
     #[serde(rename = "store")]
     Store,
     #[serde(rename = "store_true")]
     StoreTrue,
     #[serde(rename = "store_false")]
-    StoreFalse
+    StoreFalse,
 }
 
 #[derive(Shrinkwrap, Deserialize, Debug)]
-pub struct WorkflowId(u32);
+pub struct WorkflowId(pub u32);
 
 #[braid(serde)]
 pub struct WorkflowUrl;

@@ -1,8 +1,9 @@
-use crate::models::{PipelineResponse, PluginInstanceId, WorkflowCreatedResponse};
 use crate::errors::{check, CUBEError};
+use crate::models::{PipelineResponse, PluginInstanceId, WorkflowCreatedResponse};
 use reqwest::Client;
 use serde::Serialize;
 
+/// ChRIS pipeline
 pub struct Pipeline {
     client: Client,
     pub pipeline: PipelineResponse,
