@@ -2,7 +2,7 @@ use crate::executor::do_with_progress;
 use crate::io_helper::progress_bar_bytes;
 use anyhow::{bail, Context};
 use async_stream::stream;
-use chris::api::{AnyFilesUrl, Downloadable, DownloadableFile, FileResourceFname};
+use chris::models::{AnyFilesUrl, Downloadable, DownloadableFile, FileResourceFname};
 use chris::common_types::CUBEApiUrl;
 use chris::ChrisClient;
 use futures::{pin_mut, StreamExt, TryStreamExt};

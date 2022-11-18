@@ -319,6 +319,51 @@ pub struct PluginInstanceCreatedResponse {
     pub splits: PluginInstanceSplitsUrl,
 }
 
+#[braid(serde)]
+pub struct PluginParameterUrl;
+
+#[derive(Shrinkwrap, Deserialize, Debug)]
+pub struct PluginParameterId(u32);
+
+#[derive(Deserialize, Debug)]
+pub struct PluginParameter {
+    pub url: PluginParameterUrl,
+    pub id: PluginParameterId,
+    pub name: String,
+    #[serde(rename = "type")]
+    pub parameter_type: String,
+    pub optional: bool,
+    pub default: PluginParameterDefault,
+    pub flag: String,
+    pub short_flag: String,
+    pub action: PluginParameterAction,
+    pub help: String,
+    pub ui_exposed: bool,
+    pub plugin: PluginUrl
+}
+
+#[derive(Deserialize, Debug)]
+#[serde(untagged)]
+pub enum PluginParameterDefault {
+    Bool(bool),
+    Int(i64),
+    Float(f64),
+
+    /// Either a `str`, `path`, or `unextpath`
+    Stringish(String)
+}
+
+#[derive(Deserialize, Debug)]
+
+pub enum PluginParameterAction {
+    #[serde(rename = "store")]
+    Store,
+    #[serde(rename = "store_true")]
+    StoreTrue,
+    #[serde(rename = "store_false")]
+    StoreFalse
+}
+
 #[derive(Shrinkwrap, Deserialize, Debug)]
 pub struct WorkflowId(u32);
 

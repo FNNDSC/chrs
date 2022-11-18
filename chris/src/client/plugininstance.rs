@@ -1,4 +1,4 @@
-use crate::api::PluginInstanceCreatedResponse;
+use crate::models::PluginInstanceCreatedResponse;
 use crate::client::feed::ShallowFeed;
 use reqwest::Client;
 

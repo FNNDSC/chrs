@@ -1,4 +1,4 @@
-use crate::api::FeedUrl;
+use crate::models::FeedUrl;
 use crate::errors::{check, CUBEError};
 use reqwest::Client;
 use serde::{Deserialize, Serialize};

@@ -1,4 +1,4 @@
-use crate::api::{PluginName, PluginVersion};
+use crate::models::{PluginName, PluginVersion};
 use reqwest::StatusCode;
 
 /// Errors representing failed interactions with CUBE.

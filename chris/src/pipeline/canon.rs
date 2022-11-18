@@ -1,5 +1,5 @@
 /// Canonical _ChRIS_ pipeline representations.
-use crate::api::{ParameterName, ParameterValue, PluginName, PluginVersion};
+use crate::models::{ParameterName, ParameterValue, PluginName, PluginVersion};
 use serde::{Deserialize, Serialize};
 use std::convert::From;
 use aliri_braid::braid;

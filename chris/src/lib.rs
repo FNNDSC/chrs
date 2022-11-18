@@ -2,7 +2,7 @@
 extern crate shrinkwraprs;
 extern crate core;
 
-pub mod api;
+pub mod models;
 pub mod auth;
 mod client;
 pub mod common_types;

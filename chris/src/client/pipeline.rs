@@ -1,4 +1,4 @@
-use crate::api::{PipelineResponse, PluginInstanceId, WorkflowCreatedResponse};
+use crate::models::{PipelineResponse, PluginInstanceId, WorkflowCreatedResponse};
 use crate::errors::{check, CUBEError};
 use reqwest::Client;
 use serde::Serialize;

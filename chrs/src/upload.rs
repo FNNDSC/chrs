@@ -2,7 +2,7 @@ use crate::constants::BUG_REPORTS;
 use crate::executor::collect_then_do_with_progress;
 use crate::io_helper::progress_bar_bytes;
 use anyhow::{bail, Context, Error, Ok, Result};
-use chris::api::{Downloadable, FileUploadResponse, PluginInstanceId};
+use chris::models::{Downloadable, FileUploadResponse, PluginInstanceId};
 use chris::common_types::Username;
 use chris::errors::CUBEError;
 use chris::{errors::FileIOError, ChrisClient, Pipeline};

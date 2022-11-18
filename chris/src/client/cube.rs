@@ -5,7 +5,7 @@ use std::path::Path;
 
 use super::errors::{check, CUBEError, FileIOError};
 use super::filebrowser::FileBrowser;
-use crate::api::*;
+use crate::models::*;
 use crate::client::pipeline::Pipeline;
 use crate::client::plugin::Plugin;
 use crate::client::plugininstance::PluginInstance;
@@ -207,14 +207,23 @@ impl ChrisClient {
         &self,
         name_exact: &PluginName,
         version: &PluginVersion,
-    ) -> Result<Option<PluginResponse>, CUBEError> {
+    ) -> Result<Option<Plugin>, CUBEError> {
         let query = &[
             ("name_exact", name_exact.as_str()),
             ("version", version.as_str()),
         ];
+        self.get_first_plugin(query).await
+    }
+
+    /// Get the latest version of a plugin by name.
+    pub async fn get_plugin_latest(&self, name_exact: &PluginName) -> Result<Option<Plugin>, CUBEError> {
+        self.get_first_plugin(&[("name_exact", name_exact.as_str())]).await
+    }
+
+    async fn get_first_plugin(&self, query: &[(&str, &str)]) -> Result<Option<Plugin>, CUBEError> {
         // invariant: only one search result will be found by (name_exact, version)
-        let plugin = self.get_first(&self.links.plugins, query).await?;
-        Ok(plugin)
+        let res = self.get_first(&self.links.plugins, query).await?;
+        Ok(res.map(|plugin_info| Plugin::new(self.client.clone(), plugin_info)))
     }
 
     /// Get the first object from a search.
@@ -231,7 +240,7 @@ impl ChrisClient {
 
     /// Create a plugin instance of (i.e. run) `pl-dircopy`
     pub async fn dircopy(&self, dir: &str) -> Result<PluginInstance, DircopyError> {
-        let plugin_response = self
+        let plugin = self
             .get_plugin(&DIRCOPY_NAME, &DIRCOPY_VERSION)
             .await
             .map_err(DircopyError::CUBEError)?
@@ -239,7 +248,6 @@ impl ChrisClient {
                 &DIRCOPY_NAME,
                 &DIRCOPY_VERSION,
             ))?;
-        let plugin = Plugin::new(self.client.clone(), plugin_response);
         Ok(plugin.create_instance(&DircopyPayload { dir }).await?)
     }
 
@@ -285,7 +293,7 @@ struct DircopyPayload<'a> {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::api::{ParameterName, ParameterValue, PluginName, PluginVersion};
+    use crate::models::{ParameterName, ParameterValue, PluginName, PluginVersion};
     use crate::auth::CUBEAuth;
     use crate::pipeline::canon::{ExpandedTreeParameter, ExpandedTreePipeline, ExpandedTreePiping, PipingTitle};
     use futures::future::{join_all, try_join_all};
@@ -465,12 +473,34 @@ mod tests {
             .get_plugin(&DIRCOPY_NAME, &DIRCOPY_VERSION)
             .await?
             .unwrap();
-        assert_eq!(&plugin.name, &*DIRCOPY_NAME);
-        assert_eq!(&plugin.version, &*DIRCOPY_VERSION);
+        assert_eq!(&plugin.plugin.name, &*DIRCOPY_NAME);
+        assert_eq!(&plugin.plugin.version, &*DIRCOPY_VERSION);
         Ok(())
     }
 
+
+    /// This test can fail if `pl-simpledsapp` is changed upstream.
     #[rstest]
+    #[tokio::test]
+    async fn test_get_plugin_latest_and_parameters(#[future] future_client: ChrisClient) -> AnyResult {
+        let chris: ChrisClient = future_client.await;
+        let plugin_name = PluginName::from("pl-simpledsapp");
+        let simpledsapp = chris.get_plugin_latest(&plugin_name)
+            .await?
+            .expect("Test requires pl-simpledsapp to be registered in CUBE.");
+
+        let parameters: Vec<PluginParameter> = simpledsapp.get_parameters().try_collect().await?;
+        let flags: Vec<String> = parameters.into_iter().map(|p| p.flag).collect();
+
+        assert!(flags.contains(&"--ignoreInputDir".to_string()));
+        assert!(flags.contains(&"--sleepLength".to_string()));
+        assert!(flags.contains(&"--dummyInt".to_string()));
+        assert!(flags.contains(&"--dummyFloat".to_string()));
+
+        Ok(())
+    }
+
+        #[rstest]
     #[tokio::test]
     async fn test_e2e(
         example_pipeline: ExpandedTreePipeline,

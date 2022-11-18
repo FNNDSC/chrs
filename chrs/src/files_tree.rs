@@ -1,7 +1,7 @@
 use anyhow::{bail, Ok, Result};
 use async_recursion::async_recursion;
 use async_stream::stream;
-use chris::api::{Downloadable, DownloadableFile};
+use chris::models::{Downloadable, DownloadableFile};
 use chris::filebrowser::{FileBrowser, FileBrowserPath, FileBrowserView};
 use chris::ChrisClient;
 use console::{style, StyledObject};

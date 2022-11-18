@@ -1,4 +1,4 @@
-use crate::api::{PluginName, PluginVersion};
+use crate::models::{PluginName, PluginVersion};
 use lazy_static::lazy_static;
 
 lazy_static! {

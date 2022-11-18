@@ -1,4 +1,4 @@
-use crate::api::{AnyFilesUrl, PipelinesUrl, PluginsUrl};
+use crate::models::{AnyFilesUrl, PipelinesUrl, PluginParametersUrl, PluginsUrl};
 use aliri_braid::braid;
 use async_stream::stream;
 use futures::Stream;
@@ -49,6 +49,7 @@ impl PaginatedUrl for AnyFilesUrl {}
 impl PaginatedUrl for PluginsUrl {}
 impl PaginatedUrl for PipelinesUrl {}
 impl PaginatedUrl for SearchUrl {}
+impl PaginatedUrl for PluginParametersUrl {}
 
 /// Plugin meta URL.
 #[braid(serde)]
