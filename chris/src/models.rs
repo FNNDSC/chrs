@@ -337,7 +337,7 @@ pub struct PluginParameter {
     #[serde(rename = "type")]
     pub parameter_type: PluginParameterType,
     pub optional: bool,
-    pub default: PluginParameterValue,
+    pub default: Option<PluginParameterValue>,
     pub flag: String,
     pub short_flag: String,
     pub action: PluginParameterAction,

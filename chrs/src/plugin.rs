@@ -3,8 +3,9 @@ use chris::models::{
     PluginInstanceId, PluginName, PluginParameter, PluginParameterAction, PluginParameterType,
     PluginParameterValue, PluginType,
 };
-use chris::ChrisClient;
-use futures::TryStreamExt;
+use chris::{ChrisClient, Plugin};
+use clap::{Arg, Command};
+use futures::{StreamExt, TryStreamExt};
 use std::collections::HashMap;
 
 pub(crate) async fn run_latest(
@@ -30,6 +31,18 @@ pub(crate) async fn run_latest(
     let body: HashMap<String, PluginParameterValue> = payload.into_iter().collect();
     let res = plugin.create_instance(&body).await?;
     println!("{}", res.plugin_instance.url);
+    Ok(())
+}
+
+pub(crate) async fn describe_plugin(
+    chris: &ChrisClient,
+    plugin_name: &PluginName
+) -> Result<()> {
+    let plugin = chris
+        .get_plugin_latest(plugin_name)
+        .await?
+        .with_context(|| format!("plugin not found: {}", plugin_name))?;
+    clap_params(&plugin).await?.print_help()?;
     Ok(())
 }
 
@@ -100,6 +113,63 @@ fn serialize_param<'a>(
     }
 }
 
+async fn clap_params(plugin: &Plugin) -> Result<Command> {
+    let args: Vec<Arg> = plugin
+        .get_parameters()
+        .map_ok(pluginparameter2claparg)
+        .try_collect()
+        .await
+        .with_context(|| format!("plugin parameters info from \"{}\" is not valid: ", plugin.plugin.parameters))?;
+    let command = Command::new(&plugin.plugin.selfexec)
+        .no_binary_name(true)
+        .disable_help_flag(true)
+        .args(args);
+    Ok(command)
+}
+
+fn pluginparameter2claparg(param: PluginParameter) -> Arg {
+    let long_flag = get_long_flag_name(param.flag.as_str()).get_or_insert(param.name.as_str()).to_string();
+    let arg = Arg::new(param.name)
+        .help(param.help)
+        .long(long_flag);
+
+    if let Some(short_flag) = get_short_flag_char(param.short_flag.as_str()) {
+        arg.short(short_flag)
+    } else {
+        arg
+    }
+}
+
+fn get_short_flag_char(short_flag: &str) -> Option<char> {
+    short_flag.split_once('-').and_then(|(lead, name)| {
+        if lead.is_empty() {
+            let mut chars = name.chars();
+            let first = chars.next();
+            let second = chars.next();
+            if second.is_some() {
+                None
+            } else if let Some(char) = first {
+                Some(char)
+            } else {
+                None
+            }
+        } else {
+            None
+        }
+    })
+}
+
+fn get_long_flag_name(long_flag: &str) -> Option<&str> {
+    long_flag.split_once("--").and_then(|(lead, name)| {
+        if lead.is_empty() && name.len() >= 1 {
+            Some(name)
+        }
+        else {
+            None
+        }
+    })
+}
+
 /// Create a mapping of flag -> param, short_flag -> param.
 fn index_parameters(
     parameters: impl IntoIterator<Item = PluginParameter>,
@@ -129,7 +199,7 @@ mod tests {
             name: "fruit".to_string(),
             parameter_type: PluginParameterType::String,
             optional: false,
-            default: PluginParameterValue::Stringish("apple".to_string()),
+            default: None,
             flag: "--fruit".to_string(),
             short_flag: "-f".to_string(),
             action: PluginParameterAction::Store,
@@ -147,7 +217,7 @@ mod tests {
             name: "veggie".to_string(),
             parameter_type: PluginParameterType::Boolean,
             optional: true,
-            default: PluginParameterValue::Boolean(false),
+            default: Some(PluginParameterValue::Boolean(false)),
             flag: "--veggie".to_string(),
             short_flag: "--veggie".to_string(),
             action: PluginParameterAction::StoreTrue,
@@ -233,5 +303,37 @@ mod tests {
         for (e, a) in expected.into_iter().zip(actual.into_iter()) {
             assert_eq!(e, a)
         }
+    }
+
+    // #[rstest]
+    // fn test_clap(p_fruit: PluginParameter) {
+    //     let arg = Arg::new("name").short('n').long("name");
+    //     let name = "wow".to_string();
+    //
+    //
+    //     let mut command = Command::new(name).no_bin.args([arg]);
+    //     command.print_help().unwrap();
+    //     command.get_matches_from()
+    // }
+
+    #[rstest]
+    #[case("-a", Some('a'))]
+    #[case("-b", Some('b'))]
+    #[case("c", None)]
+    #[case("--a", None)]
+    #[case("--apple", None)]
+    fn test_get_short_flag_char(#[case] short_flag: &str, #[case] expected: Option<char>) {
+        assert_eq!(get_short_flag_char(short_flag), expected)
+    }
+
+    #[rstest]
+    #[case("--apple", Some("apple"))]
+    #[case("--ya-pear", Some("ya-pear"))]
+    #[case("--ya--pear", Some("ya--pear"))]
+    #[case("--y", Some("y"))]
+    #[case("ya", None)]
+    #[case("-y", None)]
+    fn test_get_long_flag_name(#[case] short_flag: &str, #[case] expected: Option<&str>) {
+        assert_eq!(get_long_flag_name(short_flag), expected)
     }
 }

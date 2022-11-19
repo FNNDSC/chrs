@@ -6,7 +6,7 @@ mod info;
 mod io_helper;
 mod login;
 mod pipeline_add;
-mod run;
+mod plugin;
 mod upload;
 
 use std::path::PathBuf;
@@ -19,7 +19,7 @@ use crate::files_tree::files_tree;
 use crate::info::cube_info;
 use crate::login::get_client::get_client;
 use crate::pipeline_add::{add_pipeline, convert_pipeline};
-use crate::run::run_latest;
+use crate::plugin::{describe_plugin, run_latest};
 use crate::upload::upload;
 use chris::common_types::{CUBEApiUrl, Username};
 use chris::filebrowser::FileBrowserPath;
@@ -113,8 +113,11 @@ enum Commands {
     // Search {},
     //
     // /// Get information about a ChRIS resource
-    // TODO DESCRIBE PLUGIN
-    // Describe {},
+    Describe {
+        /// Name of a ChRIS plugin
+        #[clap(required = true)]
+        plugin_name: PluginName,
+    },
     //
     /// Create a plugin instance by name.
     #[command(group(
@@ -294,6 +297,10 @@ async fn main() -> Result<()> {
             let previous_id = PluginInstanceId(previous_id);
             let chris = get_client(address, username, password, vec![]).await?;
             run_latest(&chris, &plugin_name, &previous_id, &parameters).await
+        }
+        Commands::Describe { plugin_name } => {
+            let chris = get_client(address, username, password, vec![]).await?;
+            describe_plugin(&chris, &plugin_name).await
         }
     }
 }
