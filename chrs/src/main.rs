@@ -6,6 +6,7 @@ mod info;
 mod io_helper;
 mod login;
 mod pipeline_add;
+mod run;
 mod upload;
 
 use std::path::PathBuf;
@@ -18,9 +19,11 @@ use crate::files_tree::files_tree;
 use crate::info::cube_info;
 use crate::login::get_client::get_client;
 use crate::pipeline_add::{add_pipeline, convert_pipeline};
+use crate::run::run_latest;
 use crate::upload::upload;
 use chris::common_types::{CUBEApiUrl, Username};
 use chris::filebrowser::FileBrowserPath;
+use chris::models::{PluginInstanceId, PluginName};
 use login::config::ChrsConfig;
 
 #[derive(Parser)]
@@ -110,10 +113,21 @@ enum Commands {
     // Search {},
     //
     // /// Get information about a ChRIS resource
+    // TODO DESCRIBE PLUGIN
     // Describe {},
     //
-    // /// Run plugins and pipelines
-    // Run {},
+    /// Create a plugin instance by name.
+    RunLatest {
+        #[clap(required = true)]
+        plugin_name: PluginName,
+
+        #[clap(required = true)]
+        previous_id: u32,
+
+        /// Plugin parameters
+        parameters: Vec<String>,
+    },
+
     /// Remember login account
     ///
     /// Stores a username and authorization token for a given ChRIS API URL.
@@ -234,6 +248,15 @@ async fn main() -> Result<()> {
         Commands::Tree { level, full, path } => {
             let client = get_client(address, username, password, vec![]).await?;
             files_tree(&client, &path, full, level).await
+        }
+        Commands::RunLatest {
+            plugin_name,
+            previous_id,
+            parameters,
+        } => {
+            let previous_id = PluginInstanceId(previous_id);
+            let chris = get_client(address, username, password, vec![]).await?;
+            run_latest(&chris, &plugin_name, &previous_id, &parameters).await
         }
     }
 }

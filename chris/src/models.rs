@@ -357,7 +357,7 @@ pub enum PluginParameterType {
     Unextpath,
 }
 
-#[derive(Deserialize, Debug, Clone, PartialEq)]
+#[derive(Serialize, Deserialize, Debug, Clone, PartialEq)]
 #[serde(untagged)]
 pub enum PluginParameterValue {
     Boolean(bool),

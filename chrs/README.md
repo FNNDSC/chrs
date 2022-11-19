@@ -154,6 +154,19 @@ chrs download chris/uploads/fetal_dataset
 chrs download SERVICES/PACS/orthanc/9cfafb0-DIXON_SHANNON_ANON-20140701
 ```
 
+### `chrs run-latest`
+
+Run a _ChRIS_ plugin (i.e. create a plugin instance) by name.
+
+```shell
+# run pl-mri-preview after plugin instance id=56, with option --units-fallback mm
+chrs run-latest pl-mri-preview 56 -- --units-fallback mm
+```
+
+Note: since plugin version is not specified when using `chrs run-latest`,
+the parameters are subject to change. `chrs run` (not yet implemented)
+is preferable for the sake of reproducibility.
+
 ### `chrs pipeline-file add`
 
 Uploads a file-representation of a _ChRIS_ pipeline.
