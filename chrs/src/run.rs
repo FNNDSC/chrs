@@ -40,10 +40,9 @@ fn serialize_params(
     params: &HashMap<String, Box<PluginParameter>>,
 ) -> Result<Vec<(String, PluginParameterValue)>> {
     if let Some(flag) = given.first() {
-        let info = params.get(flag).ok_or_else(|| anyhow::Error::msg(format!(
-            "Unrecognized parameter: {}",
-            flag
-        )))?;
+        let info = params
+            .get(flag)
+            .ok_or_else(|| anyhow::Error::msg(format!("Unrecognized parameter: {}", flag)))?;
         let (serialized_param, rest) = serialize_param(flag, given, info)?;
         let mut all_serialized_params = serialize_params(rest, params)?;
         all_serialized_params.push(serialized_param);

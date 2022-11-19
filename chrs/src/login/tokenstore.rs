@@ -16,7 +16,7 @@ pub enum Backend {
 }
 
 /// A secret which may be securely stored.
-#[derive(Serialize, Deserialize, PartialEq, Debug, Clone)]
+#[derive(Serialize, Deserialize, Eq, PartialEq, Debug, Clone)]
 #[serde(tag = "store", content = "value")]
 pub enum StoredToken {
     Text(String),
@@ -26,7 +26,7 @@ pub enum StoredToken {
 /// A [SavedCubeAuth] is a precursor to [Login] which is what is stored
 /// in the application's configuration file. The token might be stored
 /// in the same file as plaintext, or it might be stored by a keyring.
-#[derive(Serialize, Deserialize, PartialEq, Debug, Clone)]
+#[derive(Serialize, Deserialize, Eq, PartialEq, Debug, Clone)]
 pub struct SavedCubeAuth {
     pub address: CUBEApiUrl,
     pub username: Username,
@@ -65,7 +65,7 @@ impl SavedCubeAuth {
 }
 
 /// A [Login] is the data required to authenticate with CUBE.
-#[derive(PartialEq, Debug)]
+#[derive(Eq, PartialEq, Debug)]
 pub struct Login {
     pub address: CUBEApiUrl,
     pub username: Username,
