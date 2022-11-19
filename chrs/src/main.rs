@@ -12,7 +12,7 @@ mod upload;
 use std::path::PathBuf;
 
 use anyhow::Result;
-use clap::{Parser, Subcommand};
+use clap::{ArgGroup, Parser, Subcommand};
 
 use crate::download::download;
 use crate::files_tree::files_tree;
@@ -23,7 +23,7 @@ use crate::run::run_latest;
 use crate::upload::upload;
 use chris::common_types::{CUBEApiUrl, Username};
 use chris::filebrowser::FileBrowserPath;
-use chris::models::{PluginInstanceId, PluginName};
+use chris::models::{ComputeResourceName, PluginInstanceId, PluginName};
 use login::config::ChrsConfig;
 
 #[derive(Parser)]
@@ -117,7 +117,38 @@ enum Commands {
     // Describe {},
     //
     /// Create a plugin instance by name.
+    #[command(group(
+    ArgGroup::new("cpu_request").required(false).args(["cpu", "cpu_limit"]),
+    ))]
     RunLatest {
+        /// CPU resource request, as number of CPU cores.
+        #[clap(short = 'j', long, value_name = "N")]
+        cpu: Option<u16>,
+
+        /// CPU resource request.
+        /// Format is xm where x is an integer in millicores.
+        #[clap(long)]
+        cpu_limit: Option<String>,
+
+        /// Memory resource request.
+        /// Format is xMi or xGi where x is an integer.
+        #[clap(short, long)]
+        memory_limit: Option<String>,
+
+        /// GPU resource request.
+        /// Number of GPUs to use for plugin instance.
+        #[clap(short, long)]
+        gpu_limit: Option<u16>,
+
+        /// Number of workers resource request.
+        /// Number of compute nodes for parallel job.
+        #[clap(short, long)]
+        number_of_workers: Option<u32>,
+
+        /// Name of compute resource
+        #[clap(short, long)]
+        compute_resource_name: Option<ComputeResourceName>,
+
         #[clap(required = true)]
         plugin_name: PluginName,
 
@@ -250,6 +281,12 @@ async fn main() -> Result<()> {
             files_tree(&client, &path, full, level).await
         }
         Commands::RunLatest {
+            cpu,
+            cpu_limit,
+            memory_limit,
+            gpu_limit,
+            number_of_workers,
+            compute_resource_name,
             plugin_name,
             previous_id,
             parameters,
