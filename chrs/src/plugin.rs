@@ -32,6 +32,7 @@ pub(crate) async fn run_latest(
     gpu_limit: Option<u32>,
     number_of_workers: Option<u32>,
     compute_resource_name: Option<ComputeResourceName>,
+    title: Option<String>,
 ) -> Result<()> {
     let optional_resources = serialize_optional_resources(
         cpu,
@@ -40,6 +41,7 @@ pub(crate) async fn run_latest(
         gpu_limit,
         number_of_workers,
         compute_resource_name,
+        title,
     );
     let plugin = chris
         .get_plugin_latest(plugin_name)
@@ -67,6 +69,7 @@ fn serialize_optional_resources(
     gpu_limit: Option<u32>,
     number_of_workers: Option<u32>,
     compute_resource_name: Option<ComputeResourceName>,
+    title: Option<String>,
 ) -> impl Iterator<Item = (String, PluginParameterValue)> {
     let cpu_limit = cpu.map(|c| format!("{}m", c * 1000)).or(cpu_limit);
     let optional_resources = [
@@ -95,6 +98,7 @@ fn serialize_optional_resources(
                 PluginParameterValue::Stringish(v.to_string()),
             )
         }),
+        title.map(|v| ("title".to_string(), PluginParameterValue::Stringish(v))),
     ];
     optional_resources.into_iter().flatten()
 }

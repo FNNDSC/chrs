@@ -152,6 +152,10 @@ enum Commands {
         #[clap(short, long)]
         compute_resource_name: Option<ComputeResourceName>,
 
+        /// Plugin instance title
+        #[clap(short, long)]
+        title: Option<String>,
+
         #[clap(required = true)]
         plugin_name: PluginName,
 
@@ -293,6 +297,7 @@ async fn main() -> Result<()> {
             plugin_name,
             previous_id,
             parameters,
+            title,
         } => {
             let previous_id = PluginInstanceId(previous_id);
             let chris = get_client(address, username, password, vec![]).await?;
@@ -307,6 +312,7 @@ async fn main() -> Result<()> {
                 gpu_limit,
                 number_of_workers,
                 compute_resource_name,
+                title,
             )
             .await
         }
