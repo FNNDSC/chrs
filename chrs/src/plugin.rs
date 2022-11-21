@@ -20,6 +20,7 @@ pub(crate) async fn describe_plugin(chris: &ChrisClient, plugin_name: &PluginNam
 }
 
 /// Create a plugin instance, given plugin name.
+#[allow(clippy::too_many_arguments)]
 pub(crate) async fn run_latest(
     chris: &ChrisClient,
     plugin_name: &PluginName,
@@ -95,7 +96,7 @@ fn serialize_optional_resources(
             )
         }),
     ];
-    optional_resources.into_iter().filter_map(|o| o)
+    optional_resources.into_iter().flatten()
 }
 
 async fn clap_serialize_params(
@@ -193,10 +194,8 @@ fn get_short_flag_char(short_flag: &str) -> Option<char> {
             let second = chars.next();
             if second.is_some() {
                 None
-            } else if let Some(char) = first {
-                Some(char)
             } else {
-                None
+                first
             }
         } else {
             None
@@ -206,7 +205,7 @@ fn get_short_flag_char(short_flag: &str) -> Option<char> {
 
 fn get_long_flag_name(long_flag: &str) -> Option<&str> {
     long_flag.split_once("--").and_then(|(lead, name)| {
-        if lead.is_empty() && name.len() >= 1 {
+        if lead.is_empty() && !name.is_empty() {
             Some(name)
         } else {
             None
