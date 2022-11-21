@@ -1,7 +1,7 @@
 use anyhow::{bail, Context, Ok, Result};
 use chris::models::{
-    PluginInstanceId, PluginName, PluginParameter, PluginParameterAction, PluginParameterType,
-    PluginParameterValue, PluginType,
+    ComputeResourceName, PluginInstanceId, PluginName, PluginParameter, PluginParameterAction,
+    PluginParameterType, PluginParameterValue, PluginType,
 };
 use chris::{ChrisClient, Plugin};
 use clap::{Arg, ArgAction, ArgMatches, Command};
@@ -25,7 +25,21 @@ pub(crate) async fn run_latest(
     plugin_name: &PluginName,
     previous_id: &PluginInstanceId,
     parameters: &[String],
+    cpu: Option<u16>,
+    cpu_limit: Option<String>,
+    memory_limit: Option<String>,
+    gpu_limit: Option<u32>,
+    number_of_workers: Option<u32>,
+    compute_resource_name: Option<ComputeResourceName>,
 ) -> Result<()> {
+    let optional_resources = serialize_optional_resources(
+        cpu,
+        cpu_limit,
+        memory_limit,
+        gpu_limit,
+        number_of_workers,
+        compute_resource_name,
+    );
     let plugin = chris
         .get_plugin_latest(plugin_name)
         .await?
@@ -39,9 +53,49 @@ pub(crate) async fn run_latest(
         "previous_id".to_string(),
         PluginParameterValue::Integer(previous_id.0 as i64),
     );
+    payload.extend(optional_resources);
     let res = plugin.create_instance(&payload).await?;
     println!("{}", res.plugin_instance.url);
     Ok(())
+}
+
+fn serialize_optional_resources(
+    cpu: Option<u16>,
+    cpu_limit: Option<String>,
+    memory_limit: Option<String>,
+    gpu_limit: Option<u32>,
+    number_of_workers: Option<u32>,
+    compute_resource_name: Option<ComputeResourceName>,
+) -> impl Iterator<Item = (String, PluginParameterValue)> {
+    let cpu_limit = cpu.map(|c| format!("{}m", c * 1000)).or(cpu_limit);
+    let optional_resources = [
+        cpu_limit.map(|v| ("cpu_limit".to_string(), PluginParameterValue::Stringish(v))),
+        memory_limit.map(|v| {
+            (
+                "memory_limit".to_string(),
+                PluginParameterValue::Stringish(v),
+            )
+        }),
+        gpu_limit.map(|v| {
+            (
+                "gpu_limit".to_string(),
+                PluginParameterValue::Integer(v as i64),
+            )
+        }),
+        number_of_workers.map(|v| {
+            (
+                "number_of_workers".to_string(),
+                PluginParameterValue::Integer(v as i64),
+            )
+        }),
+        compute_resource_name.map(|v| {
+            (
+                "compute_resource_name".to_string(),
+                PluginParameterValue::Stringish(v.to_string()),
+            )
+        }),
+    ];
+    optional_resources.into_iter().filter_map(|o| o)
 }
 
 async fn clap_serialize_params(

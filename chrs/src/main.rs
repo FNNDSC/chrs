@@ -141,7 +141,7 @@ enum Commands {
         /// GPU resource request.
         /// Number of GPUs to use for plugin instance.
         #[clap(short, long)]
-        gpu_limit: Option<u16>,
+        gpu_limit: Option<u32>,
 
         /// Number of workers resource request.
         /// Number of compute nodes for parallel job.
@@ -296,7 +296,19 @@ async fn main() -> Result<()> {
         } => {
             let previous_id = PluginInstanceId(previous_id);
             let chris = get_client(address, username, password, vec![]).await?;
-            run_latest(&chris, &plugin_name, &previous_id, &parameters).await
+            run_latest(
+                &chris,
+                &plugin_name,
+                &previous_id,
+                &parameters,
+                cpu,
+                cpu_limit,
+                memory_limit,
+                gpu_limit,
+                number_of_workers,
+                compute_resource_name,
+            )
+            .await
         }
         Commands::Describe { plugin_name } => {
             let chris = get_client(address, username, password, vec![]).await?;
