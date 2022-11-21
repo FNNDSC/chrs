@@ -1,7 +1,7 @@
-use anyhow::{bail, Context, Ok, Result};
+use anyhow::{Context, Ok, Result};
 use chris::models::{
     ComputeResourceName, PluginInstanceId, PluginName, PluginParameter, PluginParameterAction,
-    PluginParameterType, PluginParameterValue, PluginType,
+    PluginParameterType, PluginParameterValue,
 };
 use chris::{ChrisClient, Plugin};
 use clap::{Arg, ArgAction, ArgMatches, Command};
@@ -24,8 +24,8 @@ pub(crate) async fn describe_plugin(chris: &ChrisClient, plugin_name: &PluginNam
 pub(crate) async fn run_latest(
     chris: &ChrisClient,
     plugin_name: &PluginName,
-    previous_id: &PluginInstanceId,
     parameters: &[String],
+    previous_id: Option<PluginInstanceId>,
     cpu: Option<u16>,
     cpu_limit: Option<String>,
     memory_limit: Option<String>,
@@ -42,20 +42,14 @@ pub(crate) async fn run_latest(
         number_of_workers,
         compute_resource_name,
         title,
+        previous_id,
     );
     let plugin = chris
         .get_plugin_latest(plugin_name)
         .await?
         .with_context(|| format!("plugin not found: {}", plugin_name))?;
-    if plugin.plugin.plugin_type == PluginType::Fs {
-        bail!("fs plugin type not supported.");
-    }
 
     let mut payload = clap_serialize_params(&plugin, parameters).await?;
-    payload.insert(
-        "previous_id".to_string(),
-        PluginParameterValue::Integer(previous_id.0 as i64),
-    );
     payload.extend(optional_resources);
     let res = plugin.create_instance(&payload).await?;
     println!("{}", res.plugin_instance.url);
@@ -70,6 +64,7 @@ fn serialize_optional_resources(
     number_of_workers: Option<u32>,
     compute_resource_name: Option<ComputeResourceName>,
     title: Option<String>,
+    previous_id: Option<PluginInstanceId>,
 ) -> impl Iterator<Item = (String, PluginParameterValue)> {
     let cpu_limit = cpu.map(|c| format!("{}m", c * 1000)).or(cpu_limit);
     let optional_resources = [
@@ -99,6 +94,12 @@ fn serialize_optional_resources(
             )
         }),
         title.map(|v| ("title".to_string(), PluginParameterValue::Stringish(v))),
+        previous_id.map(|v| {
+            (
+                "previous_id".to_string(),
+                PluginParameterValue::Integer(v.0 as i64),
+            )
+        }),
     ];
     optional_resources.into_iter().flatten()
 }

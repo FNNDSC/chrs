@@ -159,8 +159,11 @@ chrs download SERVICES/PACS/orthanc/9cfafb0-DIXON_SHANNON_ANON-20140701
 Run a _ChRIS_ plugin (i.e. create a plugin instance) by name.
 
 ```shell
-# run pl-mri-preview after plugin instance id=56, with option --units-fallback mm
-chrs run-latest --memory-limit 2Gi --compute-resource-name moc pl-mri-preview 56 -- --units-fallback mm
+# run pl-mri10yr06mo01da_normal (fs-type) to create a new ChRIS feed
+chrs run-latest pl-mri10yr06mo01da_normal
+
+# run pl-mri-preview (ds-type) after plugin instance id=56, with option --units-fallback mm
+chrs run-latest --memory-limit 2Gi --compute-resource-name moc --previous-id 56 pl-mri-preview  -- --units-fallback mm
 ```
 
 Note: since plugin version is not specified when using `chrs run-latest`,

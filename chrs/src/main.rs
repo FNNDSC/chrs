@@ -156,11 +156,15 @@ enum Commands {
         #[clap(short, long)]
         title: Option<String>,
 
+        /// Parent plugin instance ID, which is the source of input files for ds-type plugins
+        // TODO support accepting union type for convenience
+        // e.g. feed URL, plugin instance URL, plugin instance title...
+        #[clap(short, long)]
+        previous_id: Option<u32>,
+
+        /// Name of plugin to run
         #[clap(required = true)]
         plugin_name: PluginName,
-
-        #[clap(required = true)]
-        previous_id: u32,
 
         /// Plugin parameters
         parameters: Vec<String>,
@@ -299,13 +303,13 @@ async fn main() -> Result<()> {
             parameters,
             title,
         } => {
-            let previous_id = PluginInstanceId(previous_id);
+            let previous_id = previous_id.map(PluginInstanceId);
             let chris = get_client(address, username, password, vec![]).await?;
             run_latest(
                 &chris,
                 &plugin_name,
-                &previous_id,
                 &parameters,
+                previous_id,
                 cpu,
                 cpu_limit,
                 memory_limit,
