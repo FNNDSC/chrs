@@ -160,12 +160,15 @@ Run a _ChRIS_ plugin (i.e. create a plugin instance) by name.
 
 ```shell
 # run pl-mri-preview after plugin instance id=56, with option --units-fallback mm
-chrs run-latest pl-mri-preview 56 -- --units-fallback mm
+chrs run-latest --memory-limit 2Gi --compute-resource-name moc pl-mri-preview 56 -- --units-fallback mm
 ```
 
 Note: since plugin version is not specified when using `chrs run-latest`,
 the parameters are subject to change. `chrs run` (not yet implemented)
 is preferable for the sake of reproducibility.
+
+A plugin's parameters help can be viewed, e.g. for `pl-mri-preview`,
+by running `chrs describe pl-mri-preview`
 
 ### `chrs pipeline-file add`
 
