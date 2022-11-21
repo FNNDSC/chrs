@@ -4,9 +4,11 @@ use chris::models::{
     PluginParameterValue, PluginType,
 };
 use chris::{ChrisClient, Plugin};
-use clap::{Arg, Command};
+use clap::{Arg, ArgAction, ArgMatches, Command};
 use futures::{StreamExt, TryStreamExt};
 use std::collections::HashMap;
+use itertools::Itertools;
+use serde_json::to_string;
 
 pub(crate) async fn run_latest(
     chris: &ChrisClient,
@@ -21,15 +23,11 @@ pub(crate) async fn run_latest(
     if plugin.plugin.plugin_type == PluginType::Fs {
         bail!("fs plugin type not supported.");
     }
-    let parameter_info: Vec<PluginParameter> = plugin.get_parameters().try_collect().await?;
-    let param_lookup = index_parameters(parameter_info);
-    let mut payload = serialize_params(parameters, &param_lookup)?;
-    payload.push((
-        "previous_id".to_string(),
-        PluginParameterValue::Integer(previous_id.0 as i64),
-    ));
-    let body: HashMap<String, PluginParameterValue> = payload.into_iter().collect();
-    let res = plugin.create_instance(&body).await?;
+    // let param_lookup = index_parameters(parameter_info);
+    // let mut payload = serialize_params(parameters, &param_lookup)?;
+    let mut payload = clap_serialize_params(&plugin, parameters).await?;
+    payload.insert("previous_id".to_string(), PluginParameterValue::Integer(previous_id.0 as i64));
+    let res = plugin.create_instance(&payload).await?;
     println!("{}", res.plugin_instance.url);
     Ok(())
 }
@@ -128,10 +126,17 @@ async fn clap_params(plugin: &Plugin) -> Result<Command> {
 }
 
 fn pluginparameter2claparg(param: PluginParameter) -> Arg {
+    let action = match param.action {
+        PluginParameterAction::Store => {ArgAction::Set}
+        PluginParameterAction::StoreTrue => {ArgAction::SetTrue}
+        PluginParameterAction::StoreFalse => {ArgAction::SetFalse}
+    };
+
     let long_flag = get_long_flag_name(param.flag.as_str()).get_or_insert(param.name.as_str()).to_string();
     let arg = Arg::new(param.name)
         .help(param.help)
-        .long(long_flag);
+        .long(long_flag)
+        .action(action);
 
     if let Some(short_flag) = get_short_flag_char(param.short_flag.as_str()) {
         arg.short(short_flag)
@@ -139,6 +144,86 @@ fn pluginparameter2claparg(param: PluginParameter) -> Arg {
         arg
     }
 }
+
+async fn clap_serialize_params(plugin: &Plugin, args: &[String]) -> Result<HashMap<String, PluginParameterValue>> {
+    let parameter_info: Vec<PluginParameter> = plugin.get_parameters().try_collect().await?;
+    let command = clap_params_1(&plugin.plugin.selfexec, &parameter_info);
+    let matches = command.try_get_matches_from(args)?;
+
+    let parsed_params = parameter_info
+        .into_iter()
+        .filter_map(|p| get_param_from_matches(p, &matches))
+        .collect();
+
+    Ok(parsed_params)
+}
+
+fn get_param_from_matches(param_info: PluginParameter, matches: &ArgMatches) -> Option<(String, PluginParameterValue)> {
+    // TODO does ChRIS support repeating args?
+    let name = param_info.name.as_str();
+    dbg!(&param_info);
+    let value = match param_info.parameter_type {
+        PluginParameterType::Boolean => {
+            let value = matches.get_flag(name);
+            if (value && param_info.action == PluginParameterAction::StoreTrue) ||
+                (!value && param_info.action == PluginParameterAction::StoreFalse) {
+                Some(PluginParameterValue::Boolean(value))
+            } else {
+                None
+            }
+        }
+        PluginParameterType::Integer => {
+            let value: Option<i64> = matches.get_one(name).copied();
+            value.map(PluginParameterValue::Integer)
+        }
+        PluginParameterType::Float => {
+            let value: Option<f64> = matches.get_one(name).copied();
+            value.map(PluginParameterValue::Float)
+        }
+        PluginParameterType::String => {
+            let value: Option<String> = matches.get_one::<String>(name).map(String::from);
+            value.map(PluginParameterValue::Stringish)
+        }
+        PluginParameterType::Path => {
+            let value: Option<String> = matches.get_one::<String>(name).map(String::from);
+            value.map(PluginParameterValue::Stringish)
+        }
+        PluginParameterType::Unextpath => {
+            let value: Option<String> = matches.get_one::<String>(name).map(String::from);
+            value.map(PluginParameterValue::Stringish)
+        }
+    };
+    value.map(|v| (name.to_string(), v))
+}
+
+fn clap_params_1(selfexec: &str, parameter_info: &[PluginParameter]) -> Command {
+    let args = parameter_info.iter().map(pluginparameter2claparg_1);
+    Command::new(selfexec.to_string())
+        .no_binary_name(true)
+        .disable_help_flag(true)
+        .args(args)
+}
+
+fn pluginparameter2claparg_1(param: &PluginParameter) -> Arg {
+    let action = match param.action {
+        PluginParameterAction::Store => {ArgAction::Set}
+        PluginParameterAction::StoreTrue => {ArgAction::SetTrue}
+        PluginParameterAction::StoreFalse => {ArgAction::SetFalse}
+    };
+
+    let long_flag = get_long_flag_name(param.flag.as_str()).get_or_insert(param.name.as_str()).to_string();
+    let arg = Arg::new(&param.name)
+        .help(&param.help)
+        .long(long_flag)
+        .action(action);
+
+    if let Some(short_flag) = get_short_flag_char(param.short_flag.as_str()) {
+        arg.short(short_flag)
+    } else {
+        arg
+    }
+}
+
 
 fn get_short_flag_char(short_flag: &str) -> Option<char> {
     short_flag.split_once('-').and_then(|(lead, name)| {
@@ -304,17 +389,6 @@ mod tests {
             assert_eq!(e, a)
         }
     }
-
-    // #[rstest]
-    // fn test_clap(p_fruit: PluginParameter) {
-    //     let arg = Arg::new("name").short('n').long("name");
-    //     let name = "wow".to_string();
-    //
-    //
-    //     let mut command = Command::new(name).no_bin.args([arg]);
-    //     command.print_help().unwrap();
-    //     command.get_matches_from()
-    // }
 
     #[rstest]
     #[case("-a", Some('a'))]
