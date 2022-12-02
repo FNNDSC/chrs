@@ -2,6 +2,7 @@ mod constants;
 mod download;
 mod executor;
 mod files_tree;
+mod get;
 mod info;
 mod io_helper;
 mod login;
@@ -16,6 +17,7 @@ use clap::{ArgGroup, Parser, Subcommand};
 
 use crate::download::download;
 use crate::files_tree::files_tree;
+use crate::get::get;
 use crate::info::cube_info;
 use crate::login::get_client::get_client;
 use crate::pipeline_add::{add_pipeline, convert_pipeline};
@@ -190,6 +192,19 @@ enum Commands {
     /// Work with file-representation of pipelines
     #[clap(subcommand)]
     PipelineFile(PipelineFile),
+
+    /// Make an authenticated HTTP GET request
+    #[clap(
+        long_about = "Make an authenticated HTTP GET request (for debugging and advanced users)
+
+The output of this subcommand can be piped into `jq`, e.g.
+
+    chrs get https://cube.chrisproject.org/api/v1/ | jq"
+    )]
+    Get {
+        /// CUBE resource URL
+        url: String,
+    },
 }
 
 #[derive(Subcommand)]
@@ -323,6 +338,11 @@ async fn main() -> Result<()> {
         Commands::Describe { plugin_name } => {
             let chris = get_client(address, username, password, vec![]).await?;
             describe_plugin(&chris, &plugin_name).await
+        }
+        Commands::Get { url } => {
+            // TODO if logged into multiple CUBEs, get the right client
+            let chris = get_client(address, username, password, vec![]).await?;
+            get(&chris, &url).await
         }
     }
 }

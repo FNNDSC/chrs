@@ -263,6 +263,14 @@ impl ChrisClient {
             .map_err(CUBEError::from)?;
         Ok(pipeline.map(|p| Pipeline::new(self.client.clone(), p)))
     }
+
+    /// Make a plain HTTP GET request and return its JSON response as a [String].
+    pub async fn get(&self, url: &str) -> Result<String, CUBEError> {
+        let res = self.client.get(url).send().await?;
+        let checked = check(res).await?;
+        let text = checked.text().await?;
+        Ok(text)
+    }
 }
 
 // ============================== HELPERS ==============================
