@@ -114,7 +114,7 @@ enum Commands {
     // /// Search for plugins and pipelines
     // Search {},
     //
-    // /// Get information about a ChRIS resource
+    /// Get the parameters of a ChRIS plugin.
     Describe {
         /// Name of a ChRIS plugin
         #[clap(required = true)]
