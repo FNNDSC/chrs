@@ -54,6 +54,23 @@ struct Cli {
 
 #[derive(Subcommand)]
 enum Commands {
+    /// Remember login account
+    ///
+    /// Stores a username and authorization token for a given ChRIS API URL.
+    Login {
+        /// Save token in plaintext instead of using keyring
+        #[clap(long)]
+        no_keyring: bool,
+
+        /// Take the password from stdin
+        #[clap(long)]
+        password_stdin: bool,
+        // it would be nice to have the --address, --username, ... duplicated here
+    },
+
+    /// Forget login
+    Logout {},
+
     /// Get information about the ChRIS backend.
     Info {},
 
@@ -96,7 +113,7 @@ enum Commands {
     },
 
     /// Browse files in ChRIS
-    Tree {
+    Ls {
         /// Maximum subdirectory depth
         #[clap(short = 'L', long, default_value_t = 2)]
         level: u16,
@@ -115,7 +132,7 @@ enum Commands {
     // Search {},
     //
     /// Get the parameters of a ChRIS plugin.
-    Describe {
+    PluginHelp {
         /// Name of a ChRIS plugin
         #[clap(required = true)]
         plugin_name: PluginName,
@@ -172,27 +189,6 @@ enum Commands {
         parameters: Vec<String>,
     },
 
-    /// Remember login account
-    ///
-    /// Stores a username and authorization token for a given ChRIS API URL.
-    Login {
-        /// Save token in plaintext instead of using keyring
-        #[clap(long)]
-        no_keyring: bool,
-
-        /// Take the password from stdin
-        #[clap(long)]
-        password_stdin: bool,
-        // it would be nice to have the --address, --username, ... duplicated here
-    },
-
-    /// Forget login
-    Logout {},
-
-    /// Work with file-representation of pipelines
-    #[clap(subcommand)]
-    PipelineFile(PipelineFile),
-
     /// Make an authenticated HTTP GET request
     #[clap(
         long_about = "Make an authenticated HTTP GET request (for debugging and advanced users)
@@ -205,6 +201,10 @@ The output of this subcommand can be piped into `jq`, e.g.
         /// CUBE resource URL
         url: String,
     },
+
+    /// Work with file-representation of pipelines
+    #[clap(subcommand)]
+    PipelineFile(PipelineFile),
 }
 
 #[derive(Subcommand)]
@@ -302,7 +302,7 @@ async fn main() -> Result<()> {
                 }
             }
         }
-        Commands::Tree { level, full, path } => {
+        Commands::Ls { level, full, path } => {
             let client = get_client(address, username, password, vec![]).await?;
             files_tree(&client, &path, full, level).await
         }
@@ -335,7 +335,7 @@ async fn main() -> Result<()> {
             )
             .await
         }
-        Commands::Describe { plugin_name } => {
+        Commands::PluginHelp { plugin_name } => {
             let chris = get_client(address, username, password, vec![]).await?;
             describe_plugin(&chris, &plugin_name).await
         }
