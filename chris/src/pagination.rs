@@ -1,3 +1,4 @@
+use crate::common_types::CUBEApiUrl;
 use crate::models::{AnyFilesUrl, PipelinesUrl, PluginParametersUrl, PluginsUrl};
 use aliri_braid::braid;
 use async_stream::stream;
@@ -14,6 +15,28 @@ pub(crate) struct PaginationQuery {
 
 /// An API URL which returns a paginated resource.
 pub(crate) trait PaginatedUrl: AsRef<str> + Clone + DeserializeOwned {}
+
+
+
+/// WHATEVER WHATEVER WHATEVER WHATEVER WHATEVER
+pub(crate) fn paginate_hack<'a, U: 'a + PaginatedUrl, R: 'a + DeserializeOwned>(
+    client: &'a reqwest::Client,
+    url: Option<U>,
+) -> impl Stream<Item = Result<R, reqwest::Error>> + 'a {
+    stream! {
+        let mut next_url = url.map(|i| i.clone());
+        while let Some(u) = next_url {
+            let res = client.get(u.as_ref()).send().await?;
+            let page: Paginated<U, R> = res.json().await?;
+
+            for item in page.results {
+                yield Ok(item);
+            }
+            next_url = page.next;
+        }
+    }
+}
+
 
 /// Create a [futures::Stream] that yields items from a paginated URL.
 ///
@@ -45,6 +68,7 @@ pub(crate) struct Paginated<U, T> {
     pub results: Vec<T>,
 }
 
+impl PaginatedUrl for CUBEApiUrl {}
 impl PaginatedUrl for AnyFilesUrl {}
 impl PaginatedUrl for PluginsUrl {}
 impl PaginatedUrl for PipelinesUrl {}

@@ -5,6 +5,7 @@ use std::path::Path;
 
 use super::errors::{check, CUBEError, FileIOError};
 use super::filebrowser::FileBrowser;
+use crate::client::feed::FeedResponse;
 use crate::client::pipeline::Pipeline;
 use crate::client::plugin::Plugin;
 use crate::client::plugininstance::PluginInstance;
@@ -22,6 +23,7 @@ use serde::{Deserialize, Serialize};
 use tokio::fs::{self, File, OpenOptions};
 use tokio_util::codec::{BytesCodec, FramedRead};
 use tokio_util::io::StreamReader;
+use crate::requests::FeedSearch;
 
 /// _ChRIS_ client object.
 #[derive(Debug)]
@@ -64,6 +66,12 @@ impl ChrisClient {
     /// Get a client for the file browser API.
     pub fn file_browser(&self) -> FileBrowser {
         FileBrowser::new(self.client.clone(), self.links.filebrowser.clone())
+    }
+
+    pub fn search_feeds<'a>(
+        &'a self,
+    ) -> impl Stream<Item = Result<FeedResponse, reqwest::Error>> + 'a {
+        self.search(&self.url, &[("min_id", "0")])  // TODO
     }
 
     /// Upload a pipeline to _ChRIS_.
@@ -193,6 +201,13 @@ impl ChrisClient {
         Ok(())
     }
 
+    fn paginate_own<'a, U: 'a + PaginatedUrl, R: 'a + DeserializeOwned>(
+        &'a self,
+        url: U,
+    ) -> impl Stream<Item = Result<R, reqwest::Error>> + 'a {
+        paginate_hack(&self.client, Some(url))
+    }
+
     fn paginate<'a, U: 'a + PaginatedUrl, R: 'a + DeserializeOwned>(
         &'a self,
         url: &'a U,
@@ -230,16 +245,25 @@ impl ChrisClient {
         Ok(res.map(|plugin_info| Plugin::new(self.client.clone(), plugin_info)))
     }
 
+    /// Stream items from a search endpoint
+    fn search<'a, T: Serialize + ?Sized, R: DeserializeOwned + 'a>(
+        &'a self,
+        base_url: &'a impl PaginatedUrl,
+        query: &'a T,
+    ) -> impl Stream<Item = Result<R, reqwest::Error>> + 'a {
+        let url = SearchUrl::of(base_url, query).unwrap();
+        self.paginate_own(url)
+    }
+
     /// Get the first object from a search.
     async fn get_first<T: Serialize + ?Sized, R: DeserializeOwned>(
         &self,
         base_url: &impl PaginatedUrl,
         query: &T,
     ) -> Result<Option<R>, reqwest::Error> {
-        let url = SearchUrl::of(base_url, query).unwrap();
-        let results = self.paginate(&url);
-        pin_mut!(results);
-        results.try_next().await
+        let search = self.search(base_url, query);
+        pin_mut!(search);
+        search.try_next().await
     }
 
     /// Create a plugin instance of (i.e. run) `pl-dircopy`

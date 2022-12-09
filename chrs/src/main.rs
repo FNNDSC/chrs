@@ -1,6 +1,7 @@
 mod constants;
 mod download;
 mod executor;
+mod feeds;
 mod files_tree;
 mod get;
 mod info;
@@ -16,6 +17,7 @@ use anyhow::Result;
 use clap::{ArgGroup, Parser, Subcommand};
 
 use crate::download::download;
+use crate::feeds::list_feeds;
 use crate::files_tree::files_tree;
 use crate::get::get;
 use crate::info::cube_info;
@@ -73,6 +75,13 @@ enum Commands {
 
     /// Get information about the ChRIS backend.
     Info {},
+
+    /// List or search feeds
+    Feeds {
+        /// Number of feeds to get
+        #[clap(short, long, default_value_t = 10)]
+        limit: u32,
+    },
 
     /// Upload files and run workflows
     Upload {
@@ -259,6 +268,11 @@ async fn main() -> Result<()> {
     }
 
     match args.command {
+        Commands::Feeds { limit } => {
+            let client = get_client(address, username, password, vec![]).await?;
+            list_feeds(&client, limit).await
+        }
+
         Commands::Info {} => {
             let client = get_client(address, username, password, vec![]).await?;
             cube_info(&client).await

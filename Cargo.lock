@@ -345,7 +345,7 @@ dependencies = [
 
 [[package]]
 name = "chrs"
-version = "0.1.0-alpha.3"
+version = "0.1.0"
 dependencies = [
  "anyhow",
  "async-recursion",

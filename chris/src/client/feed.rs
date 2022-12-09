@@ -1,3 +1,4 @@
+use crate::common_types::Username;
 use crate::errors::{check, CUBEError};
 use crate::models::FeedUrl;
 use reqwest::Client;
@@ -32,5 +33,9 @@ struct SetFeedNameBody<'a> {
 #[derive(Deserialize)]
 pub struct FeedResponse {
     pub url: FeedUrl,
-    pub name: String, // many fields missing ;-;
+    pub name: String,
+    pub creator_username: Username,
+    pub id: u32,
+    // pub creation_date:
+    // many fields missing ;-;
 }
