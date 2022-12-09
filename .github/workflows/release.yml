@@ -263,7 +263,7 @@ jobs:
         uses: actions-rs/cargo@v1
         with:
           command: build
-          args: --release --verbose --manifest-path chrs/Cargo.toml
+          args: --release --verbose --manifest-path chrs/Cargo.toml --features vendored-openssl
 
       - name: Copy plain binary to artifacts directory
         shell: bash
