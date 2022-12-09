@@ -1,7 +1,7 @@
-/// Defines models for requests sent to CUBE.
+//! Defines models for requests sent to CUBE.
 use serde::Serialize;
 
-#[derive(Debug, Clone, Default, PartialEq, Serialize)]
+#[derive(Debug, Clone, Default, PartialEq, Eq, Serialize)]
 pub struct FeedSearch {
     #[serde(skip_serializing_if = "Option::is_none")]
     pub id: Option<u32>,

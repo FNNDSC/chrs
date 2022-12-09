@@ -15,6 +15,7 @@ use crate::errors::{DircopyError, GetError};
 use crate::models::*;
 use crate::pagination::*;
 use crate::pipeline::CanonPipeline;
+use crate::requests::FeedSearch;
 use reqwest::header::{HeaderMap, HeaderValue, ACCEPT, AUTHORIZATION};
 use reqwest::multipart::{Form, Part};
 use reqwest::Body;
@@ -23,7 +24,6 @@ use serde::{Deserialize, Serialize};
 use tokio::fs::{self, File, OpenOptions};
 use tokio_util::codec::{BytesCodec, FramedRead};
 use tokio_util::io::StreamReader;
-use crate::requests::FeedSearch;
 
 /// _ChRIS_ client object.
 #[derive(Debug)]
@@ -68,10 +68,8 @@ impl ChrisClient {
         FileBrowser::new(self.client.clone(), self.links.filebrowser.clone())
     }
 
-    pub fn search_feeds<'a>(
-        &'a self,
-    ) -> impl Stream<Item = Result<FeedResponse, reqwest::Error>> + 'a {
-        self.search(&self.url, &[("min_id", "0")])  // TODO
+    pub fn search_feeds(&self) -> impl Stream<Item = Result<FeedResponse, reqwest::Error>> + '_ {
+        self.search(&self.url, &[("min_id", "0")]) // TODO
     }
 
     /// Upload a pipeline to _ChRIS_.
