@@ -201,20 +201,13 @@ impl ChrisClient {
         Ok(())
     }
 
-    fn paginate_own<'a, U: 'a + PaginatedUrl, R: 'a + DeserializeOwned>(
-        &'a self,
-        url: U,
-    ) -> impl Stream<Item = Result<R, reqwest::Error>> + 'a {
-        paginate_hack(&self.client, Some(url))
-    }
-
     fn paginate<'a, U: 'a + PaginatedUrl, R: 'a + DeserializeOwned>(
         &'a self,
         url: &'a U,
     ) -> impl Stream<Item = Result<R, reqwest::Error>> + 'a {
         // TODO check the error, if it's a problem with .json,
         // tell user to check documentation for supported URLs
-        paginate(&self.client, Some(url))
+        paginate(&self.client, Some(url.clone()))
     }
 
     /// Get a specific plugin by (name_exact, version).
@@ -252,7 +245,7 @@ impl ChrisClient {
         query: &'a T,
     ) -> impl Stream<Item = Result<R, reqwest::Error>> + 'a {
         let url = SearchUrl::of(base_url, query).unwrap();
-        self.paginate_own(url)
+        paginate(&self.client, Some(url))
     }
 
     /// Get the first object from a search.

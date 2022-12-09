@@ -16,37 +16,17 @@ pub(crate) struct PaginationQuery {
 /// An API URL which returns a paginated resource.
 pub(crate) trait PaginatedUrl: AsRef<str> + Clone + DeserializeOwned {}
 
-
-
-/// WHATEVER WHATEVER WHATEVER WHATEVER WHATEVER
-pub(crate) fn paginate_hack<'a, U: 'a + PaginatedUrl, R: 'a + DeserializeOwned>(
-    client: &'a reqwest::Client,
-    url: Option<U>,
-) -> impl Stream<Item = Result<R, reqwest::Error>> + 'a {
-    stream! {
-        let mut next_url = url.map(|i| i.clone());
-        while let Some(u) = next_url {
-            let res = client.get(u.as_ref()).send().await?;
-            let page: Paginated<U, R> = res.json().await?;
-
-            for item in page.results {
-                yield Ok(item);
-            }
-            next_url = page.next;
-        }
-    }
-}
-
-
 /// Create a [futures::Stream] that yields items from a paginated URL.
 ///
 /// Limitation: Cannot produce [crate::client::CUBEError]
 pub(crate) fn paginate<'a, U: 'a + PaginatedUrl, R: 'a + DeserializeOwned>(
     client: &'a reqwest::Client,
-    url: Option<&'a U>,
+    url: Option<U>,
 ) -> impl Stream<Item = Result<R, reqwest::Error>> + 'a {
+    // must have ownership of `url` because it might be a temporary value
+    // inside a function that wants to return the stream created here
     stream! {
-        let mut next_url = url.map(|i| i.clone());
+        let mut next_url = url.map(|i| i.clone());  // annoyingly necessary clone
         while let Some(u) = next_url {
             let res = client.get(u.as_ref()).send().await?;
             let page: Paginated<U, R> = res.json().await?;

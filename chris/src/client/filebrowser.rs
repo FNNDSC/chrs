@@ -120,7 +120,7 @@ impl FileBrowserView {
 
     /// Iterate over files.
     pub fn iter_files(&self) -> impl Stream<Item = Result<DownloadableFile, reqwest::Error>> + '_ {
-        paginate(&self.client, self.files.as_ref())
+        paginate(&self.client, self.files.clone())
     }
 }
 

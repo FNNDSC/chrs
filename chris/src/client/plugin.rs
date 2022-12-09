@@ -38,6 +38,6 @@ impl Plugin {
     pub fn get_parameters(
         &self,
     ) -> impl Stream<Item = Result<PluginParameter, reqwest::Error>> + '_ {
-        paginate(&self.client, Some(&self.plugin.parameters))
+        paginate(&self.client, Some(self.plugin.parameters.clone()))
     }
 }
