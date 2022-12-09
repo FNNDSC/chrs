@@ -39,9 +39,10 @@ jobs:
         env:
           CARGO_REGISTRY_TOKEN: ${{ secrets.CARGO_REGISTRY_TOKEN }}
 
-  # copied from
+  # Cross-compile to many platforms and create compressed archive files for download.
+  # Copied from
   # https://github.com/ClementTsang/chrs/blob/d297ee4639f65e9bb1c0c636ebe9faad075822c1/.github/workflows/deployment.yml
-  build-release:
+  build-cross:
     if: startsWith( github.ref, 'refs/tags/chrs/' )
     runs-on: ${{ matrix.triple.os }}
     container: ${{ matrix.triple.container }}
@@ -53,29 +54,29 @@ jobs:
         triple:
           # Standard x86-64 stuff, stable
           - {
-            os: "ubuntu-18.04",
+            os: "ubuntu-20.04",
             target: "x86_64-unknown-linux-gnu",
             cross: false,
           }
           - {
-            os: "ubuntu-18.04",
+            os: "ubuntu-20.04",
             target: "x86_64-unknown-linux-gnu",
             cross: false,
             container: quay.io/pypa/manylinux2014_x86_64,
             suffix: "2-17",
           }
           - {
-            os: "ubuntu-18.04",
+            os: "ubuntu-20.04",
             target: "i686-unknown-linux-gnu",
             cross: true,
           }
           - {
-            os: "ubuntu-18.04",
+            os: "ubuntu-20.04",
             target: "x86_64-unknown-linux-musl",
             cross: true,  # workaround, needs musl-gcc to compile OpenSSL
           }
           - {
-            os: "ubuntu-18.04",
+            os: "ubuntu-20.04",
             target: "i686-unknown-linux-musl",
             cross: true,
           }
@@ -93,21 +94,21 @@ jobs:
 
           # aarch64
           - {
-            os: "ubuntu-18.04",
+            os: "ubuntu-20.04",
             target: "aarch64-unknown-linux-gnu",
             cross: true,
           }
 
           # armv7
           - {
-            os: "ubuntu-18.04",
+            os: "ubuntu-20.04",
             target: "armv7-unknown-linux-gnueabihf",
             cross: true,
           }
 
           # PowerPC 64 LE
           - {
-            os: "ubuntu-18.04",
+            os: "ubuntu-20.04",
             target: "powerpc64le-unknown-linux-gnu",
             cross: true,
           }
@@ -115,7 +116,7 @@ jobs:
           # doesn't work
 #          # Risc-V 64gc
 #          - {
-#            os: "ubuntu-18.04",
+#            os: "ubuntu-20.04",
 #            target: "riscv64gc-unknown-linux-gnu",
 #            cross: true,
 #          }
@@ -181,15 +182,16 @@ jobs:
           name: release
           path: release
 
+  # Build package for global installation on Debian and Ubuntu based distros
   build-deb:
-    name: build-deb
+    name: Build debian package
     if: startsWith( github.ref, 'refs/tags/chrs/' )
-    runs-on: "ubuntu-18.04"
+    runs-on: "ubuntu-20.04"
     env:
       RUST_BACKTRACE: 1
     steps:
       - name: Checkout repository
-        uses: actions/checkout@v2
+        uses: actions/checkout@v3
         with:
           fetch-depth: 1
 
@@ -225,11 +227,53 @@ jobs:
           mkdir -v release
           mv -v ./*.deb release/
 
-        # for the convenience of being able to just download and run it
-        # right away, w/o needing to untar nor install
+      - name: Save release as artifact
+        uses: actions/upload-artifact@v3
+        with:
+          retention-days: 3
+          name: release
+          path: release
+
+  # Create a binary for x86_64 with vendored OpenSSL, which will pretty much work on most Linux.
+  build-convenient:
+    name: Build x64 with vendored OpenSSL
+    if: startsWith( github.ref, 'refs/tags/chrs/' )
+    runs-on: "ubuntu-20.04"
+    env:
+      RUST_BACKTRACE: 1
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v3
+        with:
+          fetch-depth: 1
+
+      - name: Install toolchain
+        uses: actions-rs/toolchain@88dc2356392166efad76775c878094f4e83ff746
+        with:
+          profile: minimal
+          toolchain: stable
+          override: true
+          target: x86_64-unknown-linux-gnu
+
+      - uses: Swatinem/rust-cache@842ef286fff290e445b90b4002cc9807c3669641 # 1.3.0
+        with:
+          key: x86_64-unknown-linux-gnu-deb
+
+      - name: Build
+        uses: actions-rs/cargo@v1
+        with:
+          command: build
+          args: --release --verbose --manifest-path chrs/Cargo.toml
+
       - name: Copy plain binary to artifacts directory
         shell: bash
         run: cp -v target/release/chrs release/
+
+      - name: Copy plain binary to artifacts directory
+        shell: bash
+        run: |
+          mkdir -v release
+          cp -v target/release/chrs release/
 
       - name: Save release as artifact
         uses: actions/upload-artifact@v3
@@ -241,7 +285,7 @@ jobs:
   upload-release:
     name: upload-release
     runs-on: ubuntu-latest
-    needs: [build-release, build-deb]
+    needs: [build-cross, build-deb, build-convenient]
     steps:
       - name: Get release artifacts
         uses: actions/download-artifact@v3
