@@ -267,10 +267,6 @@ jobs:
 
       - name: Copy plain binary to artifacts directory
         shell: bash
-        run: cp -v target/release/chrs release/
-
-      - name: Copy plain binary to artifacts directory
-        shell: bash
         run: |
           mkdir -v release
           cp -v target/release/chrs release/
