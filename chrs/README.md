@@ -82,7 +82,7 @@ chrs --address https://cube.chrisproject.org/api/v1/ logout
 chrs logout
 ```
 
-### `chrs tree PATH`
+### `chrs ls PATH`
 
 List files and directories in _ChRIS_.
 
@@ -171,7 +171,19 @@ the parameters are subject to change. `chrs run` (not yet implemented)
 is preferable for the sake of reproducibility.
 
 A plugin's parameters help can be viewed, e.g. for `pl-mri-preview`,
-by running `chrs describe pl-mri-preview`
+by running `chrs plugin-help pl-mri-preview`
+
+### `chrs get`
+
+Make an authenticated HTTP GET request.
+
+As `chrs` is still under development, many functions are still unavailable.
+Advanced users can use `chrs get` to query the CUBE API directly.
+
+```shell
+# example: list plugins used in feed 12
+cargo run -- get https://cube.chrisproject.org/api/v1/12/plugininstances/ | jq -r '.results[] | .plugin_name'
+```
 
 ### `chrs pipeline-file add`
 
