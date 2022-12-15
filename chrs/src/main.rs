@@ -2,7 +2,7 @@ mod constants;
 mod download;
 mod executor;
 mod feeds;
-mod files_tree;
+mod files;
 mod get;
 mod info;
 mod io_helper;
@@ -18,7 +18,7 @@ use clap::{ArgGroup, Parser, Subcommand};
 
 use crate::download::download;
 use crate::feeds::list_feeds;
-use crate::files_tree::files_tree;
+use crate::files::files_tree;
 use crate::get::get;
 use crate::info::cube_info;
 use crate::login::get_client::get_client;
