@@ -23,6 +23,7 @@ pub struct CUBELinks {
     pub pipelines: PipelinesUrl,
     pub filebrowser: FileBrowserUrl,
     pub plugins: PluginsUrl,
+    pub plugin_instances: PluginInstancesUrl,
 }
 
 /// CUBE file browser API URL, e.g. `https://cube.chrisproject.org/api/v1/filebrowser/`
@@ -271,7 +272,7 @@ pub struct PluginInstanceUrl;
 #[braid(serde)]
 pub struct FeedUrl;
 
-#[derive(Shrinkwrap, Serialize, Deserialize, Debug)]
+#[derive(Copy, Clone, Shrinkwrap, Serialize, Deserialize, Debug, Hash, Eq, PartialEq)]
 pub struct PluginInstanceId(pub u32);
 
 #[braid(serde)]

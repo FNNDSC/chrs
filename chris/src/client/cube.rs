@@ -18,7 +18,7 @@ use crate::pipeline::CanonPipeline;
 use crate::requests::FeedSearch;
 use reqwest::header::{HeaderMap, HeaderValue, ACCEPT, AUTHORIZATION};
 use reqwest::multipart::{Form, Part};
-use reqwest::Body;
+use reqwest::{Body, Response};
 use serde::de::DeserializeOwned;
 use serde::{Deserialize, Serialize};
 use tokio::fs::{self, File, OpenOptions};
@@ -206,6 +206,34 @@ impl ChrisClient {
         // TODO check the error, if it's a problem with .json,
         // tell user to check documentation for supported URLs
         paginate(&self.client, Some(url.clone()))
+    }
+
+    /// Get a plugin instance by ID. If not found, error is returned.
+    pub async fn get_plugin_instance(
+        &self,
+        id: PluginInstanceId,
+    ) -> Result<Option<PluginInstanceCreatedResponse>, CUBEError> {
+        let url = format!("{}{}/", self.links.plugin_instances, *id);
+        let res = self.client.get(url).send().await?;
+        match check(res).await {
+            Ok(checked) => {
+                let plinst = checked.json().await?;
+                Ok(Some(plinst))
+            }
+            Err(e) => {
+                // catch 404 error, return None instead
+                match e {
+                    CUBEError::Error { status, .. } => {
+                        if status == reqwest::StatusCode::NOT_FOUND {
+                            Ok(None)
+                        } else {
+                            Err(e)
+                        }
+                    }
+                    CUBEError::Raw(_) => Err(e),
+                }
+            }
+        }
     }
 
     /// Get a specific plugin by (name_exact, version).

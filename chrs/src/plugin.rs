@@ -97,7 +97,7 @@ fn serialize_optional_resources(
         previous_id.map(|v| {
             (
                 "previous_id".to_string(),
-                PluginParameterValue::Integer(v.0 as i64),
+                PluginParameterValue::Integer(*v as i64),
             )
         }),
     ];
