@@ -1,8 +1,7 @@
-use crate::common_types::Username;
 use crate::errors::{check, CUBEError};
-use crate::models::FeedUrl;
+use crate::models::{FeedResponse, FeedUrl};
 use reqwest::Client;
-use serde::{Deserialize, Serialize};
+use serde::Serialize;
 
 pub struct ShallowFeed {
     client: Client,
@@ -28,14 +27,4 @@ impl ShallowFeed {
 #[derive(Serialize)]
 struct SetFeedNameBody<'a> {
     name: &'a str,
-}
-
-#[derive(Deserialize)]
-pub struct FeedResponse {
-    pub url: FeedUrl,
-    pub name: String,
-    pub creator_username: Username,
-    pub id: u32,
-    // pub creation_date:
-    // many fields missing ;-;
 }

@@ -273,6 +273,19 @@ pub struct PluginInstanceUrl;
 pub struct FeedUrl;
 
 #[derive(Copy, Clone, Shrinkwrap, Serialize, Deserialize, Debug, Hash, Eq, PartialEq)]
+pub struct FeedId(pub u32);
+
+#[derive(Deserialize)]
+pub struct FeedResponse {
+    pub url: FeedUrl,
+    pub name: String,
+    pub creator_username: Username,
+    pub id: FeedId,
+    // pub creation_date:
+    // many fields missing ;-;
+}
+
+#[derive(Copy, Clone, Shrinkwrap, Serialize, Deserialize, Debug, Hash, Eq, PartialEq)]
 pub struct PluginInstanceId(pub u32);
 
 #[braid(serde)]
@@ -291,7 +304,7 @@ pub struct ComputeResourceUrl;
 pub struct ComputeResourceName;
 
 #[derive(Deserialize, Debug)]
-pub struct PluginInstanceCreatedResponse {
+pub struct PluginInstanceResponse {
     pub url: PluginInstanceUrl,
     pub id: PluginInstanceId,
     pub title: String,

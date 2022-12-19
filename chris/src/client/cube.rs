@@ -5,20 +5,19 @@ use std::path::Path;
 
 use super::errors::{check, CUBEError, FileIOError};
 use super::filebrowser::FileBrowser;
-use crate::client::feed::FeedResponse;
 use crate::client::pipeline::Pipeline;
 use crate::client::plugin::Plugin;
 use crate::client::plugininstance::PluginInstance;
 use crate::common_types::{CUBEApiUrl, Username};
 use crate::constants::{DIRCOPY_NAME, DIRCOPY_VERSION};
 use crate::errors::{DircopyError, GetError};
+use crate::models::FeedResponse;
 use crate::models::*;
 use crate::pagination::*;
 use crate::pipeline::CanonPipeline;
-use crate::requests::FeedSearch;
 use reqwest::header::{HeaderMap, HeaderValue, ACCEPT, AUTHORIZATION};
 use reqwest::multipart::{Form, Part};
-use reqwest::{Body, Response};
+use reqwest::Body;
 use serde::de::DeserializeOwned;
 use serde::{Deserialize, Serialize};
 use tokio::fs::{self, File, OpenOptions};
@@ -212,28 +211,11 @@ impl ChrisClient {
     pub async fn get_plugin_instance(
         &self,
         id: PluginInstanceId,
-    ) -> Result<Option<PluginInstanceCreatedResponse>, CUBEError> {
+    ) -> Result<PluginInstanceResponse, CUBEError> {
         let url = format!("{}{}/", self.links.plugin_instances, *id);
         let res = self.client.get(url).send().await?;
-        match check(res).await {
-            Ok(checked) => {
-                let plinst = checked.json().await?;
-                Ok(Some(plinst))
-            }
-            Err(e) => {
-                // catch 404 error, return None instead
-                match e {
-                    CUBEError::Error { status, .. } => {
-                        if status == reqwest::StatusCode::NOT_FOUND {
-                            Ok(None)
-                        } else {
-                            Err(e)
-                        }
-                    }
-                    CUBEError::Raw(_) => Err(e),
-                }
-            }
-        }
+        let plinst = check(res).await?.json().await?;
+        Ok(plinst)
     }
 
     /// Get a specific plugin by (name_exact, version).
@@ -592,7 +574,7 @@ mod tests {
 
         ////////////////
         // name created feed
-        let feed = dircopy_instance.get_feed();
+        let feed = dircopy_instance.feed();
         let feed_details = feed.set_name("a new name").await?;
         assert_eq!(feed_details.name.as_str(), "a new name");
 

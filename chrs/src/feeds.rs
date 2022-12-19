@@ -12,7 +12,7 @@ pub(crate) async fn list_feeds(chris: &ChrisClient, limit: u32) -> anyhow::Resul
     while let Some(feed) = search.try_next().await? {
         println!(
             "{:<72} {}/feed_{}",
-            feed.name, feed.creator_username, feed.id
+            feed.name, feed.creator_username, *feed.id
         );
         count += 1;
         if count >= limit {

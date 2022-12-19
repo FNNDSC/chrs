@@ -221,7 +221,6 @@ fn get_long_flag_name(long_flag: &str) -> Option<&str> {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use chris::models::{PluginParameterAction, PluginParameterId, PluginParameterUrl, PluginUrl};
     use rstest::*;
 
     #[rstest]

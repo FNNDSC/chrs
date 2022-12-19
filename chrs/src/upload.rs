@@ -119,7 +119,7 @@ async fn create_feed(
     pipeline: Option<Pipeline>,
 ) -> Result<()> {
     let dircopy = chris.dircopy(uploaded_dir).await?;
-    let feed = dircopy.get_feed();
+    let feed = dircopy.feed();
     let feed_name_task = feed.set_name(feed_name);
     let dircopy_id = dircopy.plugin_instance.id;
     let pipeline_task = maybe_create_workflow(pipeline, dircopy_id);
