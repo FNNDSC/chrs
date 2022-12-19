@@ -1,6 +1,8 @@
 use bytes::Bytes;
 use futures::{pin_mut, Stream, TryStream, TryStreamExt};
 use std::borrow::Cow;
+use std::fmt::Display;
+use std::ops::Deref;
 use std::path::Path;
 
 use super::errors::{check, CUBEError, FileIOError};
@@ -212,10 +214,26 @@ impl ChrisClient {
         &self,
         id: PluginInstanceId,
     ) -> Result<PluginInstanceResponse, CUBEError> {
-        let url = format!("{}{}/", self.links.plugin_instances, *id);
-        let res = self.client.get(url).send().await?;
-        let plinst = check(res).await?.json().await?;
-        Ok(plinst)
+        self.get_resource_by_id(&self.links.plugin_instances, id)
+            .await
+    }
+
+    pub async fn get_feed(&self, id: FeedId) -> Result<FeedResponse, CUBEError> {
+        self.get_resource_by_id(&self.url, id).await
+    }
+
+    async fn get_resource_by_id<T>(
+        &self,
+        base_url: impl Display,
+        id: impl Deref<Target = u32>,
+    ) -> Result<T, CUBEError>
+    where
+        T: DeserializeOwned,
+    {
+        let url = format!("{}{}/", base_url, *id);
+        let response = self.client.get(url).send().await?;
+        let resource = check(response).await?.json().await?;
+        Ok(resource)
     }
 
     /// Get a specific plugin by (name_exact, version).

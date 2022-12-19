@@ -1,10 +1,9 @@
+use async_stream::stream;
 use chris::errors::CUBEError;
 use chris::models::{FeedId, FileResourceFname, PluginInstanceId};
 use chris::ChrisClient;
-use std::collections::HashMap;
-use async_stream::stream;
 use futures::{Stream, StreamExt};
-use itertools::Itertools;
+use std::collections::HashMap;
 
 /// [PathNamer] is a struct which provides memoization for the helper function
 /// [PathNamer::rename].
@@ -35,9 +34,8 @@ impl PathNamer {
     pub async fn rename(&mut self, fname: &FileResourceFname) -> String {
         let s: &str = fname.as_str(); // to help CLion with type hinting
 
-        if let Some((username, feed_id, split)) = consume_feed_fname(s.split("/")) {
-            // TODO rename feed_id
-            let feed_name = format!("feed_{}_renamed", *feed_id);
+        if let Some((username, feed_folder, feed_id, split)) = consume_feed_fname(s.split("/")) {
+            let feed_name = self.get_feed_name(feed_id, feed_folder).await;
             let folders: Vec<String> = self.rename_plugin_instances(split).collect().await;
             let subpaths = folders.join("/");
             return format!("{}/{}/{}", username, feed_name, subpaths);
@@ -46,12 +44,24 @@ impl PathNamer {
         }
     }
 
+    /// Gets the feed name for the specified feed ID. If unable to, then
+    /// a given default value is returned, and [PathNamer::cube_error] is set to `true`.
+    async fn get_feed_name(&mut self, id: FeedId, feed_folder: &str) -> String {
+        self.chris.get_feed(id).await.map(|f| f.name).unwrap_or_else(|e| {
+            eprintln!("WARNING: could not get feed name for \"{}\". {:?}", feed_folder, e);
+            self.cube_error = true;
+            feed_folder.to_string()
+        })
+    }
+
     /// Consumes the given iterator. For every folder name which comes before the
     /// special value "data", try to ge the title for the plugin instance.
     /// If the plugin instance's title cannot be resolved, then a warning message
     /// is printed to stderr and the program continues.
     fn rename_plugin_instances<'a, I>(&'a mut self, mut split: I) -> impl Stream<Item = String> + '_
-    where I: Iterator<Item = &'a str> + 'a {
+    where
+        I: Iterator<Item = &'a str> + 'a,
+    {
         stream! {
             // process up until "data"
             while let Some(folder) = split.next() {
@@ -96,8 +106,8 @@ impl PathNamer {
             }
             Err(e) => {
                 eprintln!("WARNING: {:?}", e);
-                self.cube_error = true;  // don't try to speak to CUBE again
-                // default to using the folder name as-is
+                self.cube_error = true; // don't try to speak to CUBE again
+                                        // default to using the folder name as-is
                 self.memo.insert(folder.to_string(), folder.to_string());
                 folder.to_string()
             }
@@ -132,16 +142,16 @@ fn parse_plinst_id(folder: &str) -> Result<PluginInstanceId, PluginInstanceTitle
 
 /// Consumes the first two items from the given iterator. If the second item is
 /// recognized as a feed output folder, the consumed items, feed ID, and the
-/// rest of the iterator is returned. Otherwise, the given iterator is dropped.
-fn consume_feed_fname<'a, I>(mut iter: I) -> Option<(&'a str, FeedId, I)>
+/// rest of the iterator is returned. Otherwise, the given iterator gets dropped.
+fn consume_feed_fname<'a, I>(mut iter: I) -> Option<(&'a str, &'a str, FeedId, I)>
 where
     I: Iterator<Item = &'a str>,
 {
     if let Some(first) = iter.next() {
         iter.next()
-            .map(parse_feed_folder)
+            .map(|f| parse_feed_folder(f).map(|n| (f, n)))
             .flatten()
-            .map(|feed_id| (first, feed_id, iter))
+            .map(|(feed_folder, feed_id)| (first, feed_folder, feed_id, iter))
     } else {
         None
     }
@@ -181,8 +191,9 @@ mod tests {
     #[rstest]
     fn test_consume_feed_fname() {
         let input = "chrisuser/feed_187/pl-fs-app_200/pl-ds-app_202/hello.json";
-        let (username, feed_id, rest) = consume_feed_fname(input.split('/')).unwrap();
+        let (username, feed_folder, feed_id, rest) = consume_feed_fname(input.split('/')).unwrap();
         assert_eq!(username, "chrisuser");
+        assert_eq!(feed_folder, "feed_187");
         assert_eq!(feed_id, FeedId(187));
         assert_eq!(
             rest.collect::<Vec<&str>>(),
