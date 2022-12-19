@@ -2,6 +2,9 @@ use chris::errors::CUBEError;
 use chris::models::{FeedId, FileResourceFname, PluginInstanceId};
 use chris::ChrisClient;
 use std::collections::HashMap;
+use async_stream::stream;
+use futures::{Stream, StreamExt};
+use itertools::Itertools;
 
 /// [PathNamer] is a struct which provides memoization for the helper function
 /// [PathNamer::rename].
@@ -32,9 +35,12 @@ impl PathNamer {
     pub async fn rename(&mut self, fname: &FileResourceFname) -> String {
         let s: &str = fname.as_str(); // to help CLion with type hinting
 
-        if let Some((username, feed_id, mut split)) = consume_feed_fname(s.split("/")) {
-            let s = self.rename_plugin_instances(split).await; // TODO TODO TODO
-            todo!()
+        if let Some((username, feed_id, split)) = consume_feed_fname(s.split("/")) {
+            // TODO rename feed_id
+            let feed_name = format!("feed_{}_renamed", *feed_id);
+            let folders: Vec<String> = self.rename_plugin_instances(split).collect().await;
+            let subpaths = folders.join("/");
+            return format!("{}/{}/{}", username, feed_name, subpaths);
         } else {
             s.to_string()
         }
@@ -44,19 +50,25 @@ impl PathNamer {
     /// special value "data", try to ge the title for the plugin instance.
     /// If the plugin instance's title cannot be resolved, then a warning message
     /// is printed to stderr and the program continues.
-    async fn rename_plugin_instances(&mut self, mut split: impl Iterator<Item = &str>) -> String {
-        // TODO returns a stream
-
-        while let Some(folder) = split.next() {
-            if folder == "data" {
-                dbg!(folder);
-                break;
+    fn rename_plugin_instances<'a, I>(&'a mut self, mut split: I) -> impl Stream<Item = String> + '_
+    where I: Iterator<Item = &'a str> + 'a {
+        stream! {
+            // process up until "data"
+            while let Some(folder) = split.next() {
+                if folder == "data" {
+                    yield folder.to_string();
+                    break;
+                }
+                let title = self.get_title_for(folder).await;
+                yield title;
             }
-            let title = self.get_title_for(folder).await;
-            dbg!(title);
-        }
 
-        "".to_string()
+            // spit out the rest of the folders, which are
+            // outputs created by the plugin instance
+            while let Some(folder) = split.next() {
+                yield folder.to_string();
+            }
+        }
     }
 
     /// Retrieves plugin title from cache if available. Else, make a request to CUBE,
@@ -103,7 +115,7 @@ impl PathNamer {
             .get_plugin_instance(id)
             .await
             .map_err(PluginInstanceTitleError::CUBE)?;
-        Ok(plinst.title.to_string())
+        Ok(plinst.title)
     }
 }
 
@@ -197,22 +209,22 @@ mod tests {
         assert_eq!(parse_feed_folder(folder), expected.map(FeedId))
     }
 
-    // #[rstest]
-    // #[tokio::test]
-    // async fn test_whatever() -> anyhow::Result<()> {
-    //     let account = CUBEAuth {
-    //         username: Username::new("chris".to_string()),
-    //         password: "chris1234".to_string(),
-    //         url: CUBEApiUrl::try_from("https://cube.chrisproject.org/api/v1/")?,
-    //         client: &reqwest::Client::new(),
-    //     };
-    //     let client = account.into_client().await?;
-    //     let mut namer = PathNamer::new(client);
-    //
-    //     let example = FileResourceFname::from("chris/feed_1859/pl-dircopy_7933/pl-dcm2niix_7934/data/incoming_XR_Posteroanterior_(PA)_view_2021000000_3742127318.json");
-    //     let actual = namer.rename(&example).await;
-    //     dbg!(actual);
-    //
-    //     Ok(())
-    // }
+    #[rstest]
+    #[tokio::test]
+    async fn test_whatever() -> anyhow::Result<()> {
+        let account = CUBEAuth {
+            username: Username::new("chris".to_string()),
+            password: "chris1234".to_string(),
+            url: CUBEApiUrl::try_from("https://cube.chrisproject.org/api/v1/")?,
+            client: &reqwest::Client::new(),
+        };
+        let client = account.into_client().await?;
+        let mut namer = PathNamer::new(client);
+
+        let example = FileResourceFname::from("chris/feed_1859/pl-dircopy_7933/pl-dcm2niix_7934/data/incoming_XR_Posteroanterior_(PA)_view_2021000000_3742127318.json");
+        let actual = namer.rename(&example).await;
+        dbg!(actual);
+
+        Ok(())
+    }
 }
