@@ -1,8 +1,8 @@
+use crate::files::human_paths::MaybeRenamer;
 use crate::files::list_files::list_files;
 use crate::files::tree::files_tree;
 use chris::filebrowser::FileBrowserPath;
 use chris::ChrisClient;
-use crate::files::human_paths::MaybeRenamer;
 
 pub(crate) async fn ls(
     client: &ChrisClient,

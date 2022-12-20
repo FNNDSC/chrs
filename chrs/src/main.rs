@@ -124,6 +124,7 @@ enum Commands {
     /// Browse files in ChRIS
     Ls {
         /// tree-like output
+        #[clap(short, long)]
         tree: bool,
 
         /// Maximum subdirectory depth

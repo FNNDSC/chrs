@@ -1,17 +1,17 @@
-use anyhow::{bail, Ok, Result};
+use crate::files::human_paths::MaybeRenamer;
+use anyhow::bail;
 use async_recursion::async_recursion;
 use async_stream::stream;
 use chris::filebrowser::{FileBrowser, FileBrowserPath, FileBrowserView};
 use chris::models::{Downloadable, DownloadableFile};
 use chris::ChrisClient;
 use console::{style, StyledObject};
-use futures::TryStreamExt;
+use futures::{pin_mut, StreamExt, TryStreamExt};
 use indicatif::ProgressBar;
 use termtree::Tree;
 use tokio::join;
 use tokio::sync::mpsc;
 use tokio::sync::mpsc::UnboundedSender;
-use crate::files::human_paths::MaybeRenamer;
 
 /// Show files in _ChRIS_ using the file browser API in a tree diagram.
 pub(crate) async fn files_tree(
@@ -19,14 +19,14 @@ pub(crate) async fn files_tree(
     path: &FileBrowserPath,
     full: bool,
     depth: u16,
-    namer: MaybeRenamer
-) -> Result<()> {
+    namer: MaybeRenamer,
+) -> anyhow::Result<()> {
     let fb = client.file_browser();
     match fb.browse(path).await? {
         None => bail!("Cannot find: {}", path),
         Some(v) => print_tree_from(&fb, v, full, depth, namer).await,
     }?;
-    Ok(())
+    anyhow::Ok(())
 }
 
 async fn print_tree_from(
@@ -34,8 +34,8 @@ async fn print_tree_from(
     v: FileBrowserView,
     full: bool,
     depth: u16,
-    mut namer: MaybeRenamer
-) -> Result<()> {
+    mut namer: MaybeRenamer,
+) -> anyhow::Result<()> {
     let top_path = v.path().to_string();
     let (tx, mut rx) = mpsc::unbounded_channel();
     let main = async move {
@@ -49,7 +49,7 @@ async fn print_tree_from(
     let tree_builder = construct(fb, tx, v, top_path, full, depth, &mut namer);
     let (_, tree) = join!(main, tree_builder);
     println!("{}", tree?);
-    Ok(())
+    anyhow::Ok(())
 }
 
 /// Recursively construct a tree for a ChRIS directory path containing files.
@@ -61,11 +61,12 @@ async fn construct(
     folder_name: String,
     full: bool,
     depth: u16,
-    namer: &mut MaybeRenamer
-) -> Result<Tree<StyledObject<String>>> {
+    namer: &mut MaybeRenamer,
+) -> anyhow::Result<Tree<StyledObject<String>>> {
+    // TODO Mutex around namer
     let root = style_folder(v.path(), folder_name, full);
     if depth == 0 {
-        return Ok(root);
+        return anyhow::Ok(root);
     }
 
     let maybe_subfolders = subfolders(fb, &v).await.map_err(anyhow::Error::msg)?;
@@ -83,7 +84,7 @@ async fn construct(
     let mut subtrees: Vec<Tree<StyledObject<String>>> = subtree_stream.try_collect().await?;
     let files = subfiles(&v, full).await?;
     subtrees.extend(files);
-    Ok(root.with_leaves(subtrees))
+    anyhow::Ok(root.with_leaves(subtrees))
 }
 
 fn style_folder(
@@ -103,7 +104,7 @@ fn style_folder(
 async fn subfolders(
     fb: &FileBrowser,
     v: &FileBrowserView,
-) -> core::result::Result<Vec<Option<(String, FileBrowserView)>>, String> {
+) -> Result<Vec<Option<(String, FileBrowserView)>>, String> {
     let subfolders_stream = stream! {
         for subfolder in v.subfolders() {
             let child_path = format!("{}/{}", v.path(), subfolder);
@@ -120,19 +121,38 @@ async fn subfolders(
 async fn subfiles(
     v: &FileBrowserView,
     full: bool,
+    // namer: &mut MaybeRenamer,
 ) -> Result<impl Iterator<Item = Tree<StyledObject<String>>>, reqwest::Error> {
     // calling collect so that we can use .map instead of streams
     let file_infos: Vec<DownloadableFile> = v.iter_files().try_collect().await?;
     let files = file_infos
         .into_iter()
-        .map(namer(full))
+        .map(which_name(full))
         .map(style)
         .map(Tree::new);
-    Result::Ok(files)
+    Ok(files)
+}
+
+async fn _wip_try_rename(
+    v: &FileBrowserView,
+    full: bool,
+    namer: &mut MaybeRenamer,
+) {
+    let s = v.iter_files();
+    pin_mut!(s);
+
+    while let Some(res) = s.next().await {
+
+        let x = match res {
+            Ok(file) => {Ok(namer.rename(file.fname()).await)}
+            Err(e) => {Err(e)}
+        };
+        dbg!(x);
+    }
 }
 
 /// Resolves a helper function depending on the value for `full`.
-fn namer(full: bool) -> fn(DownloadableFile) -> String {
+fn which_name(full: bool) -> fn(DownloadableFile) -> String {
     if full {
         file2string
     } else {

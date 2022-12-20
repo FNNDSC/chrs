@@ -7,9 +7,8 @@ use std::collections::HashMap;
 
 /// Wrapper around [Option<PathNamer>].
 pub(crate) struct MaybeRenamer {
-    namer: Option<PathNamer>
+    namer: Option<PathNamer>,
 }
-
 
 impl MaybeRenamer {
     pub fn new(client: &ChrisClient, rename: bool) -> Self {
@@ -106,7 +105,8 @@ impl PathNamer {
     }
 
     fn cache_feed_name(&mut self, folder: &str, feed: FeedResponse) -> String {
-        self.feed_memo.insert(folder.to_string(), feed.name.to_string());
+        self.feed_memo
+            .insert(folder.to_string(), feed.name.to_string());
         feed.name.to_string()
     }
 
@@ -150,7 +150,8 @@ impl PathNamer {
 
         // if previously encountered an error from CUBE, stop trying
         if self.cube_error {
-            self.plinst_memo.insert(folder.to_string(), folder.to_string());
+            self.plinst_memo
+                .insert(folder.to_string(), folder.to_string());
             return folder.to_string();
         }
 
@@ -164,7 +165,8 @@ impl PathNamer {
                 eprintln!("WARNING: {:?}", e);
                 self.cube_error = true; // don't try to speak to CUBE again
                                         // default to using the folder name as-is
-                self.plinst_memo.insert(folder.to_string(), folder.to_string());
+                self.plinst_memo
+                    .insert(folder.to_string(), folder.to_string());
                 folder.to_string()
             }
         }
