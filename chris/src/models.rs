@@ -15,7 +15,7 @@ pub struct BaseResponse {
 #[braid(serde)]
 pub struct FeedsPaginatedUrl;
 
-#[derive(Debug, Deserialize)]
+#[derive(Debug, Clone, Deserialize)]
 pub struct CUBELinks {
     pub files: FeedFilesUrl,
     pub uploadedfiles: UploadedFilesUrl,

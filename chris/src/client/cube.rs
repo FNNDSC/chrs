@@ -27,7 +27,7 @@ use tokio_util::codec::{BytesCodec, FramedRead};
 use tokio_util::io::StreamReader;
 
 /// _ChRIS_ client object.
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub struct ChrisClient {
     client: reqwest::Client,
     url: CUBEApiUrl,
