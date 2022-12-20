@@ -8,6 +8,8 @@ use aliri_braid::braid;
 use futures::Stream;
 use serde::Deserialize;
 use serde::Serialize;
+use serde_with::serde_as;
+use serde_with::json::JsonString;
 
 /// A client for the _ChRIS_ filebrowser API.
 pub struct FileBrowser {
@@ -63,10 +65,12 @@ struct FileBrowserSearch {
     results: Vec<FileBrowserDir>,
 }
 
+#[serde_as]
 #[derive(Deserialize)]
 struct FileBrowserDir {
     path: FileBrowserPath,
-    subfolders: String,
+    #[serde_as(as = "JsonString")]
+    subfolders: Vec<String>,
     // url: String,
     files: Option<FileBrowserFilesUrl>,
 }
@@ -79,7 +83,7 @@ impl PaginatedUrl for FileBrowserFilesUrl {}
 pub struct FileBrowserView {
     client: reqwest::Client,
     path: FileBrowserPath,
-    subfolders: String,
+    subfolders: Vec<String>,
     // url: String,
     /// API Url for files immediately under this path.
     /// Is `None` if path is `""` (root).
@@ -102,20 +106,17 @@ impl FileBrowserView {
         &self.path
     }
 
+    /// Iterate over subfolders.
+    pub fn subfolders(&self) -> &Vec<String> {
+        &self.subfolders
+    }
+
     /// Produce the subpaths from this level's subfolders.
     pub fn subpaths(&self) -> impl Iterator<Item = FileBrowserPath> + '_ {
         self.subfolders()
             .into_iter()
             .map(|subfolder| format!("{}/{}", self.path, subfolder))
             .map(FileBrowserPath::new)
-    }
-
-    /// Iterate over subfolders.
-    ///
-    /// WARNING: subfolders are comma-separated values, so paths containing
-    /// commas will cause glitches!
-    pub fn subfolders(&self) -> impl Iterator<Item = &str> {
-        self.subfolders.split_terminator(',')
     }
 
     /// Iterate over files.
