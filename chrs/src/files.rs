@@ -1,4 +1,6 @@
 mod human_paths;
-pub(crate) mod tree;
+mod list_files;
+mod ls;
+mod tree;
 
-pub(crate) use tree::files_tree;
+pub(crate) use ls::ls;

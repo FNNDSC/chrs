@@ -1,9 +1,35 @@
 use async_stream::stream;
 use chris::errors::CUBEError;
-use chris::models::{FeedId, FileResourceFname, PluginInstanceId};
+use chris::models::{FeedId, FeedResponse, FileResourceFname, PluginInstanceId};
 use chris::ChrisClient;
 use futures::{Stream, StreamExt};
 use std::collections::HashMap;
+
+/// Wrapper around [Option<PathNamer>].
+pub(crate) struct MaybeRenamer {
+    namer: Option<PathNamer>
+}
+
+
+impl MaybeRenamer {
+    pub fn new(client: &ChrisClient, rename: bool) -> Self {
+        let namer = if rename {
+            Some(PathNamer::new(client.clone()))
+        } else {
+            None
+        };
+        Self { namer }
+    }
+
+    /// Calls the wrapped [PathNamer::rename] if Some, otherwise returns `fname` as a string.
+    pub async fn rename(&mut self, fname: &FileResourceFname) -> String {
+        if let Some(ref mut n) = self.namer {
+            n.rename(fname).await
+        } else {
+            fname.to_string()
+        }
+    }
+}
 
 /// [PathNamer] is a struct which provides memoization for the helper function
 /// [PathNamer::rename].
@@ -11,7 +37,10 @@ pub(crate) struct PathNamer {
     chris: ChrisClient,
 
     /// cache of plugin instance titles
-    memo: HashMap<String, String>,
+    plinst_memo: HashMap<String, String>,
+
+    /// cache of feed names
+    feed_memo: HashMap<String, String>,
 
     /// When this [PathNamer] encounters an error from CUBE (except from 404 errors)
     /// `cube_error` is set to `true` so that it won't try to contact CUBE again.
@@ -22,7 +51,8 @@ impl PathNamer {
     fn new(chris: ChrisClient) -> Self {
         Self {
             chris,
-            memo: Default::default(),
+            plinst_memo: Default::default(),
+            feed_memo: Default::default(),
             cube_error: false,
         }
     }
@@ -44,14 +74,40 @@ impl PathNamer {
         }
     }
 
-    /// Gets the feed name for the specified feed ID. If unable to, then
+    /// If a feed ID can be parsed from the given folder name, try and
+    /// get its name from CUBE. In any case that is not possible, the folder
+    /// name is simply returned as a string.
+    pub async fn try_get_feed_name(&mut self, folder: &str) -> String {
+        if let Some(id) = parse_feed_folder(folder) {
+            self.get_feed_name(id, folder).await
+        } else {
+            folder.to_string()
+        }
+    }
+
+    /// Gets (and caches) the feed name for the specified feed ID. If unable to, then
     /// a given default value is returned, and [PathNamer::cube_error] is set to `true`.
     async fn get_feed_name(&mut self, id: FeedId, feed_folder: &str) -> String {
-        self.chris.get_feed(id).await.map(|f| f.name).unwrap_or_else(|e| {
-            eprintln!("WARNING: could not get feed name for \"{}\". {:?}", feed_folder, e);
-            self.cube_error = true;
-            feed_folder.to_string()
-        })
+        if let Some(name) = self.feed_memo.get(feed_folder) {
+            return name.to_string();
+        }
+        self.chris
+            .get_feed(id)
+            .await
+            .map(|f| self.cache_feed_name(feed_folder, f))
+            .unwrap_or_else(|e| {
+                eprintln!(
+                    "WARNING: could not get feed name for \"{}\". {:?}",
+                    feed_folder, e
+                );
+                self.cube_error = true;
+                feed_folder.to_string()
+            })
+    }
+
+    fn cache_feed_name(&mut self, folder: &str, feed: FeedResponse) -> String {
+        self.feed_memo.insert(folder.to_string(), feed.name.to_string());
+        feed.name.to_string()
     }
 
     /// Consumes the given iterator. For every folder name which comes before the
@@ -81,34 +137,34 @@ impl PathNamer {
         }
     }
 
-    /// Retrieves plugin title from cache if available. Else, make a request to CUBE,
+    /// Retrieves plugin instance title from cache if available. Else, make a request to CUBE,
     /// cache the title, and then return it.
     ///
     /// In any case the plugin title cannot be found, a warning message is written
-    /// to stderr explaining the problem.
-    async fn get_title_for(&mut self, folder: &str) -> String {
+    /// to stderr explaining the problem. This warning is only shown once.
+    pub async fn get_title_for(&mut self, folder: &str) -> String {
         // first, check if previously cached
-        if let Some(title) = self.memo.get(folder) {
+        if let Some(title) = self.plinst_memo.get(folder) {
             return title.clone();
         }
 
         // if previously encountered an error from CUBE, stop trying
         if self.cube_error {
-            self.memo.insert(folder.to_string(), folder.to_string());
+            self.plinst_memo.insert(folder.to_string(), folder.to_string());
             return folder.to_string();
         }
 
         // else, try to parse and get from CUBE
         match self.get_from_cube(folder).await {
             Ok(title) => {
-                self.memo.insert(title.clone(), title.clone());
+                self.plinst_memo.insert(title.clone(), title.clone());
                 title
             }
             Err(e) => {
                 eprintln!("WARNING: {:?}", e);
                 self.cube_error = true; // don't try to speak to CUBE again
                                         // default to using the folder name as-is
-                self.memo.insert(folder.to_string(), folder.to_string());
+                self.plinst_memo.insert(folder.to_string(), folder.to_string());
                 folder.to_string()
             }
         }
@@ -184,8 +240,6 @@ enum PluginInstanceTitleError<'a> {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use chris::auth::CUBEAuth;
-    use chris::common_types::{CUBEApiUrl, Username};
     use rstest::*;
 
     #[rstest]
@@ -220,22 +274,23 @@ mod tests {
         assert_eq!(parse_feed_folder(folder), expected.map(FeedId))
     }
 
-    #[rstest]
-    #[tokio::test]
-    async fn test_whatever() -> anyhow::Result<()> {
-        let account = CUBEAuth {
-            username: Username::new("chris".to_string()),
-            password: "chris1234".to_string(),
-            url: CUBEApiUrl::try_from("https://cube.chrisproject.org/api/v1/")?,
-            client: &reqwest::Client::new(),
-        };
-        let client = account.into_client().await?;
-        let mut namer = PathNamer::new(client);
-
-        let example = FileResourceFname::from("chris/feed_1859/pl-dircopy_7933/pl-dcm2niix_7934/data/incoming_XR_Posteroanterior_(PA)_view_2021000000_3742127318.json");
-        let actual = namer.rename(&example).await;
-        dbg!(actual);
-
-        Ok(())
-    }
+    // TODO: use HTTP mocking to test PathNamer::rename
+    // #[rstest]
+    // #[tokio::test]
+    // async fn test_try() -> anyhow::Result<()> {
+    //     let account = CUBEAuth {
+    //         username: Username::new("chris".to_string()),
+    //         password: "chris1234".to_string(),
+    //         url: CUBEApiUrl::try_from("https://cube.chrisproject.org/api/v1/")?,
+    //         client: &reqwest::Client::new(),
+    //     };
+    //     let client = account.into_client().await?;
+    //     let mut namer = PathNamer::new(client);
+    //
+    //     let example = FileResourceFname::from("chris/feed_1859/pl-dircopy_7933/pl-dcm2niix_7934/data/incoming_XR_Posteroanterior_(PA)_view_2021000000_3742127318.json");
+    //     let actual = namer.rename(&example).await;
+    //     dbg!(actual);
+    //
+    //     Ok(())
+    // }
 }

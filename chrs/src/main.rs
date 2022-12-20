@@ -18,7 +18,7 @@ use clap::{ArgGroup, Parser, Subcommand};
 
 use crate::download::download;
 use crate::feeds::list_feeds;
-use crate::files::files_tree;
+use crate::files::ls;
 use crate::get::get;
 use crate::info::cube_info;
 use crate::login::get_client::get_client;
@@ -123,6 +123,9 @@ enum Commands {
 
     /// Browse files in ChRIS
     Ls {
+        /// tree-like output
+        tree: bool,
+
         /// Maximum subdirectory depth
         #[clap(short = 'L', long, default_value_t = 2)]
         level: u16,
@@ -130,6 +133,10 @@ enum Commands {
         /// Show full paths, which may be convenient for copy-paste
         #[clap(short, long)]
         full: bool,
+
+        /// Rename feed output folders with feed names and plugin instance titles
+        #[clap(short, long)]
+        rename: bool,
 
         /// (Swift) data path
         #[clap(default_value = "")]
@@ -316,9 +323,15 @@ async fn main() -> Result<()> {
                 }
             }
         }
-        Commands::Ls { level, full, path } => {
+        Commands::Ls {
+            tree,
+            level,
+            full,
+            rename,
+            path,
+        } => {
             let client = get_client(address, username, password, vec![]).await?;
-            files_tree(&client, &path, full, level).await
+            ls(&client, &path, level, rename, full, tree).await
         }
         Commands::RunLatest {
             cpu,

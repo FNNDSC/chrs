@@ -11,18 +11,20 @@ use termtree::Tree;
 use tokio::join;
 use tokio::sync::mpsc;
 use tokio::sync::mpsc::UnboundedSender;
+use crate::files::human_paths::MaybeRenamer;
 
 /// Show files in _ChRIS_ using the file browser API in a tree diagram.
-pub async fn files_tree(
+pub(crate) async fn files_tree(
     client: &ChrisClient,
     path: &FileBrowserPath,
     full: bool,
     depth: u16,
+    namer: MaybeRenamer
 ) -> Result<()> {
     let fb = client.file_browser();
     match fb.browse(path).await? {
         None => bail!("Cannot find: {}", path),
-        Some(v) => print_tree_from(&fb, v, full, depth).await,
+        Some(v) => print_tree_from(&fb, v, full, depth, namer).await,
     }?;
     Ok(())
 }
@@ -32,6 +34,7 @@ async fn print_tree_from(
     v: FileBrowserView,
     full: bool,
     depth: u16,
+    mut namer: MaybeRenamer
 ) -> Result<()> {
     let top_path = v.path().to_string();
     let (tx, mut rx) = mpsc::unbounded_channel();
@@ -43,7 +46,7 @@ async fn print_tree_from(
             spinner.set_message(format!("Getting information... {}", count));
         }
     };
-    let tree_builder = construct(fb, tx, v, top_path, full, depth);
+    let tree_builder = construct(fb, tx, v, top_path, full, depth, &mut namer);
     let (_, tree) = join!(main, tree_builder);
     println!("{}", tree?);
     Ok(())
@@ -58,6 +61,7 @@ async fn construct(
     folder_name: String,
     full: bool,
     depth: u16,
+    namer: &mut MaybeRenamer
 ) -> Result<Tree<StyledObject<String>>> {
     let root = style_folder(v.path(), folder_name, full);
     if depth == 0 {
@@ -70,7 +74,7 @@ async fn construct(
     let subtree_stream = stream! {
         for maybe in maybe_subfolders {
             if let Some((subfolder, child)) = maybe {
-                yield construct(fb, stx.clone(), child, subfolder, full, depth - 1).await;
+                yield construct(fb, stx.clone(), child, subfolder, full, depth - 1, namer).await;
                 stx.send(()).unwrap();
             }
         }
@@ -124,7 +128,7 @@ async fn subfiles(
         .map(namer(full))
         .map(style)
         .map(Tree::new);
-    core::result::Result::Ok(files)
+    Result::Ok(files)
 }
 
 /// Resolves a helper function depending on the value for `full`.
