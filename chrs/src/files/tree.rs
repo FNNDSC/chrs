@@ -1,12 +1,14 @@
+use std::sync::Arc;
 use crate::files::human_paths::MaybeRenamer;
 use anyhow::bail;
 use async_recursion::async_recursion;
 use async_stream::stream;
 use chris::filebrowser::{FileBrowser, FileBrowserPath, FileBrowserView};
-use chris::models::{Downloadable, DownloadableFile};
+use chris::models::{Downloadable, DownloadableFile, FileResourceFname};
 use chris::ChrisClient;
 use console::{style, StyledObject};
 use futures::{pin_mut, StreamExt, TryStreamExt};
+use futures::lock::Mutex;
 use indicatif::ProgressBar;
 use termtree::Tree;
 use tokio::join;
@@ -63,36 +65,47 @@ async fn construct(
     depth: u16,
     namer: &mut MaybeRenamer,
 ) -> anyhow::Result<Tree<StyledObject<String>>> {
-    // TODO Mutex around namer
-    let root = style_folder(v.path(), folder_name, full);
+    let root = style_folder(v.path(), folder_name, full, namer).await;
     if depth == 0 {
         return anyhow::Ok(root);
     }
 
     let maybe_subfolders = subfolders(fb, &v).await.map_err(anyhow::Error::msg)?;
 
+    // fancy rust async stuff, don't mind me
     let stx = tx.clone();
+
+    // namer is moved by generator, so we use Arc
+    let namer = Arc::new(Mutex::new(namer));
+    let arc = Arc::clone(&namer);
+    let mut rn = arc.lock().await;
     let subtree_stream = stream! {
         for maybe in maybe_subfolders {
             if let Some((subfolder, child)) = maybe {
-                yield construct(fb, stx.clone(), child, subfolder, full, depth - 1, namer).await;
+                yield construct(fb, stx.clone(), child, subfolder, full, depth - 1, *rn).await;
                 stx.send(()).unwrap();
             }
         }
     };
-
     let mut subtrees: Vec<Tree<StyledObject<String>>> = subtree_stream.try_collect().await?;
-    let files = subfiles(&v, full).await?;
+
+    let mut rn = namer.lock().await;
+    let files = subfiles(&v, full, *rn).await?;
     subtrees.extend(files);
     anyhow::Ok(root.with_leaves(subtrees))
 }
 
-fn style_folder(
+async fn style_folder(
     v: &FileBrowserPath,
     folder_name: String,
     full: bool,
+    namer: &mut MaybeRenamer
 ) -> Tree<StyledObject<String>> {
-    let display_name = if full { v.to_string() } else { folder_name };
+    let display_name = if full {
+        namer.rename(&v.clone().into()).await
+    } else {
+        folder_name
+    };
     Tree::new(style(display_name).bright().blue())
 }
 
@@ -121,8 +134,10 @@ async fn subfolders(
 async fn subfiles(
     v: &FileBrowserView,
     full: bool,
-    // namer: &mut MaybeRenamer,
+    namer: &mut MaybeRenamer,
 ) -> Result<impl Iterator<Item = Tree<StyledObject<String>>>, reqwest::Error> {
+    wip_try_rename(v, full, namer).await;
+
     // calling collect so that we can use .map instead of streams
     let file_infos: Vec<DownloadableFile> = v.iter_files().try_collect().await?;
     let files = file_infos
@@ -133,7 +148,7 @@ async fn subfiles(
     Ok(files)
 }
 
-async fn _wip_try_rename(
+async fn wip_try_rename(
     v: &FileBrowserView,
     full: bool,
     namer: &mut MaybeRenamer,

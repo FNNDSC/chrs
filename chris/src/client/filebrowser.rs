@@ -2,7 +2,7 @@
 //! code base because I'm running out of steam.
 
 use crate::errors::{check, CUBEError};
-use crate::models::{DownloadableFile, FileBrowserUrl};
+use crate::models::{DownloadableFile, FileBrowserUrl, FileResourceFname};
 use crate::pagination::{paginate, PaginatedUrl};
 use aliri_braid::braid;
 use futures::Stream;
@@ -23,6 +23,12 @@ pub(crate) struct FileBrowserSearchUrl;
 /// A path which can be browsed by the file browser API.
 #[braid(serde)]
 pub struct FileBrowserPath;
+
+impl From<FileBrowserPath> for FileResourceFname {
+    fn from(p: FileBrowserPath) -> Self {
+        FileResourceFname::new(p.to_string())
+    }
+}
 
 impl From<FileBrowserUrl> for FileBrowserSearchUrl {
     fn from(url: FileBrowserUrl) -> Self {
