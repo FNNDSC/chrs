@@ -93,6 +93,8 @@ impl PathNamer {
         self.chris
             .get_feed(id)
             .await
+            .map(|feed| feed.name)
+            .map(|name| this_or_that(name, feed_folder))
             .map(|f| self.cache_feed_name(feed_folder, f))
             .unwrap_or_else(|e| {
                 eprintln!(
@@ -104,10 +106,10 @@ impl PathNamer {
             })
     }
 
-    fn cache_feed_name(&mut self, folder: &str, feed: FeedResponse) -> String {
+    fn cache_feed_name(&mut self, folder: &str, feed_name: String) -> String {
         self.feed_memo
-            .insert(folder.to_string(), feed.name.to_string());
-        feed.name
+            .insert(folder.to_string(), feed_name.to_string());
+        feed_name
     }
 
     /// Consumes the given iterator. For every folder name which comes before the
@@ -158,6 +160,7 @@ impl PathNamer {
         // else, try to parse and get from CUBE
         match self.get_from_cube(folder).await {
             Ok(title) => {
+                let title = this_or_that(title, folder);
                 self.plinst_memo.insert(title.clone(), title.clone());
                 title
             }
@@ -184,6 +187,14 @@ impl PathNamer {
             .await
             .map_err(PluginInstanceTitleError::CUBE)?;
         Ok(plinst.title)
+    }
+}
+
+fn this_or_that(a: String, b: &str) -> String {
+    if a.is_empty() {
+        b.to_string()
+    } else {
+        a
     }
 }
 
