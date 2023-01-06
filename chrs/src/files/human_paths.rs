@@ -66,8 +66,12 @@ impl PathNamer {
         if let Some((username, feed_folder, feed_id, split)) = consume_feed_fname(s.split('/')) {
             let feed_name = self.get_feed_name(feed_id, feed_folder).await;
             let folders: Vec<String> = self.rename_plugin_instances(split).collect().await;
-            let subpaths = folders.join("/");
-            format!("{}/{}/{}", username, feed_name, subpaths)
+            if folders.is_empty() {
+                format!("{}/{}", username, feed_name)
+            } else {
+                let subpaths = folders.join("/");
+                format!("{}/{}/{}", username, feed_name, subpaths)
+            }
         } else {
             s.to_string()
         }
