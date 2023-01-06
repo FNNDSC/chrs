@@ -63,11 +63,11 @@ impl PathNamer {
     pub async fn rename(&mut self, fname: &FileResourceFname) -> String {
         let s: &str = fname.as_str(); // to help CLion with type hinting
 
-        if let Some((username, feed_folder, feed_id, split)) = consume_feed_fname(s.split("/")) {
+        if let Some((username, feed_folder, feed_id, split)) = consume_feed_fname(s.split('/')) {
             let feed_name = self.get_feed_name(feed_id, feed_folder).await;
             let folders: Vec<String> = self.rename_plugin_instances(split).collect().await;
             let subpaths = folders.join("/");
-            return format!("{}/{}/{}", username, feed_name, subpaths);
+            format!("{}/{}/{}", username, feed_name, subpaths)
         } else {
             s.to_string()
         }
@@ -107,7 +107,7 @@ impl PathNamer {
     fn cache_feed_name(&mut self, folder: &str, feed: FeedResponse) -> String {
         self.feed_memo
             .insert(folder.to_string(), feed.name.to_string());
-        feed.name.to_string()
+        feed.name
     }
 
     /// Consumes the given iterator. For every folder name which comes before the
@@ -192,10 +192,9 @@ impl PathNamer {
 fn parse_plinst_id(folder: &str) -> Result<PluginInstanceId, PluginInstanceTitleError> {
     folder
         .rsplit_once('_')
-        .map(|(_name, sid)| sid.parse().ok())
-        .flatten()
+        .and_then(|(_name, sid)| sid.parse().ok())
         .map(PluginInstanceId)
-        .ok_or_else(|| PluginInstanceTitleError::Malformed(folder))
+        .ok_or(PluginInstanceTitleError::Malformed(folder))
 }
 
 /// Consumes the first two items from the given iterator. If the second item is
@@ -207,8 +206,7 @@ where
 {
     if let Some(first) = iter.next() {
         iter.next()
-            .map(|f| parse_feed_folder(f).map(|n| (f, n)))
-            .flatten()
+            .and_then(|f| parse_feed_folder(f).map(|n| (f, n)))
             .map(|(feed_folder, feed_id)| (first, feed_folder, feed_id, iter))
     } else {
         None
