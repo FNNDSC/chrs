@@ -1,4 +1,4 @@
-use crate::files::human_paths::MaybeRenamer;
+use crate::files::human_paths::MaybeNamer;
 use chris::filebrowser::FileBrowserPath;
 use chris::ChrisClient;
 
@@ -7,7 +7,7 @@ pub(crate) async fn list_files(
     path: &FileBrowserPath,
     full: bool,
     depth: u16,
-    namer: MaybeRenamer,
+    namer: MaybeNamer,
 ) -> anyhow::Result<()> {
     todo!()
 }

@@ -1,4 +1,4 @@
-use crate::files::human_paths::MaybeRenamer;
+use crate::files::human_paths::MaybeNamer;
 use crate::files::list_files::list_files;
 use crate::files::tree::files_tree;
 use chris::filebrowser::FileBrowserPath;
@@ -12,7 +12,7 @@ pub(crate) async fn ls(
     full: bool,
     tree: bool,
 ) -> anyhow::Result<()> {
-    let namer = MaybeRenamer::new(client, rename);
+    let namer = MaybeNamer::new(client, rename);
     if tree {
         files_tree(client, path, full, level, namer).await
     } else {

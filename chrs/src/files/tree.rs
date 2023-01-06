@@ -1,15 +1,15 @@
-use std::sync::Arc;
-use crate::files::human_paths::MaybeRenamer;
+use crate::files::human_paths::MaybeNamer;
 use anyhow::bail;
 use async_recursion::async_recursion;
 use async_stream::stream;
 use chris::filebrowser::{FileBrowser, FileBrowserPath, FileBrowserView};
-use chris::models::{Downloadable, DownloadableFile, FileResourceFname};
+use chris::models::Downloadable;
 use chris::ChrisClient;
 use console::{style, StyledObject};
-use futures::{pin_mut, StreamExt, TryStreamExt};
 use futures::lock::Mutex;
+use futures::TryStreamExt;
 use indicatif::ProgressBar;
+use std::sync::Arc;
 use termtree::Tree;
 use tokio::join;
 use tokio::sync::mpsc;
@@ -21,7 +21,7 @@ pub(crate) async fn files_tree(
     path: &FileBrowserPath,
     full: bool,
     depth: u16,
-    namer: MaybeRenamer,
+    namer: MaybeNamer,
 ) -> anyhow::Result<()> {
     let fb = client.file_browser();
     match fb.browse(path).await? {
@@ -36,7 +36,7 @@ async fn print_tree_from(
     v: FileBrowserView,
     full: bool,
     depth: u16,
-    mut namer: MaybeRenamer,
+    mut namer: MaybeNamer,
 ) -> anyhow::Result<()> {
     let top_path = v.path().to_string();
     let (tx, mut rx) = mpsc::unbounded_channel();
@@ -48,7 +48,16 @@ async fn print_tree_from(
             spinner.set_message(format!("Getting information... {}", count));
         }
     };
-    let tree_builder = construct(fb, tx, v, top_path, full, depth, &mut namer);
+    let tree_builder = construct(
+        fb,
+        tx,
+        v,
+        top_path,
+        depth,
+        full,
+        DescentContext::Base,
+        &mut namer,
+    );
     let (_, tree) = join!(main, tree_builder);
     println!("{}", tree?);
     anyhow::Ok(())
@@ -61,11 +70,12 @@ async fn construct(
     tx: UnboundedSender<()>,
     v: FileBrowserView,
     folder_name: String,
-    full: bool,
     depth: u16,
-    namer: &mut MaybeRenamer,
+    full: bool,
+    context: DescentContext,
+    namer: &mut MaybeNamer,
 ) -> anyhow::Result<Tree<StyledObject<String>>> {
-    let root = style_folder(v.path(), folder_name, full, namer).await;
+    let root = style_folder(namer, v.path(), folder_name, context, full).await;
     if depth == 0 {
         return anyhow::Ok(root);
     }
@@ -76,35 +86,51 @@ async fn construct(
     let stx = tx.clone();
 
     // namer is moved by generator, so we use Arc
-    let namer = Arc::new(Mutex::new(namer));
-    let arc = Arc::clone(&namer);
+    let descent = Arc::new(Mutex::new(namer));
+    let arc = Arc::clone(&descent);
     let mut rn = arc.lock().await;
     let subtree_stream = stream! {
         for maybe in maybe_subfolders {
             if let Some((subfolder, child)) = maybe {
-                yield construct(fb, stx.clone(), child, subfolder, full, depth - 1, *rn).await;
+                yield construct(fb, stx.clone(), child, subfolder, depth - 1, full, context, *rn).await;
+                // notify channel that we have done some work
                 stx.send(()).unwrap();
             }
         }
     };
     let mut subtrees: Vec<Tree<StyledObject<String>>> = subtree_stream.try_collect().await?;
 
-    let mut rn = namer.lock().await;
-    let files = subfiles(&v, full, *rn).await?;
+    let mut rn = descent.lock().await;
+    let files = subfiles(v, *rn, full).await?;
     subtrees.extend(files);
     anyhow::Ok(root.with_leaves(subtrees))
 }
 
+/// Indicates what part of a CUBE (swift) file path we are looking at.
+#[derive(Copy, Clone)]
+enum DescentContext {
+    /// Left-most base path, which is either a username or "SERVICES"
+    Base,
+    /// Second-from-the-left component, which is either "feed_N", "PACS", or "UPLOADS"
+    Feed,
+    /// A middle component of a plugin instance output file's fname
+    /// after the feed and before the "data" folder.
+    PluginInstances,
+    /// A path which lacks a human-friendly name, e.g. PACS file, uploaded file.
+    Data,
+}
+
 async fn style_folder(
+    namer: &mut MaybeNamer,
     v: &FileBrowserPath,
     folder_name: String,
+    context: DescentContext,
     full: bool,
-    namer: &mut MaybeRenamer
 ) -> Tree<StyledObject<String>> {
     let display_name = if full {
         namer.rename(&v.clone().into()).await
     } else {
-        folder_name
+        folder_name // TODO context
     };
     Tree::new(style(display_name).bright().blue())
 }
@@ -132,57 +158,22 @@ async fn subfolders(
 
 /// Get file names under a given filebrowser path and apply console output styling to them.
 async fn subfiles(
-    v: &FileBrowserView,
+    v: FileBrowserView,
+    namer: &mut MaybeNamer,
     full: bool,
-    namer: &mut MaybeRenamer,
 ) -> Result<impl Iterator<Item = Tree<StyledObject<String>>>, reqwest::Error> {
-    wip_try_rename(v, full, namer).await;
+    let namer = Arc::new(Mutex::new(namer));
+    let thing = v.iter_files().try_filter_map(|file| {
+        let arc = Arc::clone(&namer);
+        async move {
+            let mut rn = arc.lock().await;
+            let namer = &mut *rn;
+            Ok(Some(namer.rename(file.fname()).await))
+        }
+    });
 
     // calling collect so that we can use .map instead of streams
-    let file_infos: Vec<DownloadableFile> = v.iter_files().try_collect().await?;
-    let files = file_infos
-        .into_iter()
-        .map(which_name(full))
-        .map(style)
-        .map(Tree::new);
+    let file_infos: Vec<String> = thing.try_collect().await?;
+    let files = file_infos.into_iter().map(style).map(Tree::new);
     Ok(files)
-}
-
-async fn wip_try_rename(
-    v: &FileBrowserView,
-    full: bool,
-    namer: &mut MaybeRenamer,
-) {
-    let s = v.iter_files();
-    pin_mut!(s);
-
-    while let Some(res) = s.next().await {
-
-        let x = match res {
-            Ok(file) => {Ok(namer.rename(file.fname()).await)}
-            Err(e) => {Err(e)}
-        };
-        dbg!(x);
-    }
-}
-
-/// Resolves a helper function depending on the value for `full`.
-fn which_name(full: bool) -> fn(DownloadableFile) -> String {
-    if full {
-        file2string
-    } else {
-        file2name
-    }
-}
-
-fn file2string(f: DownloadableFile) -> String {
-    f.fname().to_string()
-}
-
-fn file2name(f: DownloadableFile) -> String {
-    let fname = f.fname().as_str();
-    if let Some((_, basename)) = fname.rsplit_once('/') {
-        return basename.to_string();
-    }
-    fname.to_string()
 }

@@ -8,8 +8,8 @@ use aliri_braid::braid;
 use futures::Stream;
 use serde::Deserialize;
 use serde::Serialize;
-use serde_with::serde_as;
 use serde_with::json::JsonString;
+use serde_with::serde_as;
 
 /// A client for the _ChRIS_ filebrowser API.
 pub struct FileBrowser {

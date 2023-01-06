@@ -6,11 +6,11 @@ use futures::{Stream, StreamExt};
 use std::collections::HashMap;
 
 /// Wrapper around [Option<PathNamer>].
-pub(crate) struct MaybeRenamer {
+pub(crate) struct MaybeNamer {
     namer: Option<PathNamer>,
 }
 
-impl MaybeRenamer {
+impl MaybeNamer {
     pub fn new(client: &ChrisClient, rename: bool) -> Self {
         let namer = if rename {
             Some(PathNamer::new(client.clone()))
