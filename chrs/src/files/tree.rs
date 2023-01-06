@@ -103,6 +103,7 @@ async fn construct(
 
     let mut rn = namer.lock().await;
     // TODO pass stx to subfiles
+    #[allow(clippy::explicit_auto_deref)] // clippy doesn't understand mutex well
     let files = subfiles(v, *rn, full).await?;
     subtrees.extend(files);
     anyhow::Ok(root.with_leaves(subtrees))

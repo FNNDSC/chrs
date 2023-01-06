@@ -63,7 +63,7 @@ where
         let bar = if hidden {
             ProgressBar::hidden()
         } else {
-            ProgressBar::new(len as u64).with_style(style())
+            ProgressBar::new(len).with_style(style())
         };
         bar.enable_steady_tick(Duration::from_millis(200));
         for _ in (0..len).progress_with(bar) {

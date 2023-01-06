@@ -156,7 +156,7 @@ fn parse_src(src: &str, address: &CUBEApiUrl) -> AnyFilesUrl {
 /// Create a search API URL for the endpoint and fname.
 fn to_search(address: &CUBEApiUrl, endpoint: &str, fname: &str) -> AnyFilesUrl {
     Url::parse_with_params(
-        &*format!("{}{}/search/", address, endpoint),
+        &format!("{}{}/search/", address, endpoint),
         &[("fname", fname)],
     )
     .unwrap()

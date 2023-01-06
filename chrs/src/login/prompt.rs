@@ -19,7 +19,7 @@ where
                 .with_prompt(prompt)
                 .interact_text()
                 .map_err(ManualInputError::IoError)?;
-            Ok(T::from_str(&*input).map_err(ManualInputError::ValueError)?)
+            Ok(T::from_str(&input).map_err(ManualInputError::ValueError)?)
         }
     }
 }
@@ -44,7 +44,7 @@ where
                     .interact()
                     .map_err(ManualInputError::IoError)?
             };
-            Ok(T::from_str(&*input).map_err(ManualInputError::ValueError)?)
+            Ok(T::from_str(&input).map_err(ManualInputError::ValueError)?)
         }
     }
 }

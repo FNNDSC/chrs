@@ -40,7 +40,7 @@ impl SavedCubeAuth {
         let token = match &self.store {
             StoredToken::Text(token) => Ok(token.to_owned()),
             StoredToken::Keyring => {
-                let entry = keyring::Entry::new(service, &*self.to_keyring_username());
+                let entry = keyring::Entry::new(service, &self.to_keyring_username());
                 let token = entry.get_password().with_context(|| {
                     format!(
                         "Could not get login token from keyring \
@@ -79,7 +79,7 @@ impl Login {
         let token: StoredToken = match backend {
             Backend::ClearText => StoredToken::Text(self.token),
             Backend::Keyring => {
-                let entry = keyring::Entry::new(service, &*self.to_keyring_username());
+                let entry = keyring::Entry::new(service, &self.to_keyring_username());
                 entry
                     .set_password(&self.token)
                     .map_err(|_| Error::msg(&*KEYRING_ERROR_MSG))?;

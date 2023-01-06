@@ -36,12 +36,12 @@ pub async fn upload(
         upload_single(chris, first(files_to_upload).unwrap(), upload_path).await
     } else {
         let uploaded_path = upload_multiple(chris, files_to_upload, upload_path).await?;
-        choose_dircopy_path(chris.username(), files, &*uploaded_path)
+        choose_dircopy_path(chris.username(), files, &uploaded_path)
             .context("Upload path unknown --- this is a bug.")
     }?;
 
     if let Some(feed_name) = feed {
-        create_feed(chris, &*dircopy_dir, &*feed_name, found_pipeline).await?;
+        create_feed(chris, &dircopy_dir, &feed_name, found_pipeline).await?;
     }
 
     Ok(())
@@ -100,7 +100,7 @@ async fn get_pipeline(
 ) -> Result<Option<Pipeline>> {
     if feed.is_some() {
         if let Some(pipeline_name) = pipeline {
-            let found_pipeline = chris.get_pipeline(&*pipeline_name).await?;
+            let found_pipeline = chris.get_pipeline(&pipeline_name).await?;
             found_pipeline
                 .ok_or_else(|| Error::msg(format!("Pipeline not found: \"{}\"", pipeline_name)))
                 .map(Some)
