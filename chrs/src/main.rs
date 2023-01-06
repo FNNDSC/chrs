@@ -135,9 +135,9 @@ enum Commands {
         #[clap(short, long)]
         full: bool,
 
-        /// Rename feed output folders with feed names and plugin instance titles
+        /// Do not rename folders with feed names and plugin instance titles
         #[clap(short, long)]
-        rename: bool,
+        raw: bool,
 
         /// (Swift) data path
         #[clap(default_value = "")]
@@ -328,11 +328,11 @@ async fn main() -> Result<()> {
             tree,
             level,
             full,
-            rename,
+            raw,
             path,
         } => {
             let client = get_client(address, username, password, vec![]).await?;
-            ls(&client, &path, level, rename, full, tree).await
+            ls(&client, &path, level, !raw, full, tree).await
         }
         Commands::RunLatest {
             cpu,
