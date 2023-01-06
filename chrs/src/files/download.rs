@@ -1,4 +1,5 @@
 use crate::executor::do_with_progress;
+use crate::files::human_paths::MaybeNamer;
 use crate::io_helper::progress_bar_bytes;
 use anyhow::{bail, Context};
 use async_stream::stream;
@@ -18,6 +19,7 @@ pub(crate) async fn download(
     src: &str,
     dst: Option<&Path>,
     shorten: u8,
+    rename: bool,
 ) -> anyhow::Result<()> {
     let dst = choose_dst(client.url(), src, dst);
 
@@ -35,7 +37,7 @@ pub(crate) async fn download(
     if count == 1 {
         download_single_file(client, &url, &dst).await
     } else {
-        download_directory(client, &url, src, &dst, shorten, count).await
+        download_directory(client, &url, src, &dst, shorten, rename, count).await
     }
 }
 
@@ -95,12 +97,14 @@ async fn download_directory<'a>(
     src: &'a str,
     dst: &'a Path,
     shorten: u8,
+    rename: bool,
     count: u32,
 ) -> anyhow::Result<()> {
     if dst.exists() && !dst.is_dir() {
         bail!("Not a directory: {:?}", dst);
     }
     let parent_len = dir_length_of(chris.url(), src);
+    let namer = MaybeNamer::new(chris, rename);
 
     let stream = stream! {
         for await page in chris.iter_files(url) {

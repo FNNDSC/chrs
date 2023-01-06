@@ -1,5 +1,4 @@
 mod constants;
-mod download;
 mod executor;
 mod feeds;
 mod files;
@@ -16,8 +15,8 @@ use std::path::PathBuf;
 use anyhow::Result;
 use clap::{ArgGroup, Parser, Subcommand};
 
-use crate::download::download;
 use crate::feeds::list_feeds;
+use crate::files::download::download;
 use crate::files::ls;
 use crate::get::get;
 use crate::info::cube_info;
@@ -111,6 +110,10 @@ enum Commands {
         /// is deeply nested under parent `data` subdirectoies, e.g. `-sssss`.
         #[clap(short, long, action = clap::ArgAction::Count)]
         shorten: u8,
+
+        /// Do not rename folders with feed names and plugin instance titles
+        #[clap(short, long)]
+        raw: bool,
 
         /// What to download. Can either be a ChRIS Library files path or
         /// a files resource URL (such as a files search query or a feed
@@ -295,9 +298,14 @@ async fn main() -> Result<()> {
             let client = get_client(address, username, password, vec![]).await?;
             upload(&client, &files, &path, feed, pipeline).await
         }
-        Commands::Download { shorten, src, dst } => {
+        Commands::Download {
+            shorten,
+            src,
+            dst,
+            raw,
+        } => {
             let client = get_client(address, username, password, vec![src.as_str()]).await?;
-            download(&client, &src, dst.as_deref(), shorten).await
+            download(&client, &src, dst.as_deref(), shorten, !raw).await
         }
         Commands::Login {
             no_keyring,
