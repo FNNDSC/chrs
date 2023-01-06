@@ -308,7 +308,11 @@ pub struct PluginInstanceResponse {
     pub url: PluginInstanceUrl,
     pub id: PluginInstanceId,
     pub title: String,
-    pub compute_resource_name: ComputeResourceName,
+    /// N.B.: compute_resource might be null if the compute resource
+    /// was deleted.
+    pub compute_resource: Option<ComputeResourceUrl>,
+    pub compute_resource_name: Option<ComputeResourceName>,
+    pub plugin: PluginUrl,
     pub plugin_id: PluginId,
     pub plugin_name: PluginName,
     pub plugin_version: PluginVersion,
@@ -329,11 +333,9 @@ pub struct PluginInstanceResponse {
     pub error_code: String,
     pub previous: Option<PluginInstanceUrl>,
     pub feed: FeedUrl,
-    pub plugin: PluginUrl,
     pub descendants: DescendantsUrl,
     pub files: AnyFilesUrl,
     pub parameters: PluginInstanceParametersUrl,
-    pub compute_resource: ComputeResourceUrl,
     pub splits: PluginInstanceSplitsUrl,
 }
 
