@@ -1,6 +1,6 @@
 use async_stream::stream;
 use chris::errors::CUBEError;
-use chris::models::{FeedId, FeedResponse, FileResourceFname, PluginInstanceId};
+use chris::models::{FeedId, FileResourceFname, PluginInstanceId};
 use chris::ChrisClient;
 use futures::{Stream, StreamExt};
 use std::collections::HashMap;
@@ -20,12 +20,33 @@ impl MaybeNamer {
         Self { namer }
     }
 
-    /// Calls the wrapped [PathNamer::rename] if Some, otherwise returns `fname` as a string.
+    /// Calls the wrapped [PathNamer::rename] if Some,
+    /// otherwise returns `fname` as a string.
     pub async fn rename(&mut self, fname: &FileResourceFname) -> String {
         if let Some(ref mut n) = self.namer {
             n.rename(fname).await
         } else {
             fname.to_string()
+        }
+    }
+
+    /// Calls the wrapped [PathNamer::try_get_feed_name] if Some,
+    /// otherwise returns `folder` as a string.
+    pub async fn try_get_feed_name(&mut self, folder: &str) -> String {
+        if let Some(ref mut n) = self.namer {
+            n.try_get_feed_name(folder).await
+        } else {
+            folder.to_string()
+        }
+    }
+
+    /// Calls the wrapped [PathNamer::get_title_for] if Some,
+    /// otherwise returns `folder` as a string.
+    pub async fn get_title_for(&mut self, folder: &str) -> String {
+        if let Some(ref mut n) = self.namer {
+            n.get_title_for(folder).await
+        } else {
+            folder.to_string()
         }
     }
 }

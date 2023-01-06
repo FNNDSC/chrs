@@ -3,11 +3,11 @@ use anyhow::bail;
 use async_recursion::async_recursion;
 use async_stream::stream;
 use chris::filebrowser::{FileBrowser, FileBrowserPath, FileBrowserView};
-use chris::models::Downloadable;
+use chris::models::{Downloadable, DownloadableFile};
 use chris::ChrisClient;
 use console::{style, StyledObject};
 use futures::lock::Mutex;
-use futures::TryStreamExt;
+use futures::{StreamExt, TryStreamExt};
 use indicatif::ProgressBar;
 use std::sync::Arc;
 use termtree::Tree;
@@ -86,12 +86,13 @@ async fn construct(
     let stx = tx.clone();
 
     // namer is moved by generator, so we use Arc
-    let descent = Arc::new(Mutex::new(namer));
-    let arc = Arc::clone(&descent);
+    let namer = Arc::new(Mutex::new(namer));
+    let arc = Arc::clone(&namer);
     let mut rn = arc.lock().await;
     let subtree_stream = stream! {
         for maybe in maybe_subfolders {
             if let Some((subfolder, child)) = maybe {
+                let context = next_context(context, &subfolder);
                 yield construct(fb, stx.clone(), child, subfolder, depth - 1, full, context, *rn).await;
                 // notify channel that we have done some work
                 stx.send(()).unwrap();
@@ -100,7 +101,8 @@ async fn construct(
     };
     let mut subtrees: Vec<Tree<StyledObject<String>>> = subtree_stream.try_collect().await?;
 
-    let mut rn = descent.lock().await;
+    let mut rn = namer.lock().await;
+    // TODO pass stx to subfiles
     let files = subfiles(v, *rn, full).await?;
     subtrees.extend(files);
     anyhow::Ok(root.with_leaves(subtrees))
@@ -120,6 +122,27 @@ enum DescentContext {
     Data,
 }
 
+fn next_context(descent: DescentContext, subfolder: &str) -> DescentContext {
+    match descent {
+        DescentContext::Base => {
+            if subfolder.starts_with("feed_") {
+                DescentContext::Feed
+            } else {
+                DescentContext::Data
+            }
+        }
+        DescentContext::Feed => DescentContext::PluginInstances,
+        DescentContext::PluginInstances => {
+            if subfolder == "data" {
+                DescentContext::Data
+            } else {
+                DescentContext::PluginInstances
+            }
+        }
+        DescentContext::Data => DescentContext::Data,
+    }
+}
+
 async fn style_folder(
     namer: &mut MaybeNamer,
     v: &FileBrowserPath,
@@ -130,7 +153,11 @@ async fn style_folder(
     let display_name = if full {
         namer.rename(&v.clone().into()).await
     } else {
-        folder_name // TODO context
+        match context {
+            DescentContext::Feed => namer.try_get_feed_name(&folder_name).await,
+            DescentContext::PluginInstances => namer.get_title_for(&folder_name).await,
+            _ => folder_name,
+        }
     };
     Tree::new(style(display_name).bright().blue())
 }
@@ -162,18 +189,44 @@ async fn subfiles(
     namer: &mut MaybeNamer,
     full: bool,
 ) -> Result<impl Iterator<Item = Tree<StyledObject<String>>>, reqwest::Error> {
-    let namer = Arc::new(Mutex::new(namer));
-    let thing = v.iter_files().try_filter_map(|file| {
-        let arc = Arc::clone(&namer);
-        async move {
-            let mut rn = arc.lock().await;
-            let namer = &mut *rn;
-            Ok(Some(namer.rename(file.fname()).await))
-        }
-    });
+    let file_infos = if full {
+        subfiles_full_names(v, namer).await
+    } else {
+        subfiles_names(v).await
+    }?;
 
-    // calling collect so that we can use .map instead of streams
-    let file_infos: Vec<String> = thing.try_collect().await?;
+    // collect was called so that we can use .map instead of streams
     let files = file_infos.into_iter().map(style).map(Tree::new);
     Ok(files)
+}
+
+/// Use `namer` to convert the subfiles of `v` to user-friendly names.
+async fn subfiles_full_names(
+    v: FileBrowserView,
+    namer: &mut MaybeNamer,
+) -> Result<Vec<String>, reqwest::Error> {
+    let namer = Arc::new(Mutex::new(namer));
+    v.iter_files()
+        .try_filter_map(|file| {
+            let arc = Arc::clone(&namer);
+            async move {
+                let mut rn = arc.lock().await;
+                let namer = &mut *rn;
+                Ok(Some(namer.rename(file.fname()).await))
+            }
+        })
+        .try_collect()
+        .await
+}
+
+async fn subfiles_names(v: FileBrowserView) -> Result<Vec<String>, reqwest::Error> {
+    v.iter_files().map(|f| f.map(file2name)).try_collect().await
+}
+
+fn file2name(f: DownloadableFile) -> String {
+    let fname = f.fname().as_str();
+    if let Some((_, basename)) = fname.rsplit_once('/') {
+        return basename.to_string();
+    }
+    fname.to_string()
 }
