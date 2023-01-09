@@ -29,7 +29,7 @@ jobs:
           toolchain: stable
           profile: minimal
       - name: Setup rust cache
-        uses: Swatinem/rust-cache@v1
+        uses: Swatinem/rust-cache@v2
       - name: Run tests
         # https://github.com/hwchen/keyring-rs/blob/4297618e0cf061eacedf6d7c3f164ee4074a3c5d/linux-test.sh
         run: |
