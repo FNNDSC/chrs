@@ -16,6 +16,7 @@ use futures::{StreamExt, TryStreamExt};
 use indicatif::ProgressBar;
 use itertools::Itertools;
 use std::sync::Arc;
+use std::time::Duration;
 use termtree::Tree;
 use tokio::join;
 use tokio::sync::mpsc;
@@ -48,6 +49,7 @@ async fn print_tree_from(
     let (tx, mut rx) = mpsc::unbounded_channel();
     let main = async move {
         let spinner = ProgressBar::new_spinner();
+        spinner.enable_steady_tick(Duration::from_millis(100));
         let mut count = 0;
         while (rx.recv().await).is_some() {
             count += 1;
@@ -78,7 +80,7 @@ async fn construct(
     // inside generator used for async recursion
     let mut subtrees = subfiles(&state.fbv, namer, state.full).await?;
 
-    let subfolder_and_view = subfolders(fb, &state.fbv).await?;
+    let subfolder_and_view = subfolders(fb, &state.fbv, tx.clone()).await?;
 
     // fancy rust async stuff, don't mind me
     let stx = tx.clone();
@@ -230,10 +232,13 @@ fn next_context(
 async fn subfolders(
     fb: &FileBrowser,
     v: &FileBrowserView,
+    tx: UnboundedSender<()>,
 ) -> Result<Vec<(String, FileBrowserView)>, anyhow::Error> {
     let browses = stream! {
         for subpath in v.subpaths() {
-            yield fb.browse(&subpath).await
+            yield fb.browse(&subpath).await;
+            // notify channel that we have done some work
+            tx.send(()).unwrap();
         }
     };
     let option_subviews: Vec<Option<FileBrowserView>> = browses.try_collect().await?;
