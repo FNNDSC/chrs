@@ -78,9 +78,7 @@ async fn construct(
     // inside generator used for async recursion
     let mut subtrees = subfiles(&state.fbv, namer, state.full).await?;
 
-    let maybe_subfolders = subfolders(fb, &state.fbv)
-        .await
-        .map_err(anyhow::Error::msg)?;
+    let subfolder_and_view = subfolders(fb, &state.fbv).await?;
 
     // fancy rust async stuff, don't mind me
     let stx = tx.clone();
@@ -90,13 +88,11 @@ async fn construct(
     let arc = Arc::clone(&namer);
     let mut rn = arc.lock().await;
     let subtree_stream = stream! {
-        for maybe in maybe_subfolders {
-            if let Some((subfolder, child)) = maybe {
-                let next_state = state.next(child, subfolder);
-                yield construct(fb, stx.clone(), next_state, *rn).await;
-                // notify channel that we have done some work
-                stx.send(()).unwrap();
-            }
+        for (subfolder, child) in subfolder_and_view {
+            let next_state = state.next(child, subfolder);
+            yield construct(fb, stx.clone(), next_state, *rn).await;
+            // notify channel that we have done some work
+            stx.send(()).unwrap();
         }
     };
 
@@ -234,17 +230,33 @@ fn next_context(
 async fn subfolders(
     fb: &FileBrowser,
     v: &FileBrowserView,
-) -> Result<Vec<Option<(String, FileBrowserView)>>, String> {
-    let subfolders_stream = stream! {
-        for subfolder in v.subfolders() {
-            let child_path = format!("{}/{}", v.path(), subfolder);
-            yield fb.browse(&FileBrowserPath::from(child_path.as_str()))
-                .await
-                .map(|m| m.map(|child| (subfolder.to_string(), child)))
-                .map_err(|e| format!("error browsing path \"{}\": {:?}", &child_path, e));
+) -> Result<Vec<(String, FileBrowserView)>, anyhow::Error> {
+    let browses = stream! {
+        for subpath in v.subpaths() {
+            yield fb.browse(&subpath).await
         }
     };
-    subfolders_stream.try_collect().await
+    let option_subviews: Vec<Option<FileBrowserView>> = browses.try_collect().await?;
+
+    let maybe_subviews = option_subviews
+        .into_iter()
+        // smell: parallel arrays option_subviews and v.subfolders()
+        //        are assumed to have same iteration order
+        .zip(v.subfolders())
+        .map(|(option_subview, subfolder)| {
+            option_subview
+                .map(|view| (subfolder.to_string(), view))
+                .ok_or_else(|| {
+                    let message = format!(
+                        "Subfolder \"{}\" of \"{}\" not found --- \
+                CUBE filebrowser API returned invalid data.",
+                        subfolder,
+                        v.path()
+                    );
+                    anyhow::Error::msg(message)
+            })
+        });
+    maybe_subviews.collect()
 }
 
 /// Get file names under a given filebrowser path and apply console output styling to them.

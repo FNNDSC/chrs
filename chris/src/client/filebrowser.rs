@@ -121,7 +121,7 @@ impl FileBrowserView {
     pub fn subpaths(&self) -> impl Iterator<Item = FileBrowserPath> + '_ {
         self.subfolders()
             .iter()
-            .map(|subfolder| format!("{}/{}", self.path, subfolder))
+            .map(|subfolder| format!("{}/{}", self.path(), subfolder))
             .map(FileBrowserPath::new)
     }
 
