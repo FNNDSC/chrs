@@ -10,6 +10,7 @@ use futures::lock::Mutex;
 use futures::{StreamExt, TryStreamExt};
 use indicatif::ProgressBar;
 use std::sync::Arc;
+use itertools::Itertools;
 use termtree::Tree;
 use tokio::join;
 use tokio::sync::mpsc;
@@ -48,6 +49,7 @@ async fn print_tree_from(
             spinner.set_message(format!("Getting information... {}", count));
         }
     };
+    let context = initial_context(&top_path);
     let tree_builder = construct(
         fb,
         tx,
@@ -55,7 +57,7 @@ async fn print_tree_from(
         top_path,
         depth,
         full,
-        DescentContext::Base,
+        context,
         &mut namer,
     );
     let (_, tree) = join!(main, tree_builder);
@@ -110,8 +112,10 @@ async fn construct(
 }
 
 /// Indicates what part of a CUBE (swift) file path we are looking at.
-#[derive(Copy, Clone)]
+#[derive(Copy, Clone, Debug, Eq, PartialEq)]
 enum DescentContext {
+    /// Empty path, parent of all files in *ChRIS*
+    Root,
     /// Left-most base path, which is either a username or "SERVICES"
     Base,
     /// Second-from-the-left component, which is either "feed_N", "PACS", or "UPLOADS"
@@ -121,6 +125,47 @@ enum DescentContext {
     PluginInstances,
     /// A path which lacks a human-friendly name, e.g. PACS file, uploaded file.
     Data,
+}
+
+// struct DescentState {
+//     subfolder: String,
+//     context: DescentContext
+// }
+//
+// impl DescentState {
+//
+//     fn new(path: String) -> Self {
+//         Self {
+//             context: initial_context(&path),
+//             subfolder: path,
+//         }
+//     }
+// }
+
+fn initial_context(path: &str) -> DescentContext {
+    let path = path.trim_end_matches('/');
+    if path.is_empty() {
+        return DescentContext::Root;
+    }
+    let mut components = path.split('/');
+    components.next();  // skip over base folder
+    if let Some(second_folder) = components.next() {
+        if second_folder.starts_with("feed_") {
+            if let Some(third_folder) = components.next() {
+                if components.contains(&"data") {
+                    DescentContext::Data
+                } else {
+                    DescentContext::PluginInstances
+                }
+            } else {
+                DescentContext::Feed
+            }
+        } else {
+            DescentContext::Data
+        }
+    } else {
+        DescentContext::Base
+    }
 }
 
 fn next_context(descent: DescentContext, subfolder: &str) -> DescentContext {
@@ -141,6 +186,7 @@ fn next_context(descent: DescentContext, subfolder: &str) -> DescentContext {
             }
         }
         DescentContext::Data => DescentContext::Data,
+        DescentContext::Root => DescentContext::Base
     }
 }
 
@@ -230,4 +276,32 @@ fn file2name(f: DownloadableFile) -> String {
         return basename.to_string();
     }
     fname.to_string()
+}
+
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use rstest::*;
+
+
+    #[rstest]
+    #[case("", DescentContext::Root)]
+    #[case("/", DescentContext::Root)]
+    #[case("username", DescentContext::Base)]
+    #[case("username/", DescentContext::Base)]
+    #[case("SERVICES", DescentContext::Base)]
+    #[case("SERVICES/PACS", DescentContext::Data)]
+    #[case("username/feed_10", DescentContext::Feed)]
+    #[case("username/feed_100", DescentContext::Feed)]
+    #[case("username/feed_100/", DescentContext::Feed)]
+    #[case("username/feed_100/pl-dircopy_600", DescentContext::PluginInstances)]
+    #[case("username/feed_100/pl-dircopy_600/pl-simpledsapp_601", DescentContext::PluginInstances)]
+    #[case("username/feed_100/pl-dircopy_600/data", DescentContext::Data)]
+    #[case("username/feed_100/pl-dircopy_600/pl-simpledsapp_601/data", DescentContext::Data)]
+    #[case("username/feed_100/pl-dircopy_600/pl-simpledsapp_601/data/something.json", DescentContext::Data)]
+    #[case("username/feed_100/pl-dircopy_600/pl-simpledsapp_601/data/folder/ok.txt", DescentContext::Data)]
+    fn test_initial_context(#[case] path: &str, #[case] expected: DescentContext) {
+        assert_eq!(initial_context(path), expected)
+    }
 }
