@@ -1,7 +1,7 @@
 //! Some naming conventions:
 //!
 //! - `path` is an absolute file path, e.g. `chris/feed_42`
-//! - `folder` or `folder_name` is just the last component, e.g. `feed_42`
+//! - `folder`, `folder_name`, or `subfolder` is just the last component, e.g. `feed_42`
 
 use crate::files::human_paths::MaybeNamer;
 use anyhow::bail;
@@ -14,8 +14,8 @@ use console::{style, StyledObject};
 use futures::lock::Mutex;
 use futures::{StreamExt, TryStreamExt};
 use indicatif::ProgressBar;
-use std::sync::Arc;
 use itertools::Itertools;
+use std::sync::Arc;
 use termtree::Tree;
 use tokio::join;
 use tokio::sync::mpsc;
@@ -54,16 +54,8 @@ async fn print_tree_from(
             spinner.set_message(format!("Getting information... {}", count));
         }
     };
-    let tree_builder = construct(
-        fb,
-        tx,
-        v,
-        top_path,
-        depth,
-        full,
-        DescentContext::Unknown,
-        &mut namer,
-    );
+    let state = DescentState::new(v, top_path, full, depth);
+    let tree_builder = construct(fb, tx, state, &mut namer);
     let (_, tree) = join!(main, tree_builder);
     println!("{}", tree?);
     anyhow::Ok(())
@@ -74,19 +66,21 @@ async fn print_tree_from(
 async fn construct(
     fb: &FileBrowser,
     tx: UnboundedSender<()>,
-    v: FileBrowserView,
-    folder_name: String,
-    depth: u16,
-    full: bool,
-    context: DescentContext,
+    state: DescentState,
     namer: &mut MaybeNamer,
 ) -> anyhow::Result<Tree<StyledObject<String>>> {
-    let root = style_folder(namer, v.path(), folder_name, context, full).await;
-    if depth == 0 {
+    let root = state.style_with(namer).await;
+    if state.depth == 0 {
         return anyhow::Ok(root);
     }
 
-    let maybe_subfolders = subfolders(fb, &v).await.map_err(anyhow::Error::msg)?;
+    // processing files before subfolders first because objects get moved
+    // inside generator used for async recursion
+    let mut subtrees = subfiles(&state.fbv, namer, state.full).await?;
+
+    let maybe_subfolders = subfolders(fb, &state.fbv)
+        .await
+        .map_err(anyhow::Error::msg)?;
 
     // fancy rust async stuff, don't mind me
     let stx = tx.clone();
@@ -98,20 +92,16 @@ async fn construct(
     let subtree_stream = stream! {
         for maybe in maybe_subfolders {
             if let Some((subfolder, child)) = maybe {
-                let context = next_context(context, &subfolder);
-                yield construct(fb, stx.clone(), child, subfolder, depth - 1, full, context, *rn).await;
+                let next_state = state.next(child, subfolder);
+                yield construct(fb, stx.clone(), next_state, *rn).await;
                 // notify channel that we have done some work
                 stx.send(()).unwrap();
             }
         }
     };
-    let mut subtrees: Vec<Tree<StyledObject<String>>> = subtree_stream.try_collect().await?;
 
-    let mut rn = namer.lock().await;
-    // TODO pass stx to subfiles
-    #[allow(clippy::explicit_auto_deref)] // clippy doesn't understand mutex well
-    let files = subfiles(v, *rn, full).await?;
-    subtrees.extend(files);
+    let styled_subfolders: Vec<Tree<StyledObject<String>>> = subtree_stream.try_collect().await?;
+    subtrees.extend(styled_subfolders);
     anyhow::Ok(root.with_leaves(subtrees))
 }
 
@@ -133,32 +123,70 @@ enum DescentContext {
     Data,
 }
 
-// struct DescentState {
-//     subfolder: String,
-//     context: DescentContext
-// }
-//
-// impl DescentState {
-//
-//     fn new(path: String) -> Self {
-//         Self {
-//             context: initial_context(&path),
-//             subfolder: path,
-//         }
-//     }
-// }
+impl Default for DescentContext {
+    fn default() -> Self {
+        DescentContext::Unknown
+    }
+}
+
+struct DescentState {
+    fbv: FileBrowserView,
+    subfolder: String,
+    context: DescentContext,
+    full: bool,
+    depth: u16,
+}
+
+impl DescentState {
+    fn new(fbv: FileBrowserView, subfolder: String, full: bool, depth: u16) -> Self {
+        Self {
+            context: Default::default(),
+            fbv,
+            subfolder,
+            full,
+            depth,
+        }
+    }
+
+    /// Change states to the next [DescentContext] for the folder name.
+    fn next(&self, fbv: FileBrowserView, subfolder: String) -> Self {
+        if self.depth == 0 {
+            panic!("depth underflow, calling recursive function should have quit.");
+        }
+        Self {
+            context: next_context(self.context, fbv.path(), &subfolder),
+            fbv,
+            subfolder,
+            full: self.full,
+            depth: self.depth - 1,
+        }
+    }
+
+    async fn style_with(&self, namer: &mut MaybeNamer) -> Tree<StyledObject<String>> {
+        let display_name = if self.full || self.context == DescentContext::Unknown {
+            namer.rename(&self.fbv.path().clone().into()).await
+        } else {
+            match self.context {
+                DescentContext::Feed => namer.try_get_feed_name(&self.subfolder).await,
+                DescentContext::PluginInstances => namer.get_title_for(&self.subfolder).await,
+                _ => self.subfolder.clone(),
+            }
+        };
+        Tree::new(style(display_name).bright().blue())
+    }
+}
 
 /// Return the [DescentContext] of a *ChRIS* absolute file path.
-fn initial_context(path: &str) -> DescentContext {
-    let path = path.trim_end_matches('/');
+fn initial_context(path: &FileBrowserPath) -> DescentContext {
+    let path: &str = path.as_str().trim_end_matches('/');
     if path.is_empty() {
         return DescentContext::Root;
     }
     let mut components = path.split('/');
-    components.next();  // skip over base folder
+    components.next(); // skip over base folder
     if let Some(second_folder) = components.next() {
         if second_folder.starts_with("feed_") {
-            if let Some(third_folder) = components.next() {
+            if components.next().is_some() {
                 if components.contains(&"data") {
                     DescentContext::Data
                 } else {
@@ -175,10 +203,13 @@ fn initial_context(path: &str) -> DescentContext {
     }
 }
 
-/// Change states to the next [DescentContext] for the folder name.
-fn next_context(descent: DescentContext, subfolder: &str) -> DescentContext {
+fn next_context(
+    descent: DescentContext,
+    path: &FileBrowserPath,
+    subfolder: &str,
+) -> DescentContext {
     match descent {
-        DescentContext::Unknown => initial_context(subfolder),
+        DescentContext::Unknown => initial_context(path),
         DescentContext::Base => {
             if subfolder.starts_with("feed_") {
                 DescentContext::Feed
@@ -195,34 +226,11 @@ fn next_context(descent: DescentContext, subfolder: &str) -> DescentContext {
             }
         }
         DescentContext::Data => DescentContext::Data,
-        DescentContext::Root => DescentContext::Base
+        DescentContext::Root => DescentContext::Base,
     }
 }
 
-async fn style_folder(
-    namer: &mut MaybeNamer,
-    v: &FileBrowserPath,
-    folder_name: String,
-    context: DescentContext,
-    full: bool,
-) -> Tree<StyledObject<String>> {
-    let display_name = if full || context == DescentContext::Unknown {
-        namer.rename(&v.clone().into()).await
-    } else {
-        match context {
-            DescentContext::Feed => namer.try_get_feed_name(&folder_name).await,
-            DescentContext::PluginInstances => namer.get_title_for(&folder_name).await,
-            _ => folder_name,
-        }
-    };
-    Tree::new(style(display_name).bright().blue())
-}
-
 /// Get subfolders under a given filebrowser path. Returns 2-tuples of (name, object)
-///
-/// The FileBrowser API is susceptible to producing erroneous subfolder names
-/// in the cases where path names contain the special character `,` because
-/// `,` is used as a deliminiter.
 async fn subfolders(
     fb: &FileBrowser,
     v: &FileBrowserView,
@@ -233,18 +241,20 @@ async fn subfolders(
             yield fb.browse(&FileBrowserPath::from(child_path.as_str()))
                 .await
                 .map(|m| m.map(|child| (subfolder.to_string(), child)))
-                .map_err(|_| format!("BUG: Invalid child path: {}", &child_path));
+                .map_err(|e| format!("error browsing path \"{}\": {:?}", &child_path, e));
         }
     };
     subfolders_stream.try_collect().await
 }
 
 /// Get file names under a given filebrowser path and apply console output styling to them.
+///
+/// We're using `Vec` just to avoid dealing with streams.
 async fn subfiles(
-    v: FileBrowserView,
+    v: &FileBrowserView,
     namer: &mut MaybeNamer,
     full: bool,
-) -> Result<impl Iterator<Item = Tree<StyledObject<String>>>, reqwest::Error> {
+) -> Result<Vec<Tree<StyledObject<String>>>, reqwest::Error> {
     let file_infos = if full {
         subfiles_full_names(v, namer).await
     } else {
@@ -252,13 +262,13 @@ async fn subfiles(
     }?;
 
     // collect was called so that we can use .map instead of streams
-    let files = file_infos.into_iter().map(style).map(Tree::new);
-    Ok(files)
+    let styled_files = file_infos.into_iter().map(style).map(Tree::new);
+    Ok(styled_files.collect())
 }
 
 /// Use `namer` to convert the subfiles of `v` to user-friendly names.
 async fn subfiles_full_names(
-    v: FileBrowserView,
+    v: &FileBrowserView,
     namer: &mut MaybeNamer,
 ) -> Result<Vec<String>, reqwest::Error> {
     let namer = Arc::new(Mutex::new(namer));
@@ -275,7 +285,7 @@ async fn subfiles_full_names(
         .await
 }
 
-async fn subfiles_names(v: FileBrowserView) -> Result<Vec<String>, reqwest::Error> {
+async fn subfiles_names(v: &FileBrowserView) -> Result<Vec<String>, reqwest::Error> {
     v.iter_files().map(|f| f.map(file2name)).try_collect().await
 }
 
@@ -287,12 +297,10 @@ fn file2name(f: DownloadableFile) -> String {
     fname.to_string()
 }
 
-
 #[cfg(test)]
 mod tests {
     use super::*;
     use rstest::*;
-
 
     #[rstest]
     #[case("", DescentContext::Root)]
@@ -305,11 +313,23 @@ mod tests {
     #[case("username/feed_100", DescentContext::Feed)]
     #[case("username/feed_100/", DescentContext::Feed)]
     #[case("username/feed_100/pl-dircopy_600", DescentContext::PluginInstances)]
-    #[case("username/feed_100/pl-dircopy_600/pl-simpledsapp_601", DescentContext::PluginInstances)]
+    #[case(
+        "username/feed_100/pl-dircopy_600/pl-simpledsapp_601",
+        DescentContext::PluginInstances
+    )]
     #[case("username/feed_100/pl-dircopy_600/data", DescentContext::Data)]
-    #[case("username/feed_100/pl-dircopy_600/pl-simpledsapp_601/data", DescentContext::Data)]
-    #[case("username/feed_100/pl-dircopy_600/pl-simpledsapp_601/data/something.json", DescentContext::Data)]
-    #[case("username/feed_100/pl-dircopy_600/pl-simpledsapp_601/data/folder/ok.txt", DescentContext::Data)]
+    #[case(
+        "username/feed_100/pl-dircopy_600/pl-simpledsapp_601/data",
+        DescentContext::Data
+    )]
+    #[case(
+        "username/feed_100/pl-dircopy_600/pl-simpledsapp_601/data/something.json",
+        DescentContext::Data
+    )]
+    #[case(
+        "username/feed_100/pl-dircopy_600/pl-simpledsapp_601/data/folder/ok.txt",
+        DescentContext::Data
+    )]
     fn test_initial_context(#[case] path: &str, #[case] expected: DescentContext) {
         assert_eq!(initial_context(path), expected)
     }
