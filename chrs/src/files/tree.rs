@@ -1,3 +1,8 @@
+//! Some naming conventions:
+//!
+//! - `path` is an absolute file path, e.g. `chris/feed_42`
+//! - `folder` or `folder_name` is just the last component, e.g. `feed_42`
+
 use crate::files::human_paths::MaybeNamer;
 use anyhow::bail;
 use async_recursion::async_recursion;
@@ -49,7 +54,6 @@ async fn print_tree_from(
             spinner.set_message(format!("Getting information... {}", count));
         }
     };
-    let context = initial_context(&top_path);
     let tree_builder = construct(
         fb,
         tx,
@@ -57,7 +61,7 @@ async fn print_tree_from(
         top_path,
         depth,
         full,
-        context,
+        DescentContext::Unknown,
         &mut namer,
     );
     let (_, tree) = join!(main, tree_builder);
@@ -114,6 +118,8 @@ async fn construct(
 /// Indicates what part of a CUBE (swift) file path we are looking at.
 #[derive(Copy, Clone, Debug, Eq, PartialEq)]
 enum DescentContext {
+    /// Special case at the start
+    Unknown,
     /// Empty path, parent of all files in *ChRIS*
     Root,
     /// Left-most base path, which is either a username or "SERVICES"
@@ -142,6 +148,7 @@ enum DescentContext {
 //     }
 // }
 
+/// Return the [DescentContext] of a *ChRIS* absolute file path.
 fn initial_context(path: &str) -> DescentContext {
     let path = path.trim_end_matches('/');
     if path.is_empty() {
@@ -168,8 +175,10 @@ fn initial_context(path: &str) -> DescentContext {
     }
 }
 
+/// Change states to the next [DescentContext] for the folder name.
 fn next_context(descent: DescentContext, subfolder: &str) -> DescentContext {
     match descent {
+        DescentContext::Unknown => initial_context(subfolder),
         DescentContext::Base => {
             if subfolder.starts_with("feed_") {
                 DescentContext::Feed
@@ -197,7 +206,7 @@ async fn style_folder(
     context: DescentContext,
     full: bool,
 ) -> Tree<StyledObject<String>> {
-    let display_name = if full {
+    let display_name = if full || context == DescentContext::Unknown {
         namer.rename(&v.clone().into()).await
     } else {
         match context {
