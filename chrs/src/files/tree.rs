@@ -302,6 +302,7 @@ mod tests {
     DescentContext::Data
     )]
     fn test_initial_context(#[case] path: &str, #[case] expected: DescentContext) {
-        assert_eq!(initial_context(path), expected)
+        let path = FileBrowserPath::new(path.to_string());
+        assert_eq!(initial_context(&path), expected)
     }
 }
