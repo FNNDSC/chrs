@@ -51,8 +51,9 @@ impl MaybeNamer {
     }
 }
 
-/// [PathNamer] is a struct which provides memoization for the helper function
-/// [PathNamer::rename].
+/// [PathNamer] is a struct which provides methods for renaming CUBE "swift" file paths
+/// to human-readable file paths by replacing feed and plugin instance folder names with
+/// feed names and plugin instance titles.
 pub(crate) struct PathNamer {
     chris: ChrisClient,
 
@@ -212,6 +213,12 @@ impl PathNamer {
             .await
             .map_err(PluginInstanceTitleError::CUBE)?;
         Ok(plinst.title)
+    }
+
+    /// Reverse operation of [Self:rename], returns [Option::None]
+    /// if given path is not found.
+    pub async fn translate(&mut self, path: &str) -> Option<FileResourceFname> {
+        todo!()
     }
 }
 

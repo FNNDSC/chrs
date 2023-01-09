@@ -21,6 +21,7 @@ use termtree::Tree;
 use tokio::join;
 use tokio::sync::mpsc;
 use tokio::sync::mpsc::UnboundedSender;
+use crate::files::descent::DescentContext;
 
 /// Show files in _ChRIS_ using the file browser API in a tree diagram.
 pub(crate) async fn files_tree(
@@ -103,34 +104,10 @@ async fn construct(
     anyhow::Ok(root.with_leaves(subtrees))
 }
 
-/// Indicates what part of a CUBE (swift) file path we are looking at.
-#[derive(Copy, Clone, Debug, Eq, PartialEq)]
-enum DescentContext {
-    /// Special case at the start
-    Unknown,
-    /// Empty path, parent of all files in *ChRIS*
-    Root,
-    /// Left-most base path, which is either a username or "SERVICES"
-    Base,
-    /// Second-from-the-left component, which is either "feed_N", "PACS", or "UPLOADS"
-    Feed,
-    /// A middle component of a plugin instance output file's fname
-    /// after the feed and before the "data" folder.
-    PluginInstances,
-    /// A path which lacks a human-friendly name, e.g. PACS file, uploaded file.
-    Data,
-}
-
-impl Default for DescentContext {
-    fn default() -> Self {
-        DescentContext::Unknown
-    }
-}
-
 struct DescentState {
     fbv: FileBrowserView,
     subfolder: String,
-    context: DescentContext,
+    context: Option<DescentContext>,
     full: bool,
     depth: u16,
 }
@@ -138,7 +115,7 @@ struct DescentState {
 impl DescentState {
     fn new(fbv: FileBrowserView, subfolder: String, full: bool, depth: u16) -> Self {
         Self {
-            context: Default::default(),
+            context: None,
             fbv,
             subfolder,
             full,
@@ -151,8 +128,11 @@ impl DescentState {
         if self.depth == 0 {
             panic!("depth underflow, calling recursive function should have quit.");
         }
+        let context = self.context
+            .map(|c| c.next(&subfolder))
+            .or_else(|| Some(initial_context(fbv.path())));
         Self {
-            context: next_context(self.context, fbv.path(), &subfolder),
+            context,
             fbv,
             subfolder,
             full: self.full,
@@ -161,10 +141,10 @@ impl DescentState {
     }
 
     async fn style_with(&self, namer: &mut MaybeNamer) -> Tree<StyledObject<String>> {
-        let display_name = if self.full || self.context == DescentContext::Unknown {
+        let display_name = if self.full || self.context.is_none() {
             namer.rename(&self.fbv.path().clone().into()).await
         } else {
-            match self.context {
+            match self.context.unwrap_or(DescentContext::Data) {
                 DescentContext::Feed => namer.try_get_feed_name(&self.subfolder).await,
                 DescentContext::PluginInstances => namer.get_title_for(&self.subfolder).await,
                 _ => self.subfolder.clone(),
@@ -173,6 +153,7 @@ impl DescentState {
         Tree::new(style(display_name).bright().blue())
     }
 }
+
 
 /// Return the [DescentContext] of a *ChRIS* absolute file path.
 fn initial_context(path: &FileBrowserPath) -> DescentContext {
@@ -198,33 +179,6 @@ fn initial_context(path: &FileBrowserPath) -> DescentContext {
         }
     } else {
         DescentContext::Base
-    }
-}
-
-fn next_context(
-    descent: DescentContext,
-    path: &FileBrowserPath,
-    subfolder: &str,
-) -> DescentContext {
-    match descent {
-        DescentContext::Unknown => initial_context(path),
-        DescentContext::Base => {
-            if subfolder.starts_with("feed_") {
-                DescentContext::Feed
-            } else {
-                DescentContext::Data
-            }
-        }
-        DescentContext::Feed => DescentContext::PluginInstances,
-        DescentContext::PluginInstances => {
-            if subfolder == "data" {
-                DescentContext::Data
-            } else {
-                DescentContext::PluginInstances
-            }
-        }
-        DescentContext::Data => DescentContext::Data,
-        DescentContext::Root => DescentContext::Base,
     }
 }
 
@@ -331,21 +285,21 @@ mod tests {
     #[case("username/feed_100/", DescentContext::Feed)]
     #[case("username/feed_100/pl-dircopy_600", DescentContext::PluginInstances)]
     #[case(
-        "username/feed_100/pl-dircopy_600/pl-simpledsapp_601",
-        DescentContext::PluginInstances
+    "username/feed_100/pl-dircopy_600/pl-simpledsapp_601",
+    DescentContext::PluginInstances
     )]
     #[case("username/feed_100/pl-dircopy_600/data", DescentContext::Data)]
     #[case(
-        "username/feed_100/pl-dircopy_600/pl-simpledsapp_601/data",
-        DescentContext::Data
+    "username/feed_100/pl-dircopy_600/pl-simpledsapp_601/data",
+    DescentContext::Data
     )]
     #[case(
-        "username/feed_100/pl-dircopy_600/pl-simpledsapp_601/data/something.json",
-        DescentContext::Data
+    "username/feed_100/pl-dircopy_600/pl-simpledsapp_601/data/something.json",
+    DescentContext::Data
     )]
     #[case(
-        "username/feed_100/pl-dircopy_600/pl-simpledsapp_601/data/folder/ok.txt",
-        DescentContext::Data
+    "username/feed_100/pl-dircopy_600/pl-simpledsapp_601/data/folder/ok.txt",
+    DescentContext::Data
     )]
     fn test_initial_context(#[case] path: &str, #[case] expected: DescentContext) {
         assert_eq!(initial_context(path), expected)
