@@ -82,26 +82,40 @@ chrs --address https://cube.chrisproject.org/api/v1/ logout
 chrs logout
 ```
 
+### `chrs feeds`
+
+List or search existing feeds.
+
+```shell
+$ chrs feeds
+COVID-NET analysis on patient ABCD                                       chris/feed_1891
+SPL visualization                                                        chris/feed_1890
+LLD test 3                                                               chris/feed_1889
+Subplate surfaces surface_fit parameter schedule                         jennings/feed_1888
+Preprocess data from henry                                               jennings/feed_1887
+```
+
 ### `chrs ls PATH`
 
 List files and directories in _ChRIS_.
 
 ```shell
-$ chrs tree -L 4 chris/feed_1443
-chris/feed_1443
+# by default, folder names appear as feed names or plugin instance titles
+$ chrs ls --tree -L 4 chris/feed_1443
+chris/Segmented volume data analysis
 └── pl-dircopy_5827
     ├── data
     │   ├── output.meta.json
     │   ├── input.meta.json
     │   └── aparc.a2009saseg.mgz
-    └── pl-mgz2LUT_report_5836
+    └── generate volume report
         └── data
             ├── output.meta.json
             ├── mgz2LUT_report.pdf
             ├── mgz2LUT_report.html
             └── input.meta.json
 
-$ chrs tree -L 4 --full chris/feed_1443
+$ chrs ls --tree -L 4 --full --raw chris/feed_1443
 chris/feed_1443
 └── chris/feed_1443/pl-dircopy_5827
     ├── chris/feed_1443/pl-dircopy_5827/data
@@ -152,6 +166,10 @@ chrs download --shorten https://cube.chrisproject.org/api/v1/plugins/instances/5
 # download files from ChRIS given a path
 chrs download chris/uploads/fetal_dataset
 chrs download SERVICES/PACS/orthanc/9cfafb0-DIXON_SHANNON_ANON-20140701
+
+# download data from all plugin instances of a feed to the same folder,
+# effectively joining their outputs into one directory
+chrs download --flatten chris/feed_14 feed14_outputs
 ```
 
 ### `chrs run-latest`

@@ -20,6 +20,7 @@ pub(crate) async fn download(
     dst: Option<&Path>,
     shorten: u8,
     rename: bool,
+    flatten: bool
 ) -> anyhow::Result<()> {
     let dst = choose_dst(client.url(), src, dst);
 

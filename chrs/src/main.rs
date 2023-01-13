@@ -115,6 +115,10 @@ enum Commands {
         #[clap(short, long)]
         raw: bool,
 
+        /// Join contents of all "data" folders to the same output directory.
+        #[clap(short, long)]
+        flatten: bool,
+
         /// What to download. Can either be a ChRIS Library files path or
         /// a files resource URL (such as a files search query or a feed
         /// files URL).
@@ -303,9 +307,10 @@ async fn main() -> Result<()> {
             src,
             dst,
             raw,
+            flatten
         } => {
             let client = get_client(address, username, password, vec![src.as_str()]).await?;
-            download(&client, &src, dst.as_deref(), shorten, !raw).await
+            download(&client, &src, dst.as_deref(), shorten, !raw, flatten).await
         }
         Commands::Login {
             no_keyring,
