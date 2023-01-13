@@ -22,6 +22,10 @@ pub(crate) async fn download(
     rename: bool,
     flatten: bool,
 ) -> anyhow::Result<()> {
+    if flatten {
+        bail!("--flatten is not yet implemented.")
+    }
+
     let dst = choose_dst(client.url(), src, dst);
 
     let url = parse_src(src, client.url());
