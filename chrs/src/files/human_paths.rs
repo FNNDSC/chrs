@@ -4,6 +4,14 @@ use chris::models::{FeedId, FileResourceFname, PluginInstanceId};
 use chris::ChrisClient;
 use futures::{Stream, StreamExt};
 use std::collections::HashMap;
+use lazy_static::lazy_static;
+
+lazy_static! {
+    /// Substitutions for unallowed substrings for folder names.
+    static ref FOLDER_SUBSTR_SUBSTITUTIONS: HashMap<&'static str, &'static str> = [
+        ("/", "!SLASH!")
+    ].into_iter().collect();
+}
 
 /// Wrapper around [Option<PathNamer>].
 pub(crate) struct MaybeNamer {
@@ -140,6 +148,7 @@ impl PathNamer {
             .get_feed(id)
             .await
             .map(|feed| feed.name)
+            .map(substitute_unallowed)
             .map(|name| this_or_that(name, feed_folder))
             .map(|f| self.cache_feed_name(feed_folder, f))
             .unwrap_or_else(|e| {
@@ -216,6 +225,7 @@ impl PathNamer {
         // else, try to parse and get from CUBE
         match self.get_from_cube(folder).await {
             Ok(title) => {
+                let title = substitute_unallowed(title);
                 let title = this_or_that(title, folder);
                 self.plinst_memo.insert(title.clone(), title.clone());
                 title
@@ -250,6 +260,13 @@ impl PathNamer {
     pub async fn translate(&mut self, path: &str) -> Option<FileResourceFname> {
         todo!()
     }
+}
+
+fn substitute_unallowed(mut folder_name: String) -> String {
+    for (from, to) in FOLDER_SUBSTR_SUBSTITUTIONS.iter() {
+        folder_name = folder_name.replace(from, to)
+    }
+    folder_name
 }
 
 fn this_or_that(a: String, b: &str) -> String {
@@ -345,6 +362,16 @@ mod tests {
     #[case("what", None)]
     fn test_parse_feed_folder(#[case] folder: &str, #[case] expected: Option<u32>) {
         assert_eq!(parse_feed_folder(folder), expected.map(FeedId))
+    }
+
+    #[rstest]
+    #[case("i am ok!", "i am ok!")]
+    #[case("i am not ok/bad...", "i am not ok!SLASH!bad...")]
+    fn test_replace_unallowed(#[case] folder: &str, #[case] expected: &str) {
+        assert_eq!(
+            substitute_unallowed(folder.to_string()),
+            expected.to_string()
+        )
     }
 
     // TODO: use HTTP mocking to test PathNamer::rename
