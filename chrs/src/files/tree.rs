@@ -3,6 +3,7 @@
 //! - `path` is an absolute file path, e.g. `chris/feed_42`
 //! - `folder`, `folder_name`, or `subfolder` is just the last component, e.g. `feed_42`
 
+use crate::files::descent::DescentContext;
 use crate::files::human_paths::MaybeNamer;
 use anyhow::bail;
 use async_recursion::async_recursion;
@@ -21,7 +22,6 @@ use termtree::Tree;
 use tokio::join;
 use tokio::sync::mpsc;
 use tokio::sync::mpsc::UnboundedSender;
-use crate::files::descent::DescentContext;
 
 /// Show files in _ChRIS_ using the file browser API in a tree diagram.
 pub(crate) async fn files_tree(
@@ -128,7 +128,8 @@ impl DescentState {
         if self.depth == 0 {
             panic!("depth underflow, calling recursive function should have quit.");
         }
-        let context = self.context
+        let context = self
+            .context
             .map(|c| c.next(&subfolder))
             .or_else(|| Some(initial_context(fbv.path())));
         Self {
@@ -153,7 +154,6 @@ impl DescentState {
         Tree::new(style(display_name).bright().blue())
     }
 }
-
 
 /// Return the [DescentContext] of a *ChRIS* absolute file path.
 fn initial_context(path: &FileBrowserPath) -> DescentContext {
@@ -213,7 +213,7 @@ async fn subfolders(
                         v.path()
                     );
                     anyhow::Error::msg(message)
-            })
+                })
         });
     maybe_subviews.collect()
 }
@@ -285,21 +285,21 @@ mod tests {
     #[case("username/feed_100/", DescentContext::Feed)]
     #[case("username/feed_100/pl-dircopy_600", DescentContext::PluginInstances)]
     #[case(
-    "username/feed_100/pl-dircopy_600/pl-simpledsapp_601",
-    DescentContext::PluginInstances
+        "username/feed_100/pl-dircopy_600/pl-simpledsapp_601",
+        DescentContext::PluginInstances
     )]
     #[case("username/feed_100/pl-dircopy_600/data", DescentContext::Data)]
     #[case(
-    "username/feed_100/pl-dircopy_600/pl-simpledsapp_601/data",
-    DescentContext::Data
+        "username/feed_100/pl-dircopy_600/pl-simpledsapp_601/data",
+        DescentContext::Data
     )]
     #[case(
-    "username/feed_100/pl-dircopy_600/pl-simpledsapp_601/data/something.json",
-    DescentContext::Data
+        "username/feed_100/pl-dircopy_600/pl-simpledsapp_601/data/something.json",
+        DescentContext::Data
     )]
     #[case(
-    "username/feed_100/pl-dircopy_600/pl-simpledsapp_601/data/folder/ok.txt",
-    DescentContext::Data
+        "username/feed_100/pl-dircopy_600/pl-simpledsapp_601/data/folder/ok.txt",
+        DescentContext::Data
     )]
     fn test_initial_context(#[case] path: &str, #[case] expected: DescentContext) {
         let path = FileBrowserPath::new(path.to_string());

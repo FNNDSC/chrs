@@ -49,6 +49,27 @@ impl MaybeNamer {
             folder.to_string()
         }
     }
+
+    /// Consumes the given iterator. For every folder name which comes before the
+    /// special value "data", try to ge the title for the plugin instance.
+    /// If the plugin instance's title cannot be resolved, then a warning message
+    /// is printed to stderr and the program continues.
+    pub(crate) async fn rename_plugin_instances<'a, I>(&'a mut self, split: I) -> String
+    where
+        I: Iterator<Item = &'a str> + 'a,
+    {
+        if let Some(ref mut n) = self.namer {
+            n.rename_plugin_instances(split).await
+        } else {
+            split.collect::<Vec<&str>>().join("/")
+        }
+    }
+}
+
+impl Default for MaybeNamer {
+    fn default() -> Self {
+        MaybeNamer { namer: None }
+    }
 }
 
 /// [PathNamer] is a struct which provides methods for renaming CUBE "swift" file paths
@@ -87,12 +108,11 @@ impl PathNamer {
 
         if let Some((username, feed_folder, feed_id, split)) = consume_feed_fname(s.split('/')) {
             let feed_name = self.get_feed_name(feed_id, feed_folder).await;
-            let folders: Vec<String> = self.rename_plugin_instances(split).collect().await;
+            let folders = self.rename_plugin_instances(split).await;
             if folders.is_empty() {
                 format!("{}/{}", username, feed_name)
             } else {
-                let subpaths = folders.join("/");
-                format!("{}/{}/{}", username, feed_name, subpaths)
+                format!("{}/{}/{}", username, feed_name, folders)
             }
         } else {
             s.to_string()
@@ -138,11 +158,21 @@ impl PathNamer {
         feed_name
     }
 
-    /// Consumes the given iterator. For every folder name which comes before the
-    /// special value "data", try to ge the title for the plugin instance.
-    /// If the plugin instance's title cannot be resolved, then a warning message
-    /// is printed to stderr and the program continues.
-    fn rename_plugin_instances<'a, I>(&'a mut self, mut split: I) -> impl Stream<Item = String> + '_
+    /// See [MaybeNamer::rename_plugin_instances]
+    pub(crate) async fn rename_plugin_instances<'a, I>(&'a mut self, split: I) -> String
+    where
+        I: Iterator<Item = &'a str> + 'a,
+    {
+        self.stream_plugin_instance_folder_names(split)
+            .collect::<Vec<String>>()
+            .await
+            .join("/")
+    }
+
+    fn stream_plugin_instance_folder_names<'a, I>(
+        &'a mut self,
+        mut split: I,
+    ) -> impl Stream<Item = String> + '_
     where
         I: Iterator<Item = &'a str> + 'a,
     {

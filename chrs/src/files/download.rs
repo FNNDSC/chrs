@@ -2,11 +2,11 @@ use crate::executor::do_with_progress;
 use crate::files::human_paths::MaybeNamer;
 use crate::io_helper::progress_bar_bytes;
 use anyhow::{bail, Context};
-use async_stream::stream;
+use async_stream::try_stream;
 use chris::common_types::CUBEApiUrl;
 use chris::models::{AnyFilesUrl, Downloadable, DownloadableFile, FileResourceFname};
 use chris::ChrisClient;
-use futures::{pin_mut, StreamExt, TryStreamExt};
+use futures::{pin_mut, Stream, StreamExt, TryStreamExt};
 use std::path::{Path, PathBuf};
 use tokio::fs;
 use tokio::fs::File;
@@ -103,19 +103,163 @@ async fn download_directory<'a>(
     if dst.exists() && !dst.is_dir() {
         bail!("Not a directory: {:?}", dst);
     }
-    let parent_len = dir_length_of(chris.url(), src);
-    let namer = MaybeNamer::new(chris, rename);
 
-    let stream = stream! {
-        for await page in chris.iter_files(url) {
-            yield page
-                .map(|d| download_helper(chris, d, dst, parent_len, shorten))
-                .map_err(DownloadError::Pagination)
-        }
-    };
+    let stream = get_downloads(chris, url, src, dst, shorten, rename)
+        .map_ok(|(file, target)| download_helper(chris, file, target))
+        .map_err(DownloadError::Pagination);
 
     do_with_progress(stream, count as u64, false).await?;
     Ok(())
+}
+
+/// Produce a stream of [DownloadableFile] resources from `url` and
+/// a path on the filesystem where the file should be downloaded to.
+fn get_downloads<'a>(
+    chris: &'a ChrisClient,
+    url: &'a AnyFilesUrl,
+    src: &'a str,
+    dst: &'a Path,
+    shorten: u8,
+    rename: bool,
+) -> impl Stream<Item = Result<(DownloadableFile, PathBuf), reqwest::Error>> + 'a {
+    let mut namer = MaybeNamer::new(chris, rename);
+    let folder = FolderOutputOptions::new(chris.url(), src, dst, shorten);
+
+    try_stream! {
+        for await result in chris.iter_files(url) {
+            let file = result?;
+            let target = folder.where_to_download(file.fname(), &mut namer).await;
+            yield (file, target)
+        }
+    }
+}
+
+/// While trying to figure out where to download a [FileResourceFname],
+/// substrings might be removed from the front, making it no longer a
+/// valid [FileResourceName]. Invalid fname are represented by
+/// [ProcessedFname::Changed].
+#[derive(Debug, Eq, PartialEq)]
+enum ProcessedFname {
+    Changed(String),
+    Unchanged(FileResourceFname),
+}
+
+impl ProcessedFname {
+    fn new(fname: FileResourceFname) -> Self {
+        ProcessedFname::Unchanged(fname)
+    }
+
+    fn as_str(&self) -> &str {
+        match self {
+            ProcessedFname::Changed(f) => f,
+            ProcessedFname::Unchanged(f) => f.as_str(),
+        }
+    }
+
+    /// Shorten a fname by truncating the parent directories before and including "/data/"
+    fn shorten(self, times: u8) -> Self {
+        if times == 0 {
+            return self;
+        }
+        if let Some((_, half)) = self.as_str().split_once("/data/") {
+            ProcessedFname::Changed(half.to_string()).shorten(times - 1)
+        } else {
+            self
+        }
+    }
+
+    /// Take the string to the right of an index position.
+    fn substr_from(self, index: usize) -> Self {
+        if index == 0 {
+            self
+        } else {
+            let s = self.as_str();
+            let rel = &s[index..s.len()];
+            ProcessedFname::Changed(rel.to_string())
+        }
+    }
+
+    async fn rename_using(self, namer: &mut MaybeNamer) -> String {
+        match self {
+            ProcessedFname::Changed(f) => rename_shortened(namer, &f).await,
+            ProcessedFname::Unchanged(f) => namer.rename(&f).await,
+        }
+    }
+}
+
+struct FolderOutputOptions<'a> {
+    parent_len: usize,
+    // namer: Cell<MaybeNamer>,
+    shorten: u8,
+    output_dir: &'a Path,
+}
+
+impl<'a> FolderOutputOptions<'a> {
+    fn new(address: &CUBEApiUrl, src: &str, output_dir: &'a Path, shorten: u8) -> Self {
+        Self {
+            // alternatively, we could use a mutable field for slightly cleaner code
+            // namer: Cell::new(MaybeNamer::new(chris, rename)),
+            parent_len: dir_length_of(address, src),
+            shorten,
+            output_dir,
+        }
+    }
+
+    /// Decide on the path on the filesystem where to download a given fname.
+    async fn where_to_download(
+        &self,
+        fname: &FileResourceFname,
+        namer: &mut MaybeNamer,
+    ) -> PathBuf {
+        let base = self.relative_from_src_dir(fname);
+        let shortened = base.shorten(self.shorten);
+        let renamed = shortened.rename_using(namer).await;
+        self.output_dir.join(renamed)
+    }
+
+    fn relative_from_src_dir(&'a self, fname: &'a FileResourceFname) -> ProcessedFname {
+        let fname = ProcessedFname::new(fname.clone());
+        fname.substr_from(self.parent_len)
+    }
+}
+
+/// Rename the plugin instance folder names of `fname`.
+///
+/// Parent folders of the left-most occurrence of "/data/" are assumed to be
+/// plugin instance folders. In come cases, such as when you run pl-dircopy
+/// on an existing plugin instance's "/data/" folder, that plugin instance's
+/// folders may appear after the first occurrence of "/data/". Those folders
+/// _will not_ be renamed, since they are actually within the plugin instance's
+/// output space, not part of its files' prefix!
+async fn rename_shortened(namer: &mut MaybeNamer, fname: &str) -> String {
+    if !fname.contains("/data/") {
+        return fname.to_string();
+    }
+    namer.rename_plugin_instances(fname.split('/')).await
+}
+
+/// Download a file to a destination, creating parent directories as needed.
+async fn download_helper(
+    client: &ChrisClient,
+    downloadable: impl Downloadable,
+    dst: PathBuf,
+) -> Result<(), DownloadError> {
+    if let Some(parent) = dst.parent() {
+        fs::create_dir_all(parent)
+            .await
+            .map_err(|e| DownloadError::ParentDirectory {
+                path: parent.to_path_buf(),
+                source: e,
+            })?;
+    }
+    client
+        .download_file(&downloadable, dst.as_path(), false)
+        .await
+        .map_err(|e| DownloadError::IO {
+            fname: downloadable.fname().clone(),
+            path: dst,
+            source: e,
+        })
 }
 
 /// Decide where to save output files to.
@@ -184,52 +328,6 @@ fn split_path(src: &str) -> (&str, &str) {
     } else {
         ("", canon_fname)
     }
-}
-
-/// Download a file to a destination, creating parent directories as needed.
-async fn download_helper(
-    client: &ChrisClient,
-    downloadable: impl Downloadable,
-    dst: &Path,
-    parent_len: usize,
-    shorten: u8,
-) -> Result<(), DownloadError> {
-    let dst = decide_target(downloadable.fname(), dst, parent_len, shorten);
-    if let Some(parent) = dst.parent() {
-        fs::create_dir_all(parent)
-            .await
-            .map_err(|e| DownloadError::ParentDirectory {
-                path: parent.to_path_buf(),
-                source: e,
-            })?;
-    }
-    client
-        .download_file(&downloadable, dst.as_path(), false)
-        .await
-        .map_err(|e| DownloadError::IO {
-            fname: downloadable.fname().to_owned(),
-            path: dst.as_path().to_path_buf(),
-            source: e,
-        })
-}
-
-/// Choose path on host where to save the file.
-fn decide_target(fname: &FileResourceFname, dst: &Path, parent_len: usize, shorten: u8) -> PathBuf {
-    let fname: &str = fname.as_str();
-    let base = &fname[parent_len..fname.len()];
-    let shortened = shorten_target(base, shorten);
-    dst.join(shortened)
-}
-
-/// Shorten a fname by truncating the parent directories before and including "/data/"
-fn shorten_target(path: &str, shorten: u8) -> &str {
-    if shorten == 0 {
-        return path;
-    }
-    if let Some((_, s)) = path.split_once("/data/") {
-        return shorten_target(s, shorten - 1);
-    }
-    path
 }
 
 /// Errors which might occur when trying to download many files from
@@ -339,74 +437,101 @@ mod tests {
     }
 
     #[rstest]
-    #[case("chris/uploads/brain.nii", ".", 0, 0, "./chris/uploads/brain.nii")]
-    #[case(
-        "chris/uploads/brain.nii",
-        "output",
-        0,
-        0,
-        "output/chris/uploads/brain.nii"
-    )]
-    #[case("chris/uploads/brain.nii", "output", 14, 0, "output/brain.nii")]
-    #[case(
-        "chris/feed_1/pl-dircopy/data/brain.nii",
-        "output",
-        0,
-        1,
-        "output/brain.nii"
-    )]
-    fn test_decide_target(
-        #[case] fname: &str,
-        #[case] dst: &str,
-        #[case] parent_len: usize,
-        #[case] shorten: u8,
-        #[case] expected: &str,
-    ) {
-        assert_eq!(
-            decide_target(
-                &FileResourceFname::from(fname),
-                Path::new(dst),
-                parent_len,
-                shorten
-            ),
-            PathBuf::from(expected)
-        )
-    }
-
-    #[rstest]
-    #[case("chris/uploads/brain.nii", 0, "chris/uploads/brain.nii")]
-    #[case("chris/uploads/brain.nii", 1, "chris/uploads/brain.nii")]
+    #[case("chris/uploads/brain.nii", 0, ProcessedFname::Unchanged("chris/uploads/brain.nii".into()))]
+    #[case("chris/uploads/brain.nii", 1, ProcessedFname::Unchanged("chris/uploads/brain.nii".into()))]
     #[case(
         "jennings/feed_82/pl-dircopy_532/data/something.txt",
         0,
-        "jennings/feed_82/pl-dircopy_532/data/something.txt"
+    ProcessedFname::Unchanged("jennings/feed_82/pl-dircopy_532/data/something.txt".into())
     )]
     #[case(
         "jennings/feed_82/pl-dircopy_532/data/something.txt",
         1,
-        "something.txt"
+        ProcessedFname::Changed("something.txt".to_string())
     )]
     #[case(
         "jennings/feed_82/pl-dircopy_532/data/something.txt",
         5,
-        "something.txt"
+        ProcessedFname::Changed("something.txt".to_string())
     )]
     #[case(
         "jennings/feed_82/pl-dircopy_532/data/rudolphs_change_goes_here/data/something.txt",
         0,
-        "jennings/feed_82/pl-dircopy_532/data/rudolphs_change_goes_here/data/something.txt"
+        ProcessedFname::Unchanged(
+        "jennings/feed_82/pl-dircopy_532/data/rudolphs_change_goes_here/data/something.txt".into()
+        )
     )]
     #[case(
         "jennings/feed_82/pl-dircopy_532/data/rudolphs_change_goes_here/data/something.txt",
         1,
-        "rudolphs_change_goes_here/data/something.txt"
+        ProcessedFname::Changed("rudolphs_change_goes_here/data/something.txt".to_string())
     )]
     #[case(
         "jennings/feed_82/pl-dircopy_532/data/rudolphs_change_goes_here/data/something.txt",
         2,
-        "something.txt"
+        ProcessedFname::Changed("something.txt".to_string())
     )]
-    fn test_shorten_target(#[case] fname: &str, #[case] shorten: u8, #[case] expected: &str) {
-        assert_eq!(shorten_target(fname, shorten), expected)
+    fn test_shorten_target(
+        #[case] fname: &str,
+        #[case] times: u8,
+        #[case] expected: ProcessedFname,
+    ) {
+        let fname = ProcessedFname::new(fname.into());
+        assert_eq!(fname.shorten(times), expected)
+    }
+
+    #[rstest]
+    #[case(
+        "https://example.com/api/v1/uploadedfiles/search/?fname_icontains=.nii",
+        "chris/uploads/brain.nii",
+        ".",
+        0,
+        "./chris/uploads/brain.nii"
+    )]
+    #[case(
+        "https://example.com/api/v1/uploadedfiles/search/?fname_icontains=.nii",
+        "chris/uploads/brain.nii",
+        "output",
+        0,
+        "output/chris/uploads/brain.nii"
+    )]
+    #[case(
+        "chris/feed_1/pl-dircopy/data",
+        "chris/feed_1/pl-dircopy/data/brain.nii",
+        "output",
+        1,
+        "output/brain.nii"
+    )]
+    #[case(
+        "chris/feed_1",
+        "chris/feed_1/pl-dircopy/data/brain.nii",
+        ".",
+        0,
+        "./pl-dircopy/data/brain.nii"
+    )]
+    #[case(
+        "chris/feed_1",
+        "chris/feed_1/pl-dircopy/data/brain.nii",
+        ".",
+        1,
+        "./brain.nii"
+    )]
+    #[tokio::test]
+    async fn test_where_to_download(
+        #[case] src: &str,
+        #[case] fname: &str,
+        #[case] dst: &str,
+        #[case] shorten: u8,
+        #[case] expected: &str,
+        example_address: &CUBEApiUrl,
+    ) {
+        let output_dir = Path::new(dst);
+        let options = FolderOutputOptions::new(example_address, src, output_dir, shorten);
+        let fname = fname.into();
+        let namer = &mut Default::default();
+        assert_eq!(
+            options.where_to_download(&fname, namer).await,
+            PathBuf::from(expected)
+        )
     }
 }
