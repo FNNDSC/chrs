@@ -39,9 +39,16 @@ fn noninteractive(
     if address.is_none() && username.is_none() {
         return Ok(None);
     }
+    if address.is_none() {
+        return if username.is_none() {
+            Ok(None)
+        } else {
+            Err(anyhow::Error::msg("--address is required"))
+        }
+    }
     let index = get_index_of(logins, &address, &username).ok_or_else(|| {
         anyhow::Error::msg(format!(
-            "No login found for username=\"{:?}\" address=\"{:?}\"",
+            "No login found for username={:?} address={:?}",
             username, address
         ))
     })?;
