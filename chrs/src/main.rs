@@ -27,7 +27,7 @@ use crate::upload::upload;
 use chris::common_types::{CUBEApiUrl, Username};
 use chris::filebrowser::FileBrowserPath;
 use chris::models::{ComputeResourceName, PluginInstanceId, PluginName};
-use login::config::ChrsConfig;
+use login::saved::SavedLogins;
 
 #[derive(Parser)]
 #[clap(
@@ -71,6 +71,9 @@ enum Commands {
 
     /// Forget login
     Logout {},
+
+    /// Switch user
+    Switch {},
 
     /// Get information about the ChRIS backend.
     Info {},
@@ -307,7 +310,7 @@ async fn main() -> Result<()> {
             src,
             dst,
             raw,
-            flatten
+            flatten,
         } => {
             let client = get_client(address, username, password, vec![src.as_str()]).await?;
             download(&client, &src, dst.as_deref(), shorten, !raw, flatten).await
@@ -324,6 +327,8 @@ async fn main() -> Result<()> {
             login::cmd::login(address, username, password, backend, password_stdin).await
         }
         Commands::Logout {} => login::cmd::logout(address, username),
+        Commands::Switch {} => login::switch::switch_login(address, username),
+
         Commands::PipelineFile(pf_command) => {
             match pf_command {
                 // PipelineFile::Export => { bail!("not implemented") }

@@ -1,4 +1,4 @@
-use crate::ChrsConfig;
+use crate::SavedLogins;
 use anyhow::{Context, Error, Result};
 use chris::auth::CUBEAuth;
 use chris::common_types::{CUBEApiUrl, Username};
@@ -32,7 +32,7 @@ pub async fn get_client(
             account.into_client().await.context("Password incorrect")
         }
         None => {
-            let login = ChrsConfig::load()?
+            let login = SavedLogins::load()?
                 .get_login(address.as_ref(), username.as_ref())?
                 .ok_or_else(|| Error::msg(&*NOT_LOGGED_IN))?;
             login.into_client().await.with_context(|| {

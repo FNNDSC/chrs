@@ -3,8 +3,8 @@ use chris::errors::CUBEError;
 use chris::models::{FeedId, FileResourceFname, PluginInstanceId};
 use chris::ChrisClient;
 use futures::{Stream, StreamExt};
-use std::collections::HashMap;
 use lazy_static::lazy_static;
+use std::collections::HashMap;
 
 lazy_static! {
     /// Substitutions for unallowed substrings for folder names.

@@ -1,5 +1,5 @@
-use crate::login::config;
 use crate::login::prompt::{prompt_if_missing, prompt_if_missing_password};
+use crate::login::saved;
 use crate::login::tokenstore;
 use anyhow::{bail, Context, Result};
 use chris::auth::CUBEAuth;
@@ -16,7 +16,7 @@ pub async fn login(
         bail!("Options --password and --password-stdin may not be used together.");
     }
 
-    let mut config = config::ChrsConfig::load()?;
+    let mut config = saved::SavedLogins::load()?;
     let account = CUBEAuth {
         client: &Default::default(),
         url: prompt_if_missing(address, "ChRIS API address")?,
@@ -34,7 +34,7 @@ pub async fn login(
 }
 
 pub fn logout(address: Option<CUBEApiUrl>, username: Option<Username>) -> anyhow::Result<()> {
-    let mut config = config::ChrsConfig::load()?;
+    let mut config = saved::SavedLogins::load()?;
     if let Some(given_address) = address {
         let removed = match username {
             Some(u) => config.remove(&given_address, Some(&u)),

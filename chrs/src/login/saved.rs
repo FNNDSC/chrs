@@ -1,7 +1,7 @@
 //! chrs application configuration --- mainly just saving
 //! the login token for CUBE, or possibly multiple CUBEs.
 //!
-//! The configuration file is saved to `~/.config/chrs/chrs.toml`.
+//! The configuration file is saved to `~/.config/chrs/login.toml`.
 //! The file contents are login tokens for CUBE stored in the
 //! order they were added, i.e. the last element is the most
 //! recently-added login token.
@@ -13,14 +13,15 @@ use serde::{Deserialize, Serialize};
 
 const SERVICE: &str = "org.chrisproject.chrs";
 const APP_NAME: &str = "chrs";
+const CONFIG_NAME: Option<&str> = Some("login");
 
 /// Saved logins for chrs.
 #[derive(Serialize, Deserialize, Default, Clone)]
-pub struct ChrsConfig {
-    cubes: Vec<SavedCubeAuth>,
+pub struct SavedLogins {
+    pub cubes: Vec<SavedCubeAuth>,
 }
 
-impl ChrsConfig {
+impl SavedLogins {
     /// Get the [Login] corresponding to user-supplied address and username.
     /// If address is not given, the first set of credentials appearing in
     /// the configuration file is assumed to be for the default CUBE.
@@ -69,7 +70,7 @@ impl ChrsConfig {
         None
     }
 
-    /// Append the given [Login]. If there already exists in this [ChrsConfig]
+    /// Append the given [Login]. If there already exists in this [SavedLogins]
     /// a token for the [Login]'s address and username, it is overwritten.
     pub fn add(&mut self, cube: Login, backend: Backend) -> Result<()> {
         self.remove(&cube.address, Some(&cube.username));
@@ -98,6 +99,12 @@ impl ChrsConfig {
         self.cubes.len() != original_len
     }
 
+    /// Set the preferred login account by swapping its position to the end.
+    pub fn set_last(&mut self, b: usize) {
+        let a = self.cubes.len() - 1;
+        self.cubes.swap(a, b)
+    }
+
     /// Remove all saved logins. Returns `true` if any logins were removed.
     pub fn clear(&mut self) -> bool {
         let original_len = self.cubes.len();
@@ -107,13 +114,13 @@ impl ChrsConfig {
 
     /// Load config from file.
     pub fn load() -> Result<Self> {
-        let c: Self = confy::load(APP_NAME, None).context("Couldn't load config file")?;
+        let c: Self = confy::load(APP_NAME, CONFIG_NAME).context("Couldn't load config file")?;
         Ok(c)
     }
 
     /// Write config to file.
     pub fn store(&self) -> Result<()> {
-        confy::store(APP_NAME, None, self).context("Couldn't write config file")
+        confy::store(APP_NAME, CONFIG_NAME, self).context("Couldn't write config file")
     }
 }
 
@@ -128,7 +135,7 @@ mod tests {
         static ref EXAMPLE_ADDRESS: CUBEApiUrl =
             CUBEApiUrl::from_str("https://example.com/api/v1/").unwrap();
         static ref EXAMPLE_USERNAME: Username = Username::from_str("testing-chrs").unwrap();
-        static ref EXAMPLE_CONFIG: ChrsConfig = ChrsConfig {
+        static ref EXAMPLE_CONFIG: SavedLogins = SavedLogins {
             cubes: vec![
                 SavedCubeAuth {
                     address: CUBEApiUrl::from_str("https://a.example.com/api/v1/").unwrap(),
@@ -156,7 +163,7 @@ mod tests {
 
     #[test]
     fn test_empty_config() -> Result<()> {
-        let empty_config = ChrsConfig::default();
+        let empty_config = SavedLogins::default();
         assert!(empty_config.get_login(None, None)?.is_none());
         assert!(empty_config
             .get_login(Some(&EXAMPLE_ADDRESS), None)?
@@ -234,7 +241,7 @@ mod tests {
 
     #[test]
     fn test_add() -> Result<()> {
-        let mut config = ChrsConfig::default();
+        let mut config = SavedLogins::default();
         assert_eq!(0, config.cubes.len());
         config.add(
             Login {
@@ -312,7 +319,7 @@ mod tests {
 
     #[test]
     fn test_remove() -> Result<()> {
-        let mut config = ChrsConfig::default();
+        let mut config = SavedLogins::default();
         config.add(
             Login {
                 address: CUBEApiUrl::from_str("https://one.example.com/api/v1/").unwrap(),
