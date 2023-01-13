@@ -82,6 +82,23 @@ chrs --address https://cube.chrisproject.org/api/v1/ logout
 chrs logout
 ```
 
+### `chrs switch`
+
+Switch between saved logins.
+
+```shell
+# interactive prompt, use arrow keys to choose
+chrs switch
+  jennings    http://cube-next.tch.harvard.edu/api/v1/
+  jenni       http://cube-next.tch.harvard.edu/api/v1/
+  rudolph     http://cube-next.tch.harvard.edu/api/v1/
+> jennydaman  https://cube.chrisproject.org/api/v1/
+  chris       https://cube.chrisproject.org/api/v1/
+  
+# non-interactive usage
+chrs switch --username jennydaman --address https://cube.chrisproject.org/api/v1/
+```
+
 ### `chrs feeds`
 
 List or search existing feeds.
