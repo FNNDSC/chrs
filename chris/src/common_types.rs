@@ -11,6 +11,8 @@ pub enum InvalidCUBEUrl {
     Protocol(String),
 }
 
+aliri_braid::from_infallible!(InvalidCUBEUrl);
+
 /// A [CUBEApiUrl] is the base URL for a CUBE, e.g.
 /// `https://cube.chrisproject.org/api/v1/`
 #[braid(validator, serde)]
