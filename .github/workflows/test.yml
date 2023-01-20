@@ -30,12 +30,31 @@ jobs:
           profile: minimal
       - name: Setup rust cache
         uses: Swatinem/rust-cache@v2
+      - name: Install tarpaulin
+        run: |
+          cd /tmp
+          wget https://github.com/xd009642/tarpaulin/releases/download/0.22.0/cargo-tarpaulin-0.22.0-travis.tar.gz
+          tar xvf cargo-tarpaulin-0.22.0-travis.tar.gz
+          rm -v cargo-tarpaulin-0.22.0-travis.tar.gz
+          mv -v cargo-tarpaulin ~/.cargo/bin/cargo-tarpaulin
+          cargo tarpaulin --version
       - name: Run tests
+        id: test
+        # Use wrapper script to access keyring
         # https://github.com/hwchen/keyring-rs/blob/4297618e0cf061eacedf6d7c3f164ee4074a3c5d/linux-test.sh
         run: |
           cat > test.sh << EOF
           rm -f $HOME/.local/share/keyrings/*
           echo -n "test" | gnome-keyring-daemon --unlock
-          cargo test
+          
+          exec tarpaulin --color Always --locked --all-features --workspace --timeout 120 --out Xml
+          
           EOF
-          dbus-run-session -- bash test.sh
+          dbus-run-session -- bash -ex test.sh
+        continue-on-error: true
+      - name: Upload coverage to Codecov
+        uses: codecov/codecov-action@v3
+        with:
+          files: ./cobertura.xml
+      - name: End test
+        run: '[ "${{ steps.test.outcome }}" = "success" ]'
