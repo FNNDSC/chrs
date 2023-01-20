@@ -3,7 +3,7 @@ mod executor;
 mod feeds;
 mod files;
 mod get;
-mod info;
+mod whoami;
 mod io_helper;
 mod login;
 mod pipeline_add;
@@ -19,7 +19,7 @@ use crate::feeds::list_feeds;
 use crate::files::download::download;
 use crate::files::ls;
 use crate::get::get;
-use crate::info::cube_info;
+use crate::whoami::cube_info;
 use crate::login::get_client::get_client;
 use crate::pipeline_add::{add_pipeline, convert_pipeline};
 use crate::plugin::{describe_plugin, run_latest};
@@ -75,8 +75,9 @@ enum Commands {
     /// Switch user
     Switch {},
 
-    /// Get information about the ChRIS backend.
-    Info {},
+    /// Show login information
+    #[clap(visible_alias = "who")]
+    Whoami {},
 
     /// List or search feeds
     Feeds {
@@ -291,7 +292,7 @@ async fn main() -> Result<()> {
             list_feeds(&client, limit).await
         }
 
-        Commands::Info {} => {
+        Commands::Whoami {} => {
             let client = get_client(address, username, password, vec![]).await?;
             cube_info(&client).await
         }

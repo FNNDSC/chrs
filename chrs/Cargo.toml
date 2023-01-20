@@ -15,7 +15,7 @@ categories = ["command-line-utilities", "science"]
 
 [dependencies]
 chris = { path = "../chris", version = "0.3.0" }
-clap = { version = "4.0.19", features = ["derive", "string"] }
+clap = { version = "4.1.1", features = ["derive", "string"] }
 lazy_static = "1.4.0"
 keyring = "1.1.2"
 anyhow = "1.0.56"
