@@ -82,7 +82,7 @@ jobs:
         continue-on-error: true
         run: |
           cd chris
-          cargo tarpaulin --color Always --locked --all-features --workspace --timeout 120 --out Xml
+          cargo tarpaulin --color Always --locked --all-features --timeout 120 --out Xml
 
       - name: Upload coverage to Codecov
         uses: codecov/codecov-action@v3
