@@ -88,6 +88,6 @@ jobs:
         uses: codecov/codecov-action@v3
         with:
           files: ./chris/cobertura.xml
-          tags: chris
+          flags: chris
       - name: End test
         run: '[ "${{ steps.test.outcome }}" = "success" ]'
