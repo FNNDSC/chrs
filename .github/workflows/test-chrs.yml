@@ -1,17 +1,20 @@
-name: Test
+# Make sure test workflows are more or less the same:
+#     diff -y --color=always test-chris.yml test-chrs.yml
+
+name: Test chrs (bin)
 
 env:
   CARGO_TERM_COLOR: always
 
 on:
   push:
-    branches: [ master ]
+    paths:
+      - 'chrs/**'
+      - 'Cargo.*'
   pull_request:
-    branches: [ master ]
 
 jobs:
-  test-chrs:
-    name: Test chrs (bin)
+  test:
     runs-on: ubuntu-latest
     steps:
       - name: Keyring dependencies
@@ -54,40 +57,5 @@ jobs:
         with:
           files: ./chrs/cobertura.xml
           flags: chrs
-      - name: End test
-        run: '[ "${{ steps.test.outcome }}" = "success" ]'
-
-  test-chris:
-    name: Test chris (lib)
-    runs-on: ubuntu-latest
-    steps:
-      - name: Run ChRIS backend
-        uses: FNNDSC/miniChRIS-docker@20230109
-
-      - name: Git checkout
-        uses: actions/checkout@v3
-      - name: Setup rust toolchain
-        uses: actions-rs/toolchain@v1
-        with:
-          toolchain: stable
-          profile: minimal
-      - name: Setup rust cache
-        uses: Swatinem/rust-cache@v2
-      - name: Install tarpaulin
-        uses: FNNDSC/quickinstall-tarpaulin@main
-        with:
-          version: '0.23.1'
-      - name: Run tests
-        id: test
-        continue-on-error: true
-        run: |
-          cd chris
-          cargo tarpaulin --color Always --locked --all-features --timeout 120 --out Xml
-
-      - name: Upload coverage to Codecov
-        uses: codecov/codecov-action@v3
-        with:
-          files: ./chris/cobertura.xml
-          flags: chris
       - name: End test
         run: '[ "${{ steps.test.outcome }}" = "success" ]'
