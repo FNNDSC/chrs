@@ -31,7 +31,7 @@ jobs:
       - name: Setup rust cache
         uses: Swatinem/rust-cache@v2
       - name: Install tarpaulin
-        uses: FNNDSC/quickinstall-tarpaulin
+        uses: FNNDSC/quickinstall-tarpaulin@main
         with:
           version: '0.23.1'
       - name: Run tests
@@ -74,7 +74,7 @@ jobs:
       - name: Setup rust cache
         uses: Swatinem/rust-cache@v2
       - name: Install tarpaulin
-        uses: FNNDSC/quickinstall-tarpaulin
+        uses: FNNDSC/quickinstall-tarpaulin@main
         with:
           version: '0.23.1'
       - name: Run tests
