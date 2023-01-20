@@ -1,6 +1,6 @@
 [package]
 name = "chrs"
-version = "0.2.0-alpha.5"
+version = "0.2.0-alpha.6"
 authors = ["FNNDSC <dev@babyMRI.org>"]
 
 edition = "2021"
@@ -48,3 +48,9 @@ rstest = "0.15.0"
 default = ["chris/default"]
 vendored-openssl = ["chris/vendored-openssl"]
 rustls = ["chris/rustls"]
+
+[package.metadata.binstall.overrides.x86_64-pc-windows-gnu]
+pkg-fmt = "zip"
+
+[package.metadata.binstall.overrides.x86_64-pc-windows-msvc]
+pkg-fmt = "zip"

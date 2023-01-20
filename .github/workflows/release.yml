@@ -8,7 +8,10 @@ on:
   push:
     tags:
       - "chris/[0-9]+.[0-9]+.[0-9]+*"
-      - "chrs/[0-9]+.[0-9]+.[0-9]+*"
+      - "v[0-9]+.[0-9]+.[0-9]+*"
+
+env:
+  CARGO_TERM_COLOR: always
 
 jobs:
   crate:
@@ -31,7 +34,7 @@ jobs:
         env:
           CARGO_REGISTRY_TOKEN: ${{ secrets.CARGO_REGISTRY_TOKEN }}
       - name: Publish chrs (cli)
-        if: startsWith( github.ref, 'refs/tags/chrs/' )
+        if: startsWith( github.ref, 'refs/tags/v' )
         uses: actions-rs/cargo@v1
         with:
           command: publish
@@ -41,9 +44,10 @@ jobs:
 
   # Cross-compile to many platforms and create compressed archive files for download.
   # Copied from
-  # https://github.com/ClementTsang/chrs/blob/d297ee4639f65e9bb1c0c636ebe9faad075822c1/.github/workflows/deployment.yml
+  # https://github.com/ClementTsang/bottom/blob/4870ff365a91b68eb0b9528c75375f01ce539e75/.github/workflows/build_releases.yml
+  # Modified to support https://github.com/cargo-bins/cargo-binstall/blob/7857856f78efa46e2ebfaab28451e171d6e4c54d/SUPPORT.md
   build-cross:
-    if: startsWith( github.ref, 'refs/tags/chrs/' )
+    if: startsWith( github.ref, 'refs/tags/v' )
     runs-on: ${{ matrix.triple.os }}
     container: ${{ matrix.triple.container }}
     env:
@@ -159,22 +163,28 @@ jobs:
         if: matrix.triple.os == 'windows-2019'
         shell: bash
         run: |
-          cp target/${{ matrix.triple.target }}/release/chrs.exe chrs.exe
-          7z a chrs_${{ matrix.triple.target }}.zip "chrs.exe"
-          echo "ASSET=chrs_${{ matrix.triple.target }}.zip" >> $GITHUB_ENV
+          version="${GITHUB_REF##*/}"
+          bin_dir="chrs-${{ matrix.triple.target }}${{ matrix.triple.suffix }}-$version"
+          mkdir $bin_dir
+          cp target/${{ matrix.triple.target }}/release/chrs.exe $bin_dir
+          7z a $bin_dir.zip $bin_dir
+          echo "ASSET=$bin_dir.zip" >> $GITHUB_ENV
       - name: Bundle release (Linux and macOS)
         if: matrix.triple.os != 'windows-2019'
         shell: bash
         run: |
-          mv -v chrs/ repo_chrs/
-          cp -v target/${{ matrix.triple.target }}/release/chrs ./chrs
-          tar -czvf chrs_${{ matrix.triple.target }}${{ matrix.triple.suffix }}.tar.gz chrs
-          echo "ASSET=chrs_${{ matrix.triple.target }}${{ matrix.triple.suffix }}.tar.gz" >> $GITHUB_ENV
+          version="${GITHUB_REF##*/}"
+          bin_dir="chrs-${{ matrix.triple.target }}${{ matrix.triple.suffix }}-$version"
+          mkdir -v $bin_dir
+          cp -v target/${{ matrix.triple.target }}/release/chrs $bin_dir
+          tarball="$bin_dir.tgz"
+          tar -czvf $tarball $bin_dir
+          echo "ASSET=$tarball" >> $GITHUB_ENV
       - name: Create release directory for artifact, move file
         shell: bash
         run: |
           mkdir -v release
-          mv -v ${{ env.ASSET }} release/
+          mv -v '${{ env.ASSET }}' release/
       - name: Save release as artifact
         uses: actions/upload-artifact@v3
         with:

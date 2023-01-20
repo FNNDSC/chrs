@@ -23,11 +23,20 @@ https://github.com/FNNDSC/chrs/releases/latest
 This is the easiest installation method, however there is no
 mechanism for automatic updates.
 
+### `cargo binstall`
 
-### Get from Crates.io
+[`cargo binstall`](https://github.com/cargo-bins/cargo-binstall) is a convenient solution
+for installing pre-compiled binaries using `cargo` as a package manager. First install rust-binstall,
+then run
+
+```shell
+cargo binstall chrs
+```
+
+### Build from source from crates.io
 
 Use [cargo](https://doc.rust-lang.org/cargo/) to get and build the
-package from crates.io:
+package from source, from crates.io:
 
 ```shell
 cargo install chrs
