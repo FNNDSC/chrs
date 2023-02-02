@@ -362,7 +362,7 @@ pub struct PluginParameter {
     pub plugin: PluginUrl,
 }
 
-#[derive(Deserialize, Debug, Clone, Eq, PartialEq)]
+#[derive(Deserialize, Debug, Copy, Clone, Eq, PartialEq)]
 #[serde(rename_all = "lowercase")]
 pub enum PluginParameterType {
     Boolean,
@@ -371,6 +371,19 @@ pub enum PluginParameterType {
     String,
     Path,
     Unextpath,
+}
+
+impl PluginParameterType {
+    pub fn as_str(&self) -> &'static str {
+        match self {
+            PluginParameterType::Boolean => "boolean",
+            PluginParameterType::Integer => "int",
+            PluginParameterType::Float => "float",
+            PluginParameterType::String => "string",
+            PluginParameterType::Path => "path",
+            PluginParameterType::Unextpath => "unextpath"
+        }
+    }
 }
 
 #[derive(Serialize, Deserialize, Debug, Clone, PartialEq)]

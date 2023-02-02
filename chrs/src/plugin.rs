@@ -180,6 +180,8 @@ fn pluginparameter2claparg(param: &PluginParameter) -> Arg {
         .get_or_insert(param.name.as_str())
         .to_string();
     let arg = Arg::new(&param.name)
+        .value_name(param.parameter_type.as_str())
+        .required(!param.optional)
         .help(&param.help)
         .long(long_flag)
         .action(action);
