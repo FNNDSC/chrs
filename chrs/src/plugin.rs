@@ -104,24 +104,31 @@ fn serialize_optional_resources(
     optional_resources.into_iter().flatten()
 }
 
+/// Use clap to serialize user-specified `args` for a `plugin`.
 async fn clap_serialize_params(
     plugin: &Plugin,
     args: &[String],
 ) -> Result<HashMap<String, PluginParameterValue>> {
     let parameter_info: Vec<PluginParameter> = plugin.get_parameters().try_collect().await?;
     let command = clap_params(&plugin.plugin.selfexec, &parameter_info);
-    let matches = command.try_get_matches_from(args)?;
+    parse_args_using(command, &parameter_info, args)
+}
 
+fn parse_args_using(
+    command: Command,
+    parameter_info: &[PluginParameter],
+    args: &[String],
+) -> Result<HashMap<String, PluginParameterValue>> {
+    let matches = command.try_get_matches_from(args)?;
     let parsed_params = parameter_info
-        .into_iter()
+        .iter()
         .filter_map(|p| get_param_from_matches(p, &matches))
         .collect();
-
     Ok(parsed_params)
 }
 
 fn get_param_from_matches(
-    param_info: PluginParameter,
+    param_info: &PluginParameter,
     matches: &ArgMatches,
 ) -> Option<(String, PluginParameterValue)> {
     // TODO does ChRIS support repeating args?
@@ -227,6 +234,7 @@ fn get_long_flag_name(long_flag: &str) -> Option<&str> {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use chris::models::{PluginParameterId, PluginParameterUrl};
     use rstest::*;
 
     #[rstest]
@@ -248,5 +256,81 @@ mod tests {
     #[case("-y", None)]
     fn test_get_long_flag_name(#[case] short_flag: &str, #[case] expected: Option<&str>) {
         assert_eq!(get_long_flag_name(short_flag), expected)
+    }
+
+    const EXAMPLE_PARAMS: &'static [(&str, PluginParameterType, PluginParameterAction, bool)] = &[
+        (
+            "fun",
+            PluginParameterType::Boolean,
+            PluginParameterAction::StoreTrue,
+            true,
+        ),
+        (
+            "not-boring",
+            PluginParameterType::Boolean,
+            PluginParameterAction::StoreFalse,
+            true,
+        ),
+        (
+            "haoma",
+            PluginParameterType::Integer,
+            PluginParameterAction::Store,
+            true,
+        ),
+        (
+            "score",
+            PluginParameterType::Float,
+            PluginParameterAction::Store,
+            false,
+        ),
+        (
+            "comment",
+            PluginParameterType::String,
+            PluginParameterAction::Store,
+            true,
+        ),
+    ];
+
+    #[fixture]
+    #[once]
+    fn params() -> Vec<PluginParameter> {
+        EXAMPLE_PARAMS
+            .iter()
+            .enumerate()
+            .map(|(i, (name, parameter_type, action, optional))| {
+                let c = name.chars().next().unwrap();
+                PluginParameter {
+                    url: format!("https://example.com/api/v1/plugins/parameters/{i}").into(),
+                    id: PluginParameterId(i as u32),
+                    name: name.to_string(),
+                    parameter_type: *parameter_type,
+                    optional: *optional,
+                    default: None,
+                    flag: format!("--{name}"),
+                    short_flag: format!("-{c}"),
+                    action: *action,
+                    help: format!("help message for \"{name}\""),
+                    ui_exposed: true,
+                    plugin: "https://example.com/api/v1/plugins/2/".into(),
+                }
+            })
+            .collect()
+    }
+
+    #[fixture]
+    fn command(params: &[PluginParameter]) -> Command {
+        clap_params("unit test for plugins.rs", params)
+    }
+
+    #[rstest]
+    fn test_parse_args_not_optional_param(mut command: Command, params: &[PluginParameter]) {
+        let e = parse_args_using(command, params, &["--fun".to_string()])
+            .expect_err("--score should be required");
+        let msg = e.to_string();
+        let expected_msg = "the following required arguments were not provided:";
+        let pos = msg.find(expected_msg)
+            .expect("error message should say \"required arguments were not provided\"");
+        let rest_of_msg = &msg[pos + expected_msg.len()..];
+        assert!(rest_of_msg.contains("--score <float>"))
     }
 }
