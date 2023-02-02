@@ -381,7 +381,7 @@ impl PluginParameterType {
             PluginParameterType::Float => "float",
             PluginParameterType::String => "string",
             PluginParameterType::Path => "path",
-            PluginParameterType::Unextpath => "unextpath"
+            PluginParameterType::Unextpath => "unextpath",
         }
     }
 }

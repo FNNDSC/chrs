@@ -44,7 +44,7 @@ fn noninteractive(
             Ok(None)
         } else {
             Err(anyhow::Error::msg("--address is required"))
-        }
+        };
     }
     let index = get_index_of(logins, &address, &username).ok_or_else(|| {
         anyhow::Error::msg(format!(

@@ -145,15 +145,7 @@ fn get_param_from_matches(
             let value: Option<f64> = matches.get_one(name).copied();
             value.map(PluginParameterValue::Float)
         }
-        PluginParameterType::String => {
-            let value: Option<String> = matches.get_one::<String>(name).map(String::from);
-            value.map(PluginParameterValue::Stringish)
-        }
-        PluginParameterType::Path => {
-            let value: Option<String> = matches.get_one::<String>(name).map(String::from);
-            value.map(PluginParameterValue::Stringish)
-        }
-        PluginParameterType::Unextpath => {
+        _ => {
             let value: Option<String> = matches.get_one::<String>(name).map(String::from);
             value.map(PluginParameterValue::Stringish)
         }
@@ -181,6 +173,7 @@ fn pluginparameter2claparg(param: &PluginParameter) -> Arg {
         .to_string();
     let arg = Arg::new(&param.name)
         .value_name(param.parameter_type.as_str())
+        .value_parser(clap_parser_for(param.parameter_type))
         .required(!param.optional)
         .help(&param.help)
         .long(long_flag)
@@ -190,6 +183,17 @@ fn pluginparameter2claparg(param: &PluginParameter) -> Arg {
         arg.short(short_flag)
     } else {
         arg
+    }
+}
+
+fn clap_parser_for(t: PluginParameterType) -> clap::builder::ValueParser {
+    match t {
+        PluginParameterType::Boolean => clap::builder::ValueParser::bool(),
+        PluginParameterType::Integer => clap::value_parser!(i64).into(),
+        PluginParameterType::Float => clap::value_parser!(f64).into(),
+        PluginParameterType::String => clap::builder::ValueParser::string(),
+        PluginParameterType::Path => clap::builder::ValueParser::string(),
+        PluginParameterType::Unextpath => clap::builder::ValueParser::string(),
     }
 }
 

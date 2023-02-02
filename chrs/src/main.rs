@@ -3,12 +3,12 @@ mod executor;
 mod feeds;
 mod files;
 mod get;
-mod whoami;
 mod io_helper;
 mod login;
 mod pipeline_add;
 mod plugin;
 mod upload;
+mod whoami;
 
 use std::path::PathBuf;
 
@@ -19,11 +19,11 @@ use crate::feeds::list_feeds;
 use crate::files::download::download;
 use crate::files::ls;
 use crate::get::get;
-use crate::whoami::cube_info;
 use crate::login::get_client::get_client;
 use crate::pipeline_add::{add_pipeline, convert_pipeline};
 use crate::plugin::{describe_plugin, run_latest};
 use crate::upload::upload;
+use crate::whoami::cube_info;
 use chris::common_types::{CUBEApiUrl, Username};
 use chris::filebrowser::FileBrowserPath;
 use chris::models::{ComputeResourceName, PluginInstanceId, PluginName};
