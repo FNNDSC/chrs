@@ -370,7 +370,7 @@ impl PathNamer {
         let query = &[("title", title), ("limit", "1")];
         let search = self.chris.search_plugin_instances(query);
         pin_mut!(search);
-        search
+        let folder = search
             .try_next()
             .await
             .map_err(TranslationError::RequestError)?
@@ -381,7 +381,12 @@ impl PathNamer {
                 parse_plinst_id(title)
                     .map_err(|_| e)
                     .map(|_| title.to_string())
-            })
+            });
+        if let Some(second) = search.try_next().await? {
+            Err(TranslationError::AmbiguousPluginInstanceTitleError(second.title))
+        } else {
+            folder
+        }
     }
 
     /// Given the name of a feed, search CUBE for its ID *N* and return its folder name in the
@@ -390,7 +395,7 @@ impl PathNamer {
         let query = &[("name", feed_name), ("limit", "1")];
         let search = self.chris.search_feeds(query);
         pin_mut!(search);
-        search
+        let folder = search
             .try_next()
             .await
             .map_err(TranslationError::RequestError)?
@@ -401,7 +406,12 @@ impl PathNamer {
                 parse_feed_folder(feed_name)
                     .map(|_| feed_name.to_string())
                     .ok_or(e)
-            })
+            });
+        if let Some(second) = search.try_next().await? {
+            Err(TranslationError::AmbiguousFeedNameError(second.name))
+        } else {
+            folder
+        }
     }
 }
 
@@ -409,6 +419,12 @@ impl PathNamer {
 pub enum TranslationError {
     #[error(transparent)]
     RequestError(#[from] reqwest::Error),
+
+    #[error("Ambiguous name: \"{0}\" (must give canonical fname with numerical ID)")]  // TODO show matching feed IDs
+    AmbiguousFeedNameError(String),
+
+    #[error("Ambiguous title: \"{0}\" (must give canonical fname with numerical ID)")]  // TODO show matching plugin instance IDs
+    AmbiguousPluginInstanceTitleError(String),
 
     #[error("Cannot find feed with name \"{0}\"")]
     FeedNotFound(String),
