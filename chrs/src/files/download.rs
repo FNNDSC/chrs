@@ -11,7 +11,6 @@ use std::path::{Path, PathBuf};
 use tokio::fs;
 use tokio::fs::File;
 use tokio_util::io::StreamReader;
-use url::Url;
 
 /// `chrs download` command.
 pub(crate) async fn download(
@@ -29,6 +28,7 @@ pub(crate) async fn download(
     let dst = choose_dst(client.url(), src, dst);
 
     // FIXME
+    // - duplicate code with list_files.rs
     // - namer should be saved and passed along to the directory download function.
     // - the whole shebang of accepting arguments as a union-type of URL, plugin instance title,
     //   "renamed" human-readable fname-like, fname-like, or fname, should be consolidated into
