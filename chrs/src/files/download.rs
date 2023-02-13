@@ -28,7 +28,19 @@ pub(crate) async fn download(
 
     let dst = choose_dst(client.url(), src, dst);
 
-    let url = parse_src(src, client.url());
+    // FIXME
+    // - namer should be saved and passed along to the directory download function.
+    // - the whole shebang of accepting arguments as a union-type of URL, plugin instance title,
+    //   "renamed" human-readable fname-like, fname-like, or fname, should be consolidated into
+    //   one helper which is used everywhere.
+    let src = if !src.starts_with("http") {
+        let mut namer = MaybeNamer::new(client, rename);
+        namer.translate(src).await?
+    } else {
+        src.to_string()
+    };
+
+    let url = parse_src(&src, client.url());
     let count = client.get_count(url.as_str()).await.with_context(|| {
         format!(
             "Could not get count of files from {} -- is it a files URL?",
@@ -42,7 +54,7 @@ pub(crate) async fn download(
     if count == 1 {
         download_single_file(client, &url, &dst).await
     } else {
-        download_directory(client, &url, src, &dst, shorten, rename, count).await
+        download_directory(client, &url, &src, &dst, shorten, rename, count).await
     }
 }
 

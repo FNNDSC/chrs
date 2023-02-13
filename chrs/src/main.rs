@@ -119,7 +119,9 @@ enum Commands {
         raw: bool,
 
         /// Join contents of all "data" folders to the same output directory.
-        #[clap(short, long)]
+        ///
+        /// Useful when trying to download sibling plugin instance outputs.
+        #[clap(short, long, hide = true)]
         flatten: bool,
 
         /// What to download. Can either be a ChRIS Library files path or
