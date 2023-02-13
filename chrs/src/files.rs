@@ -1,6 +1,6 @@
 mod descent;
 pub(crate) mod download;
-mod human_paths;
+mod fname_util;
 mod list_files;
 mod ls;
 mod tree;

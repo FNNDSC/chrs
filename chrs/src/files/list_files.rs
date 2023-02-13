@@ -1,4 +1,4 @@
-use crate::files::human_paths::MaybeNamer;
+use crate::files::fname_util::MaybeNamer;
 use chris::ChrisClient;
 
 pub(crate) async fn list_files(

@@ -1,4 +1,4 @@
-use crate::files::human_paths::MaybeNamer;
+use crate::files::fname_util::MaybeNamer;
 use crate::files::list_files::list_files;
 use crate::files::tree::files_tree;
 use chris::ChrisClient;
@@ -13,7 +13,6 @@ pub(crate) async fn ls(
 ) -> anyhow::Result<()> {
     let mut namer = MaybeNamer::new(client, rename);
     let path = namer.translate(path).await?;
-    // let path = path.to_string();
     if tree {
         files_tree(client, path, full, level, namer).await
     } else {

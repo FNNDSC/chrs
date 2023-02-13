@@ -1,27 +1,60 @@
-//! Miscellaneous notes. (Where should I put this?)
+//! Helper functions for dealing with understanding fnames.
+//!
+//! **WIP WIP WIP WIP WIP**
+//!
+//! ## Notes
 //!
 //! There is no consistent terminology used in the code. Though perhaps
 //! some definitions are better than none:
 //!
 //! Made-up vocabulary:
+//!
 //! - fname is the `fname` of an **existing** file in *CUBE*, e.g. `chris/feed_4/pl-dircopy_7/data/hello.txt`
-//! - fname-like is a string which looks like some left-part of a fname. fname-like strings
-//!   are appropriate values for the `path` argument of `api/v1/filebrowser/search/`.
+//! - fname-like, a.k.a. _fnl_, is a string which looks like some left-part of a fname.
+//!   fname-like strings are appropriate values for the `path` argument of
+//!   `api/v1/filebrowser/search/`.
 //!   For instance, `chris/feed_4` is a fname-like (but not a valid fname).
+//!   _fnl_ is a superset of fname.
+
+use aliri_braid::braid;
 use async_stream::stream;
+use chris::common_types::CUBEApiUrl;
 use chris::errors::CUBEError;
-use chris::models::{FeedId, FileResourceFname, PluginInstanceId};
+use chris::models::{AnyFilesUrl, FeedId, FileResourceFname, PluginInstanceId};
 use chris::ChrisClient;
 use futures::{pin_mut, Stream, StreamExt, TryStreamExt};
 use itertools::Itertools;
 use lazy_static::lazy_static;
 use std::collections::HashMap;
+use url::Url;
 
 lazy_static! {
     /// Substitutions for unallowed substrings for folder names.
     static ref FOLDER_SUBSTR_SUBSTITUTIONS: HashMap<&'static str, &'static str> = [
         ("/", "!SLASH!")
     ].into_iter().collect();
+}
+
+/// User-supplied argument to `chrs download` or `chrs ls`.
+///
+/// One of:
+/// - canonical fname, e.g. "chris/feed_100/pl-dircopy_110/pl-whatever_111/data.txt"
+/// - fname-like\*, e.g. "chris/feed_100"
+/// - named fname-like, e.g. "chris/My analysis on brain images"
+/// - A [chris::models::AnyFilesUrl], e.g. "https://cube.chrisproject.org/api/v1/plugins/instances/111/files"
+#[braid(serde)]
+pub struct UnionFnameLike;
+
+/// A user-supplied [chris::filebrowser::FileBrowserPath]
+/// (opposed to a value coming from the API, meaning `FnameLike` may or may not
+/// have been tested for existence).
+#[braid(serde)]
+pub struct FnameLike;
+
+impl FnameLike {
+    pub fn to_url(&self, base_url: &CUBEApiUrl) {
+        unimplemented!()
+    }
 }
 
 /// Wrapper around [Option<PathNamer>].
@@ -37,6 +70,10 @@ impl MaybeNamer {
             None
         };
         Self { namer }
+    }
+
+    pub fn canonicalize(&mut self, ufn: UnionFnameLike) -> FnameLike {
+        todo!()
     }
 
     /// Calls the wrapped [PathNamer::rename] if Some,
@@ -380,6 +417,40 @@ pub enum TranslationError {
     PluginInstanceNotFound(String),
 }
 
+/// Figure out whether the input is a URL or a path.
+/// If it's a path, then construct a search URL from it.
+///
+/// Returns the URL and the length of the given fname, or 0
+/// if not given an fname.
+pub fn parse_src(src: &str, address: &CUBEApiUrl) -> AnyFilesUrl {
+    if src.starts_with(address.as_str()) {
+        return src.into();
+    }
+    if src.starts_with("SERVICES") {
+        if src.starts_with("SERVICES/PACS") {
+            return to_search(address, "pacsfiles", src);
+        }
+        return to_search(address, "servicefiles", src);
+    }
+    if let Some((_username, subdir)) = src.split_once('/') {
+        if subdir.starts_with("uploads") {
+            return to_search(address, "uploadedfiles", src);
+        }
+    }
+    to_search(address, "files", src)
+}
+
+/// Create a search API URL for the endpoint and fname.
+fn to_search(address: &CUBEApiUrl, endpoint: &str, fname: &str) -> AnyFilesUrl {
+    Url::parse_with_params(
+        &format!("{}{}/search/", address, endpoint),
+        &[("fname", fname)],
+    )
+    .unwrap()
+    .as_str()
+    .into()
+}
+
 /// If given `path` looks like a fname-like of a feed output file which was renamed by
 /// [PathNamer::rename], then split it into its components:
 ///
@@ -489,6 +560,27 @@ mod tests {
     use rstest::*;
 
     #[rstest]
+    #[case(
+        "https://example.com/api/v1/uploadedfiles/search/?fname_icontains=gluten",
+        "https://example.com/api/v1/uploadedfiles/search/?fname_icontains=gluten"
+    )]
+    #[case(
+        "SERVICES/PACS/orthanc",
+        "https://example.com/api/v1/pacsfiles/search/?fname=SERVICES%2FPACS%2Forthanc"
+    )]
+    #[case(
+        "waffle/uploads/powdered_sugar",
+        "https://example.com/api/v1/uploadedfiles/search/?fname=waffle%2Fuploads%2Fpowdered_sugar"
+    )]
+    #[case(
+        "cereal/feed_1/pl-dircopy_1",
+        "https://example.com/api/v1/files/search/?fname=cereal%2Ffeed_1%2Fpl-dircopy_1"
+    )]
+    fn test_parse_src_url(#[case] src: &str, #[case] expected: &str, example_address: &CUBEApiUrl) {
+        assert_eq!(parse_src(src, example_address), AnyFilesUrl::from(expected));
+    }
+
+    #[rstest]
     fn test_consume_feed_fname() {
         let input = "chrisuser/feed_187/pl-fs-app_200/pl-ds-app_202/hello.json";
         let (username, feed_folder, feed_id, rest) = consume_feed_fname(input.split('/')).unwrap();
@@ -548,6 +640,12 @@ mod tests {
     ) {
         let actual = split_renamed_path(path);
         assert_eq!(actual, expected);
+    }
+
+    #[fixture]
+    #[once]
+    fn example_address() -> CUBEApiUrl {
+        CUBEApiUrl::try_from("https://example.com/api/v1/").unwrap()
     }
 
     // TODO: use HTTP mocking to test PathNamer::rename

@@ -1,5 +1,5 @@
 use crate::executor::do_with_progress;
-use crate::files::human_paths::MaybeNamer;
+use crate::files::fname_util::MaybeNamer;
 use crate::io_helper::progress_bar_bytes;
 use anyhow::{bail, Context};
 use async_stream::try_stream;
@@ -40,7 +40,7 @@ pub(crate) async fn download(
         src.to_string()
     };
 
-    let url = parse_src(&src, client.url());
+    let url = crate::files::fname_util::parse_src(&src, client.url());
     let count = client.get_count(url.as_str()).await.with_context(|| {
         format!(
             "Could not get count of files from {} -- is it a files URL?",
@@ -291,40 +291,6 @@ fn choose_dst(url: &CUBEApiUrl, src: &str, dst: Option<&Path>) -> PathBuf {
     PathBuf::from(basename)
 }
 
-/// Figure out whether the input is a URL or a path.
-/// If it's a path, then construct a search URL from it.
-///
-/// Returns the URL and the length of the given fname, or 0
-/// if not given an fname.
-fn parse_src(src: &str, address: &CUBEApiUrl) -> AnyFilesUrl {
-    if src.starts_with(address.as_str()) {
-        return src.into();
-    }
-    if src.starts_with("SERVICES") {
-        if src.starts_with("SERVICES/PACS") {
-            return to_search(address, "pacsfiles", src);
-        }
-        return to_search(address, "servicefiles", src);
-    }
-    if let Some((_username, subdir)) = src.split_once('/') {
-        if subdir.starts_with("uploads") {
-            return to_search(address, "uploadedfiles", src);
-        }
-    }
-    to_search(address, "files", src)
-}
-
-/// Create a search API URL for the endpoint and fname.
-fn to_search(address: &CUBEApiUrl, endpoint: &str, fname: &str) -> AnyFilesUrl {
-    Url::parse_with_params(
-        &format!("{}{}/search/", address, endpoint),
-        &[("fname", fname)],
-    )
-    .unwrap()
-    .as_str()
-    .into()
-}
-
 /// If src is a path, assume it's a directory and
 /// return the length of its name with a trailing slash.
 fn dir_length_of(address: &CUBEApiUrl, src: &str) -> usize {
@@ -408,27 +374,6 @@ mod tests {
     ) {
         let actual = choose_dst(example_address, src, dst.map(Path::new));
         assert_eq!(actual.as_path(), Path::new(expected))
-    }
-
-    #[rstest]
-    #[case(
-        "https://example.com/api/v1/uploadedfiles/search/?fname_icontains=gluten",
-        "https://example.com/api/v1/uploadedfiles/search/?fname_icontains=gluten"
-    )]
-    #[case(
-        "SERVICES/PACS/orthanc",
-        "https://example.com/api/v1/pacsfiles/search/?fname=SERVICES%2FPACS%2Forthanc"
-    )]
-    #[case(
-        "waffle/uploads/powdered_sugar",
-        "https://example.com/api/v1/uploadedfiles/search/?fname=waffle%2Fuploads%2Fpowdered_sugar"
-    )]
-    #[case(
-        "cereal/feed_1/pl-dircopy_1",
-        "https://example.com/api/v1/files/search/?fname=cereal%2Ffeed_1%2Fpl-dircopy_1"
-    )]
-    fn test_parse_src_url(#[case] src: &str, #[case] expected: &str, example_address: &CUBEApiUrl) {
-        assert_eq!(parse_src(src, example_address), AnyFilesUrl::from(expected));
     }
 
     #[rstest]

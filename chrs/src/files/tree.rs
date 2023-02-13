@@ -4,7 +4,7 @@
 //! - `folder`, `folder_name`, or `subfolder` is just the last component, e.g. `feed_42`
 
 use crate::files::descent::DescentContext;
-use crate::files::human_paths::MaybeNamer;
+use crate::files::fname_util::MaybeNamer;
 use anyhow::bail;
 use async_recursion::async_recursion;
 use async_stream::stream;
