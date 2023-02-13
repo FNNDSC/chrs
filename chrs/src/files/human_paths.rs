@@ -227,7 +227,7 @@ impl PathNamer {
             Ok(title) => {
                 let title = substitute_unallowed(title);
                 let title = this_or_that(title, folder);
-                self.plinst_memo.insert(title.clone(), title.clone());
+                self.plinst_memo.insert(folder.to_string(), title.clone());
                 title
             }
             Err(e) => {
