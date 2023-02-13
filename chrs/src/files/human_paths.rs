@@ -12,7 +12,7 @@ use async_stream::stream;
 use chris::errors::CUBEError;
 use chris::models::{FeedId, FileResourceFname, PluginInstanceId};
 use chris::ChrisClient;
-use futures::{pin_mut, Stream, StreamExt, TryFutureExt, TryStreamExt};
+use futures::{pin_mut, Stream, StreamExt, TryStreamExt};
 use itertools::Itertools;
 use lazy_static::lazy_static;
 use std::collections::HashMap;
@@ -279,22 +279,28 @@ impl PathNamer {
     /// Attempts to reverse operation of [Self:rename]. Untranslatable
     /// path components are left as-is.
     pub async fn translate(&mut self, path: &str) -> Result<String, TranslationError> {
-        if let Some((
-            username_folder,
-            feed_name,
-            renamed_plinst_folders,
-            data_folder,
-            output_path,
-        )) = split_renamed_path(path)
+        if let Some((username_folder, feed_name, joined_plinst_titles, data_folder, output_path)) =
+            split_renamed_path(path)
         {
-            // OPTIMIZATION: these async operations can and should be done in parallel using join!
-            let feed_folder = self.feed_name2folder(feed_name).await?;
+            let plinst_titles: Vec<&str> = joined_plinst_titles.split('/').collect();
+            let (feed_folder, plinst_folders) = tokio::try_join!(
+                self.feed_name2folder(feed_name),
+                self.plinst_titles2folders(&plinst_titles)
+            )?;
 
-            // TODO translate renamed_plinst_folders
+            // cache the stuff
+            self.feed_memo
+                .insert(feed_folder.to_string(), feed_name.to_string());
+            for (plinst_folder, plinst_title) in plinst_folders.iter().zip(plinst_titles.iter()) {
+                self.plinst_memo
+                    .insert(plinst_folder.to_string(), plinst_title.to_string());
+            }
+
+            let joined_plinst_folders = plinst_folders.join("/");
             let components = [
                 username_folder,
                 &feed_folder,
-                renamed_plinst_folders,
+                &joined_plinst_folders,
                 data_folder,
                 output_path,
             ];
@@ -305,27 +311,22 @@ impl PathNamer {
         }
     }
 
+    async fn plinst_titles2folders(
+        &self,
+        titles: &[&str],
+    ) -> Result<Vec<String>, TranslationError> {
+        Ok(titles.iter().map(|s| s.to_string()).collect())
+    }
+
     /// Given the name of a feed, search CUBE for its ID *N* and return its folder name in the
     /// format "feed_*N*". If the feed is found, its name will be cached.
     ///
     /// If given a feed folder, do nothing and return it.
-    pub async fn feed_name2folder(&mut self, feed_name: &str) -> Result<String, TranslationError> {
-        self.feed_memo.get(feed_name); // TODO just does a mut borrow of self
+    pub async fn feed_name2folder(&self, feed_name: &str) -> Result<String, TranslationError> {
         if parse_feed_folder(feed_name).is_some() {
             return Ok(feed_name.to_string());
         }
-        let feed_folder = self.just_get_feed_folder(feed_name).await?;
-        self.feed_memo
-            .insert(feed_folder.to_string(), feed_name.to_string());
-        Ok(feed_folder)
-    }
 
-    /// Make a request to search for a feed ID *N*, given feed name.
-    /// If feed is found, then return its folder name in the format "feed_N".
-    async fn just_get_feed_folder<'a>(
-        &'a self,
-        feed_name: &'a str,
-    ) -> Result<String, TranslationError> {
         let query = &[("name", feed_name), ("limit", "1")];
         let search = self.chris.search_feeds(query);
         pin_mut!(search);
