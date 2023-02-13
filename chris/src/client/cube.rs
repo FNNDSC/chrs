@@ -17,12 +17,13 @@ use crate::models::FeedResponse;
 use crate::models::*;
 use crate::pagination::*;
 use crate::pipeline::CanonPipeline;
+use fs_err::tokio::{File, OpenOptions};
 use reqwest::header::{HeaderMap, HeaderValue, ACCEPT, AUTHORIZATION};
 use reqwest::multipart::{Form, Part};
 use reqwest::Body;
 use serde::de::DeserializeOwned;
 use serde::{Deserialize, Serialize};
-use tokio::fs::{self, File, OpenOptions};
+use tokio::io::AsyncWriteExt;
 use tokio_util::codec::{BytesCodec, FramedRead};
 use tokio_util::io::StreamReader;
 
@@ -168,7 +169,7 @@ impl ChrisClient {
             .to_string(); // gives it 'static lifetime (?)
         let file = File::open(local_file).await.map_err(FileIOError::IO)?;
         let stream = FramedRead::new(file, BytesCodec::new());
-        let content_length = fs::metadata(local_file).await?.len();
+        let content_length = fs_err::tokio::metadata(local_file).await?.len();
         self.upload_stream(stream, filename, path, content_length)
             .await
     }
@@ -369,7 +370,6 @@ mod tests {
     use rstest::*;
     use std::path::PathBuf;
     use tempfile::TempDir;
-    use tokio::io::AsyncWriteExt;
 
     const CUBE_URL: &str = "http://localhost:8000/api/v1/";
 
@@ -384,13 +384,13 @@ mod tests {
         let input_file = tmp_path.join(Path::new("hello.txt"));
         let output_file = tmp_path.join(Path::new("same.txt"));
         {
-            fs::File::create(&input_file).await?.write_all(data).await?;
+            File::create(&input_file).await?.write_all(data).await?;
         }
         let upload = chris
             .upload_file(&input_file, "test_files_upload_iter.txt")
             .await?;
         chris.download_file(&upload, &output_file, false).await?;
-        let downloaded = tokio::fs::read(output_file).await?;
+        let downloaded = fs_err::tokio::read(output_file).await?;
         assert_eq!(data, downloaded.as_slice());
         Ok(())
     }
@@ -410,7 +410,7 @@ mod tests {
             .collect();
         let writes = file_names
             .iter()
-            .map(|f| fs::File::create(f))
+            .map(|f| File::create(f))
             .zip(Generator::default())
             .map(|(f, data)| async move { f.await.unwrap().write_all(data.as_ref()).await });
         try_join_all(writes).await?;
@@ -583,7 +583,7 @@ mod tests {
         let tmp_path = TempDir::new()?.into_path();
         let input_file = tmp_path.join(Path::new("hello.txt"));
         {
-            fs::File::create(&input_file).await?.write_all(data).await?;
+            File::create(&input_file).await?.write_all(data).await?;
         }
         let upload_path = format!(
             "{}/{}",

@@ -314,13 +314,14 @@ checksum = "baf1de4339761588bc0619e3cbc0120ee582ebb74b53b4efbf79117bd2da40fd"
 
 [[package]]
 name = "chris"
-version = "0.3.2"
+version = "0.3.3"
 dependencies = [
  "aliri_braid",
  "async-std",
  "async-stream",
  "bytes",
  "console",
+ "fs-err",
  "futures",
  "itertools 0.10.3",
  "lazy_static",
@@ -357,7 +358,7 @@ dependencies = [
 
 [[package]]
 name = "chrs"
-version = "0.2.0-alpha.7"
+version = "0.2.0"
 dependencies = [
  "aliri_braid",
  "anyhow",
@@ -795,9 +796,12 @@ dependencies = [
 
 [[package]]
 name = "fs-err"
-version = "2.7.0"
+version = "2.9.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "5bd79fa345a495d3ae89fb7165fec01c0e72f41821d642dda363a1e97975652e"
+checksum = "0845fa252299212f0389d64ba26f34fa32cfe41588355f21ed507c59a0f64541"
+dependencies = [
+ "tokio",
+]
 
 [[package]]
 name = "futures"
@@ -2356,9 +2360,9 @@ checksum = "cda74da7e1a664f795bb1f8a87ec406fb89a02522cf6e50620d016add6dbbf5c"
 
 [[package]]
 name = "tokio"
-version = "1.20.0"
+version = "1.25.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "57aec3cfa4c296db7255446efb4928a6be304b431a806216105542a67b6ca82e"
+checksum = "c8e00990ebabbe4c14c08aca901caed183ecd5c09562a12c824bb53d3c3fd3af"
 dependencies = [
  "autocfg",
  "bytes",
@@ -2366,13 +2370,12 @@ dependencies = [
  "memchr",
  "mio",
  "num_cpus",
- "once_cell",
  "parking_lot",
  "pin-project-lite",
  "signal-hook-registry",
  "socket2",
  "tokio-macros",
- "winapi",
+ "windows-sys 0.42.0",
 ]
 
 [[package]]
