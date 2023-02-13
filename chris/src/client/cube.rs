@@ -76,6 +76,13 @@ impl ChrisClient {
         self.search(&self.url, query)
     }
 
+    pub fn search_plugin_instances<'a, T: Serialize + ?Sized>(
+        &'a self,
+        query: &'a T,
+    ) -> impl Stream<Item = Result<PluginInstanceResponse, reqwest::Error>> + '_ {
+        self.search(&self.links.plugin_instances, query)
+    }
+
     /// Upload a pipeline to _ChRIS_.
     pub async fn upload_pipeline(
         &self,

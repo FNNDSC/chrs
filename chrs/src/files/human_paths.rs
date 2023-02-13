@@ -282,7 +282,10 @@ impl PathNamer {
         if let Some((username_folder, feed_name, joined_plinst_titles, data_folder, output_path)) =
             split_renamed_path(path)
         {
-            let plinst_titles: Vec<&str> = joined_plinst_titles.split('/').collect();
+            let plinst_titles: Vec<&str> = joined_plinst_titles
+                .split('/')
+                .filter(|s| !s.is_empty())
+                .collect();
             let (feed_folder, plinst_folders) = tokio::try_join!(
                 self.feed_name2folder(feed_name),
                 self.plinst_titles2folders(&plinst_titles)
@@ -311,22 +314,42 @@ impl PathNamer {
         }
     }
 
+    /// Convert plugin instance titles to plugin instance folder names.
+    ///
+    /// TODO: the searches can be made more strict using information about `previous_id`
+    /// and `feed_id`, which we know from the full given path.
     async fn plinst_titles2folders(
         &self,
         titles: &[&str],
     ) -> Result<Vec<String>, TranslationError> {
-        Ok(titles.iter().map(|s| s.to_string()).collect())
+        futures::stream::iter(titles)
+            .map(|title| self.plinst_title2folder(title))
+            .buffered(10)
+            .try_collect()
+            .await
+    }
+
+    async fn plinst_title2folder(&self, title: &str) -> Result<String, TranslationError> {
+        let query = &[("title", title), ("limit", "1")];
+        let search = self.chris.search_plugin_instances(query);
+        pin_mut!(search);
+        search
+            .try_next()
+            .await
+            .map_err(TranslationError::RequestError)?
+            .map(|plinst| format!("{}_{}", plinst.plugin_name.as_str(), plinst.id.0))
+            .ok_or_else(|| TranslationError::PluginInstanceNotFound(title.to_string()))
+            .or_else(|e| {
+                // given value is not a plugin instance ID, but looks like a valid folder already
+                parse_plinst_id(title)
+                    .map_err(|_| e)
+                    .map(|_| title.to_string())
+            })
     }
 
     /// Given the name of a feed, search CUBE for its ID *N* and return its folder name in the
     /// format "feed_*N*". If the feed is found, its name will be cached.
-    ///
-    /// If given a feed folder, do nothing and return it.
-    pub async fn feed_name2folder(&self, feed_name: &str) -> Result<String, TranslationError> {
-        if parse_feed_folder(feed_name).is_some() {
-            return Ok(feed_name.to_string());
-        }
-
+    async fn feed_name2folder(&self, feed_name: &str) -> Result<String, TranslationError> {
         let query = &[("name", feed_name), ("limit", "1")];
         let search = self.chris.search_feeds(query);
         pin_mut!(search);
@@ -336,6 +359,12 @@ impl PathNamer {
             .map_err(TranslationError::RequestError)?
             .map(|feed| format!("feed_{}", feed.id.0))
             .ok_or_else(|| TranslationError::FeedNotFound(feed_name.to_string()))
+            .or_else(|e| {
+                // given value is not a feed name, but looks like a valid feed folder already
+                parse_feed_folder(feed_name)
+                    .map(|_| feed_name.to_string())
+                    .ok_or(e)
+            })
     }
 }
 
