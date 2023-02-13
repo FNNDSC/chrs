@@ -26,13 +26,14 @@ use tokio::sync::mpsc::UnboundedSender;
 /// Show files in _ChRIS_ using the file browser API in a tree diagram.
 pub(crate) async fn files_tree(
     client: &ChrisClient,
-    path: &FileBrowserPath,
+    path: String,
     full: bool,
     depth: u16,
     namer: MaybeNamer,
 ) -> anyhow::Result<()> {
     let fb = client.file_browser();
-    match fb.browse(path).await? {
+    let path = path.into();
+    match fb.browse(&path).await? {
         None => bail!("Cannot find: {}", path),
         Some(v) => print_tree_from(&fb, v, full, depth, namer).await,
     }?;

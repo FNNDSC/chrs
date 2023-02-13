@@ -69,8 +69,11 @@ impl ChrisClient {
         FileBrowser::new(self.client.clone(), self.links.filebrowser.clone())
     }
 
-    pub fn search_feeds(&self) -> impl Stream<Item = Result<FeedResponse, reqwest::Error>> + '_ {
-        self.search(&self.url, &[("min_id", "0")]) // TODO
+    pub fn search_feeds<'a, T: Serialize + ?Sized>(
+        &'a self,
+        query: &'a T,
+    ) -> impl Stream<Item = Result<FeedResponse, reqwest::Error>> + '_ {
+        self.search(&self.url, query)
     }
 
     /// Upload a pipeline to _ChRIS_.

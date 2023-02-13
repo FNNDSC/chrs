@@ -7,3 +7,4 @@ pub(crate) mod plugin;
 
 pub mod errors;
 pub mod filebrowser;
+mod search;

@@ -25,7 +25,6 @@ use crate::plugin::{describe_plugin, run_latest};
 use crate::upload::upload;
 use crate::whoami::cube_info;
 use chris::common_types::{CUBEApiUrl, Username};
-use chris::filebrowser::FileBrowserPath;
 use chris::models::{ComputeResourceName, PluginInstanceId, PluginName};
 use login::saved::SavedLogins;
 
@@ -152,7 +151,7 @@ enum Commands {
 
         /// (Swift) data path
         #[clap(default_value = "")]
-        path: FileBrowserPath,
+        path: String,
     },
 
     //

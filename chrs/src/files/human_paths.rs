@@ -1,8 +1,19 @@
+//! Miscellaneous notes. (Where should I put this?)
+//!
+//! There is no consistent terminology used in the code. Though perhaps
+//! some definitions are better than none:
+//!
+//! Made-up vocabulary:
+//! - fname is the `fname` of an **existing** file in *CUBE*, e.g. `chris/feed_4/pl-dircopy_7/data/hello.txt`
+//! - fname-like is a string which looks like some left-part of a fname. fname-like strings
+//!   are appropriate values for the `path` argument of `api/v1/filebrowser/search/`.
+//!   For instance, `chris/feed_4` is a fname-like (but not a valid fname).
 use async_stream::stream;
 use chris::errors::CUBEError;
 use chris::models::{FeedId, FileResourceFname, PluginInstanceId};
 use chris::ChrisClient;
-use futures::{Stream, StreamExt};
+use futures::{pin_mut, Stream, StreamExt, TryFutureExt, TryStreamExt};
+use itertools::Itertools;
 use lazy_static::lazy_static;
 use std::collections::HashMap;
 
@@ -35,6 +46,16 @@ impl MaybeNamer {
             n.rename(fname).await
         } else {
             fname.to_string()
+        }
+    }
+
+    /// Calls the wrapped [PathNamer::translate] if Some,
+    /// otherwise returns `given_path` as a string.
+    pub async fn translate(&mut self, given_path: &str) -> Result<String, TranslationError> {
+        if let Some(ref mut n) = self.namer {
+            n.translate(given_path).await
+        } else {
+            Ok(given_path.to_string())
         }
     }
 
@@ -255,11 +276,116 @@ impl PathNamer {
         Ok(plinst.title)
     }
 
-    /// Reverse operation of [Self:rename], returns [Option::None]
-    /// if given path is not found.
-    pub async fn translate(&mut self, path: &str) -> Option<FileResourceFname> {
-        todo!()
+    /// Attempts to reverse operation of [Self:rename]. Untranslatable
+    /// path components are left as-is.
+    pub async fn translate(&mut self, path: &str) -> Result<String, TranslationError> {
+        if let Some((
+            username_folder,
+            feed_name,
+            renamed_plinst_folders,
+            data_folder,
+            output_path,
+        )) = split_renamed_path(path)
+        {
+            // OPTIMIZATION: these async operations can and should be done in parallel using join!
+            let feed_folder = self.feed_name2folder(feed_name).await?;
+
+            // TODO translate renamed_plinst_folders
+            let components = [
+                username_folder,
+                &feed_folder,
+                renamed_plinst_folders,
+                data_folder,
+                output_path,
+            ];
+            let fname = components.into_iter().filter(|c| !c.is_empty()).join("/");
+            Ok(fname)
+        } else {
+            Ok(path.to_string())
+        }
     }
+
+    /// Given the name of a feed, search CUBE for its ID *N* and return its folder name in the
+    /// format "feed_*N*". If the feed is found, its name will be cached.
+    ///
+    /// If given a feed folder, do nothing and return it.
+    pub async fn feed_name2folder(&mut self, feed_name: &str) -> Result<String, TranslationError> {
+        self.feed_memo.get(feed_name); // TODO just does a mut borrow of self
+        if parse_feed_folder(feed_name).is_some() {
+            return Ok(feed_name.to_string());
+        }
+        let feed_folder = self.just_get_feed_folder(feed_name).await?;
+        self.feed_memo
+            .insert(feed_folder.to_string(), feed_name.to_string());
+        Ok(feed_folder)
+    }
+
+    /// Make a request to search for a feed ID *N*, given feed name.
+    /// If feed is found, then return its folder name in the format "feed_N".
+    async fn just_get_feed_folder<'a>(
+        &'a self,
+        feed_name: &'a str,
+    ) -> Result<String, TranslationError> {
+        let query = &[("name", feed_name), ("limit", "1")];
+        let search = self.chris.search_feeds(query);
+        pin_mut!(search);
+        search
+            .try_next()
+            .await
+            .map_err(TranslationError::RequestError)?
+            .map(|feed| format!("feed_{}", feed.id.0))
+            .ok_or_else(|| TranslationError::FeedNotFound(feed_name.to_string()))
+    }
+}
+
+#[derive(thiserror::Error, Debug)]
+pub enum TranslationError {
+    #[error(transparent)]
+    RequestError(#[from] reqwest::Error),
+
+    #[error("Cannot find feed with name \"{0}\"")]
+    FeedNotFound(String),
+
+    #[error("Cannot find plugin instance with title \"{0}\"")]
+    PluginInstanceNotFound(String),
+}
+
+/// If given `path` looks like a fname-like of a feed output file which was renamed by
+/// [PathNamer::rename], then split it into its components:
+///
+/// 1. username, e.g. "chris"
+/// 2. feed name
+/// 3. plugin instance titles separated by slashes,
+///    e.g. "First Plugin Instance/Second Plugin Instance"
+/// 4. data folder (if present), either "data" or ""
+/// 5. output path (if present), e.g. "arbitrary/data/path/filename.json"
+///
+/// If given path is _not_ a feed output fname-like, for instance, a PACS fname-like or
+/// uploaded file fname, then `None` is returned.
+fn split_renamed_path(path: &str) -> Option<(&str, &str, &str, &str, &str)> {
+    path.split_once('/')
+        // all top-level folders besides "SERVICES" contain user files
+        .filter(|(root_folder, rest)| *root_folder != "SERVICES")
+        .map(|(root_folder, rest)| {
+            rest.split_once('/')
+                .map(|(feed_folder, rest)| (root_folder, feed_folder, rest))
+                .unwrap_or((root_folder, rest, ""))
+        })
+        // all subdirs of a user's directory besides "uploads" are feed output folders
+        .filter(|(_, feed_folder, _)| *feed_folder != "uploads")
+        .map(|(root_folder, feed_folder, rest)| {
+            let (plinst_folders, data_folder, output_path) = rest
+                .split_once("/data")
+                .map(|(plinst_folders, data_path)| (plinst_folders, "data", data_path))
+                .unwrap_or((rest, "", ""));
+            (
+                root_folder,
+                feed_folder,
+                plinst_folders.trim_end_matches('/'),
+                data_folder,
+                output_path.trim_start_matches('/'),
+            )
+        })
 }
 
 fn substitute_unallowed(mut folder_name: String) -> String {
@@ -372,6 +498,26 @@ mod tests {
             substitute_unallowed(folder.to_string()),
             expected.to_string()
         )
+    }
+
+    #[rstest]
+    #[case("", None)]
+    #[case("SERVICES/PACS/something...", None)]
+    #[case("chris/uploads", None)]
+    #[case("chris/uploads/something", None)]
+    #[case("christopher/feed_12", Some(("christopher", "feed_12", "", "", "")))]
+    #[case("chris/feed_12/pl-dircopy_17/pl-something_18/data/subfolder/file.json", Some(("chris", "feed_12", "pl-dircopy_17/pl-something_18", "data", "subfolder/file.json")))]
+    #[case("chris/Feed Name/pl-dircopy_17/Plinst Title", Some(("chris", "Feed Name", "pl-dircopy_17/Plinst Title", "", "")))]
+    #[case("chris/Feed Name/pl-dircopy_17/Plinst Title/", Some(("chris", "Feed Name", "pl-dircopy_17/Plinst Title", "", "")))]
+    #[case("chris/Feed Name/pl-dircopy_17/Plinst Title/data", Some(("chris", "Feed Name", "pl-dircopy_17/Plinst Title", "data", "")))]
+    #[case("chris/Feed Name/pl-dircopy_17/Plinst Title/data/", Some(("chris", "Feed Name", "pl-dircopy_17/Plinst Title", "data", "")))]
+    #[case("chris/Feed Name/pl-dircopy_17/Plinst Title/data/subfolder/file.json", Some(("chris", "Feed Name", "pl-dircopy_17/Plinst Title", "data", "subfolder/file.json")))]
+    fn test_split_renamed_path(
+        #[case] path: &str,
+        #[case] expected: Option<(&str, &str, &str, &str, &str)>,
+    ) {
+        let actual = split_renamed_path(path);
+        assert_eq!(actual, expected);
     }
 
     // TODO: use HTTP mocking to test PathNamer::rename

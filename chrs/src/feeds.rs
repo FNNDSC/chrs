@@ -5,7 +5,7 @@ pub(crate) async fn list_feeds(chris: &ChrisClient, limit: u32) -> anyhow::Resul
     if limit == 0 {
         return Ok(());
     }
-    let search = chris.search_feeds();
+    let search = chris.search_feeds(&());
     pin_mut!(search);
 
     let mut count = 0;

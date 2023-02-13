@@ -328,7 +328,8 @@ mod tests {
             .expect_err("--score should be required");
         let msg = e.to_string();
         let expected_msg = "the following required arguments were not provided:";
-        let pos = msg.find(expected_msg)
+        let pos = msg
+            .find(expected_msg)
             .expect("error message should say \"required arguments were not provided\"");
         let rest_of_msg = &msg[pos + expected_msg.len()..];
         assert!(rest_of_msg.contains("--score <float>"))
