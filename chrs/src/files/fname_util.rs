@@ -383,7 +383,9 @@ impl PathNamer {
                     .map(|_| title.to_string())
             });
         if let Some(second) = search.try_next().await? {
-            Err(TranslationError::AmbiguousPluginInstanceTitleError(second.title))
+            Err(TranslationError::AmbiguousPluginInstanceTitleError(
+                second.title,
+            ))
         } else {
             folder
         }
@@ -420,10 +422,12 @@ pub enum TranslationError {
     #[error(transparent)]
     RequestError(#[from] reqwest::Error),
 
-    #[error("Ambiguous name: \"{0}\" (must give canonical fname with numerical ID)")]  // TODO show matching feed IDs
+    #[error("Ambiguous name: \"{0}\" (must give canonical fname with numerical ID)")]
+    // TODO show matching feed IDs
     AmbiguousFeedNameError(String),
 
-    #[error("Ambiguous title: \"{0}\" (must give canonical fname with numerical ID)")]  // TODO show matching plugin instance IDs
+    #[error("Ambiguous title: \"{0}\" (must give canonical fname with numerical ID)")]
+    // TODO show matching plugin instance IDs
     AmbiguousPluginInstanceTitleError(String),
 
     #[error("Cannot find feed with name \"{0}\"")]

@@ -7,6 +7,7 @@ use chris::common_types::CUBEApiUrl;
 use chris::models::{AnyFilesUrl, Downloadable, DownloadableFile, FileResourceFname};
 use chris::ChrisClient;
 use futures::{pin_mut, Stream, StreamExt, TryStreamExt};
+use std::io;
 use std::path::{Path, PathBuf};
 use tokio::fs;
 use tokio::fs::File;
@@ -19,6 +20,7 @@ pub(crate) async fn download(
     dst: Option<&Path>,
     shorten: u8,
     rename: bool,
+    skip_present: bool,
     flatten: bool,
 ) -> anyhow::Result<()> {
     if flatten {
@@ -52,9 +54,22 @@ pub(crate) async fn download(
     }
 
     if count == 1 {
+        if skip_present {
+            eprintln!("WARNING: ignoring --skip-present for single file.")
+        }
         download_single_file(client, &url, &dst).await
     } else {
-        download_directory(client, &url, &src, &dst, shorten, rename, count).await
+        download_directory(
+            client,
+            &url,
+            &src,
+            &dst,
+            shorten,
+            rename,
+            skip_present,
+            count,
+        )
+        .await
     }
 }
 
@@ -87,7 +102,7 @@ async fn download_to_file_with_progress(
             bar.inc(bytes.len() as u64);
             bytes
         })
-        .map_err(|e| std::io::Error::new(std::io::ErrorKind::ConnectionAborted, e));
+        .map_err(|e| io::Error::new(io::ErrorKind::ConnectionAborted, e));
     let mut reader = StreamReader::new(stream);
     tokio::io::copy(&mut reader, &mut file).await?;
     bar.finish();
@@ -115,6 +130,7 @@ async fn download_directory<'a>(
     dst: &'a Path,
     shorten: u8,
     rename: bool,
+    skip_present: bool,
     count: u32,
 ) -> anyhow::Result<()> {
     if dst.exists() && !dst.is_dir() {
@@ -122,7 +138,7 @@ async fn download_directory<'a>(
     }
 
     let stream = get_downloads(chris, url, src, dst, shorten, rename)
-        .map_ok(|(file, target)| download_helper(chris, file, target))
+        .map_ok(|(file, target)| download_helper(chris, file, target, skip_present))
         .map_err(DownloadError::Pagination);
 
     do_with_progress(stream, count as u64, false).await?;
@@ -260,6 +276,7 @@ async fn download_helper(
     client: &ChrisClient,
     downloadable: impl Downloadable,
     dst: PathBuf,
+    skip_present: bool,
 ) -> Result<(), DownloadError> {
     if let Some(parent) = dst.parent() {
         fs::create_dir_all(parent)
@@ -269,8 +286,33 @@ async fn download_helper(
                 source: e,
             })?;
     }
+    if skip_present {
+        match fs_err::tokio::metadata(&dst).await {
+            Ok(metadata) => {
+                if metadata.is_file() && metadata.len() == downloadable.fsize() {
+                    eprintln!(
+                        "INFO: skipping {:?} because its size is correct ({})",
+                        &dst,
+                        metadata.len()
+                    );
+                    return Ok(());
+                }
+                eprintln!("INFO: overwriting {:?}", &dst);
+                // if not a file, exception is handled later (somehow)
+            }
+            Err(e) => {
+                if !matches!(e.kind(), io::ErrorKind::NotFound) {
+                    return Err(DownloadError::IO {
+                        fname: downloadable.fname().clone(),
+                        path: dst,
+                        source: chris::errors::FileIOError::IO(e),
+                    });
+                }
+            }
+        }
+    }
     client
-        .download_file(&downloadable, dst.as_path(), false)
+        .download_file(&downloadable, dst.as_path(), skip_present)
         .await
         .map_err(|e| DownloadError::IO {
             fname: downloadable.fname().clone(),
@@ -333,7 +375,7 @@ enum DownloadError {
     #[error("Unable to create directory: {path:?}")]
     ParentDirectory {
         path: PathBuf,
-        source: std::io::Error,
+        source: io::Error,
     },
 }
 

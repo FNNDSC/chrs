@@ -124,6 +124,11 @@ enum Commands {
         #[clap(short, long, hide = true)]
         flatten: bool,
 
+        /// Skip downloading of files which already exist on the filesystem,
+        /// and where their file sizes match what is expected.
+        #[clap(short = 'S', long)]
+        skip_present: bool,
+
         /// What to download. Can either be a ChRIS Library files path or
         /// a files resource URL (such as a files search query or a feed
         /// files URL).
@@ -312,10 +317,20 @@ async fn main() -> Result<()> {
             src,
             dst,
             raw,
+            skip_present,
             flatten,
         } => {
             let client = get_client(address, username, password, vec![src.as_str()]).await?;
-            download(&client, &src, dst.as_deref(), shorten, !raw, flatten).await
+            download(
+                &client,
+                &src,
+                dst.as_deref(),
+                shorten,
+                !raw,
+                skip_present,
+                flatten,
+            )
+            .await
         }
         Commands::Login {
             no_keyring,
