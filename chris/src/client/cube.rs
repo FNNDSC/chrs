@@ -418,7 +418,7 @@ mod tests {
 
     #[fixture]
     #[once]
-    fn future_client() -> ChrisClient {
+    fn chris() -> ChrisClient {
         // due to a limitation of rstest, we cannot have a once setup async fixture
         // run before every other unit test, so we have to create a new ChRIS account
         // for each unit test.
@@ -435,8 +435,10 @@ mod tests {
             url: CUBEApiUrl::try_from(CUBE_URL).unwrap(),
             client: &reqwest::Client::new(),
         };
-        account_creator.create_account(&email).await.unwrap();
-        account_creator.into_client().await.unwrap()
+        futures::executor::block_on(async {
+            account_creator.create_account(&email).await.unwrap();
+            account_creator.into_client().await.unwrap()
+        })
     }
     //
     // #[fixture]
@@ -471,9 +473,8 @@ mod tests {
     // }
 
     #[rstest]
-    #[tokio::test]
-    async fn test_get_plugin(#[future] future_client: ChrisClient) -> AnyResult {
-        let chris: ChrisClient = future_client.await;
+    #[tokio::test(flavor = "multi_thread")]
+    async fn test_get_plugin(chris: &ChrisClient) -> AnyResult {
         let plugin = chris
             .get_plugin(&DIRCOPY_NAME, &DIRCOPY_VERSION)
             .await?

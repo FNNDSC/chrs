@@ -41,6 +41,8 @@ rstest = "0.16.0"
 tokio-test = "0.4.2"
 async-std = { version = "1.11.0", features = ["attributes"] }
 tempfile = "3.3.0"
+futures = { version = "0.3.21", features = [ "executor" ] }
+
 
 # https://github.com/cross-rs/cross/issues/229#issuecomment-597898074
 [features]
