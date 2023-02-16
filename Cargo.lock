@@ -315,7 +315,7 @@ checksum = "baf1de4339761588bc0619e3cbc0120ee582ebb74b53b4efbf79117bd2da40fd"
 
 [[package]]
 name = "chris"
-version = "0.3.3"
+version = "0.3.4"
 dependencies = [
  "aliri_braid",
  "async-std",
@@ -378,7 +378,6 @@ dependencies = [
  "lazy_static",
  "pathdiff",
  "regex",
- "reqwest",
  "rstest",
  "serde",
  "serde_json",

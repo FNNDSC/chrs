@@ -13,6 +13,7 @@ pub mod models;
 mod pagination;
 pub mod pipeline;
 mod requests;
+pub mod reqwest;
 
 pub use crate::client::pipeline::Pipeline;
 pub use crate::client::plugin::Plugin;

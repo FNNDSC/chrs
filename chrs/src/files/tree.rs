@@ -10,7 +10,7 @@ use async_recursion::async_recursion;
 use async_stream::stream;
 use chris::filebrowser::{FileBrowser, FileBrowserPath, FileBrowserView};
 use chris::models::{Downloadable, DownloadableFile};
-use chris::ChrisClient;
+use chris::{ChrisClient, reqwest};
 use console::{style, StyledObject};
 use futures::lock::Mutex;
 use futures::{StreamExt, TryStreamExt};

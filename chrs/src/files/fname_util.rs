@@ -21,7 +21,7 @@ use async_stream::stream;
 use chris::common_types::CUBEApiUrl;
 use chris::errors::CUBEError;
 use chris::models::{AnyFilesUrl, FeedId, FileResourceFname, PluginInstanceId};
-use chris::ChrisClient;
+use chris::{ChrisClient, reqwest};
 use futures::{pin_mut, Stream, StreamExt, TryStreamExt};
 use itertools::Itertools;
 use lazy_static::lazy_static;
