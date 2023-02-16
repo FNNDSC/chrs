@@ -3,7 +3,7 @@
 
 use crate::common_types::{CUBEApiUrl, Username};
 use crate::errors::CUBEError;
-use crate::models::{UserId, UserUrl};
+use crate::models::data::{UserId, UserUrl};
 use crate::ChrisClient;
 use serde::{Deserialize, Serialize};
 

@@ -2,7 +2,7 @@
 //! code base because I'm running out of steam.
 
 use crate::errors::{check, CUBEError};
-use crate::models::{DownloadableFile, FileBrowserUrl, FileResourceFname};
+use crate::models::data::{DownloadableFile, FileBrowserUrl, FileResourceFname};
 use crate::pagination::{paginate, PaginatedUrl};
 use aliri_braid::braid;
 use futures::Stream;

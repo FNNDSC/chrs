@@ -9,7 +9,7 @@ use anyhow::bail;
 use async_recursion::async_recursion;
 use async_stream::stream;
 use chris::filebrowser::{FileBrowser, FileBrowserPath, FileBrowserView};
-use chris::models::{Downloadable, DownloadableFile};
+use chris::models::data::{Downloadable, DownloadableFile};
 use chris::{ChrisClient, reqwest};
 use console::{style, StyledObject};
 use futures::lock::Mutex;

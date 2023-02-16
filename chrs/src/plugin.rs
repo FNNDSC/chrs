@@ -1,5 +1,5 @@
 use anyhow::{Context, Ok, Result};
-use chris::models::{
+use chris::models::data::{
     ComputeResourceName, PluginInstanceId, PluginName, PluginParameter, PluginParameterAction,
     PluginParameterType, PluginParameterValue,
 };
@@ -234,7 +234,7 @@ fn get_long_flag_name(long_flag: &str) -> Option<&str> {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use chris::models::{PluginParameterId, PluginParameterUrl};
+    use chris::models::data::{PluginParameterId, PluginParameterUrl};
     use rstest::*;
 
     #[rstest]

@@ -1,7 +1,7 @@
 //! Simplified, human-friendly pipeline representation as described in
 //! [_ChRIS_ RFC #2: _ChRIS_ Pipeline YAML Schema](https://github.com/FNNDSC/CHRIS_docs/blob/master/rfcs/2-pipeline_yaml.adoc).
 use super::canon::{default_locked, ExpandedTreeParameter, ExpandedTreePipeline, PipingTitle};
-use crate::models::*;
+use crate::models::data::*;
 use crate::pipeline::canon::ExpandedTreePiping;
 use crate::pipeline::CanonPipeline;
 use aliri_braid::braid;

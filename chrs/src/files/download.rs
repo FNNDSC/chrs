@@ -4,7 +4,7 @@ use crate::io_helper::progress_bar_bytes;
 use anyhow::{bail, Context};
 use async_stream::try_stream;
 use chris::common_types::CUBEApiUrl;
-use chris::models::{AnyFilesUrl, Downloadable, DownloadableFile, FileResourceFname};
+use chris::models::data::{AnyFilesUrl, Downloadable, DownloadableFile, FileResourceFname};
 use chris::{ChrisClient, reqwest};
 use futures::{pin_mut, Stream, StreamExt, TryStreamExt};
 use std::io;

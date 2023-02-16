@@ -1,6 +1,6 @@
 use crate::constants::NUM_THREADS;
 use crate::files::fname_util::MaybeNamer;
-use chris::models::Downloadable;
+use chris::models::data::Downloadable;
 use chris::ChrisClient;
 use futures::{pin_mut, StreamExt, TryStreamExt};
 use std::sync::Arc;

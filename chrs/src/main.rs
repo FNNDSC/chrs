@@ -25,7 +25,7 @@ use crate::plugin::{describe_plugin, run_latest};
 use crate::upload::upload;
 use crate::whoami::cube_info;
 use chris::common_types::{CUBEApiUrl, Username};
-use chris::models::{ComputeResourceName, PluginInstanceId, PluginName};
+use chris::models::data::{ComputeResourceName, PluginInstanceId, PluginName};
 use login::saved::SavedLogins;
 
 #[derive(Parser)]

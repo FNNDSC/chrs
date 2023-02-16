@@ -1,5 +1,5 @@
 use crate::errors::{check, CUBEError};
-use crate::models::{PipelineResponse, PluginInstanceId, WorkflowCreatedResponse};
+use crate::models::data::{PipelineResponse, PluginInstanceId, WorkflowCreatedResponse};
 use reqwest::Client;
 use serde::Serialize;
 

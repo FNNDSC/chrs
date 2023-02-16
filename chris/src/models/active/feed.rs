@@ -1,5 +1,5 @@
 use crate::errors::{check, CUBEError};
-use crate::models::{FeedResponse, FeedUrl};
+use crate::models::data::{FeedResponse, FeedUrl};
 use reqwest::Client;
 use serde::Serialize;
 

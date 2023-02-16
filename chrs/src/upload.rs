@@ -4,7 +4,7 @@ use crate::io_helper::progress_bar_bytes;
 use anyhow::{bail, Context, Error, Ok, Result};
 use chris::common_types::Username;
 use chris::errors::CUBEError;
-use chris::models::{Downloadable, FileUploadResponse, PluginInstanceId};
+use chris::models::data::{Downloadable, FileUploadResponse, PluginInstanceId};
 use chris::{errors::FileIOError, ChrisClient, Pipeline};
 use futures::{try_join, TryStreamExt};
 use pathdiff::diff_paths;
