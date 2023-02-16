@@ -192,10 +192,10 @@ jobs:
         if: matrix.triple.convenient
         run: |
           cargo install cargo-deb --version 1.42.1 --locked
-          cargo deb --no-build -p chrs
-          cp -v ./target/debian/*.deb release/
+          cargo deb --no-build -p chrs --target=${{ matrix.triple.target }}
+          cp -v ./target/${{ matrix.triple.target }}/debian/*.deb release/
       - name: Test installation of .deb
-        if: steps.deb.result != 'skipped'
+        if: steps.deb.conclusion != 'skipped'
         run: sudo dpkg -i release/*.deb
 
       - name: Save release as artifact
