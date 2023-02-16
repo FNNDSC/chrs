@@ -113,13 +113,16 @@ jobs:
             target: "armv7-unknown-linux-gnueabihf",
             cross: true,
           }
-
-          # PowerPC 64 LE
-          - {
-            os: "ubuntu-20.04",
-            target: "powerpc64le-unknown-linux-gnu",
-            cross: true,
-          }
+          # PowerPC doesn't work because rustls depends on ring
+          # https://github.com/briansmith/ring/issues/389#issuecomment-1312292612
+          # We could get it to work by using OpenSSL instead of rustls but I am too lazy right now.
+#
+#          # PowerPC 64 LE
+#          - {
+#            os: "ubuntu-20.04",
+#            target: "powerpc64le-unknown-linux-gnu",
+#            cross: true,
+#          }
 
           # doesn't work
 #          # Risc-V 64gc
