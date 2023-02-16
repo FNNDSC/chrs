@@ -17,6 +17,7 @@ jobs:
   crate:
     runs-on: ubuntu-latest
     name: Publish to crates.io
+    if: false
     steps:
       - name: Git checkout
         uses: actions/checkout@v3
@@ -184,15 +185,17 @@ jobs:
         if: matrix.triple.convenient
         shell: bash
         run: |
-          cp -v cp -v target/${{ matrix.triple.target }}/release/chrs release/
+          cp -v target/${{ matrix.triple.target }}/release/chrs release/
 
       - name: Build Debian release
+        id: deb
         if: matrix.triple.convenient
         run: |
           cargo install cargo-deb --version 1.42.1 --locked
           cargo deb --no-build -p chrs
           cp -v ./target/debian/*.deb release/
       - name: Test installation of .deb
+        if: steps.deb.result != 'skipped'
         run: sudo dpkg -i release/*.deb
 
       - name: Save release as artifact
