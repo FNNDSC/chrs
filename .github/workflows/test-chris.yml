@@ -29,21 +29,19 @@ jobs:
           profile: minimal
       - name: Setup rust cache
         uses: Swatinem/rust-cache@v2
-      - name: Install tarpaulin
-        uses: FNNDSC/quickinstall-tarpaulin@main
-        with:
-          version: '0.23.1'
+      - name: Install cargo-llvm-cov
+        uses: taiki-e/install-action@cargo-llvm-cov
       - name: Run tests
         id: test
         continue-on-error: true
         run: |
           cd chris
-          cargo tarpaulin --color Always --locked --all-features --timeout 120 --out Xml
+          cargo llvm-cov --color always --locked --all-features --lcov --output-path lcov.info
 
       - name: Upload coverage to Codecov
         uses: codecov/codecov-action@v3
         with:
-          files: ./chris/cobertura.xml
+          files: ./chris/lcov.info
           flags: chris
       - name: End test
         run: '[ "${{ steps.test.outcome }}" = "success" ]'
