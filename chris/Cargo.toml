@@ -12,7 +12,7 @@ categories = ["web-programming::http-client", "science"]
 
 [dependencies]
 serde = { version = "1.0.136", features = ["derive"] }
-reqwest = { version = "0.11.10", features = ["json", "multipart", "stream"] }
+reqwest = { version = "0.11.10", features = ["json", "multipart", "stream"], default-features = false }
 serde_urlencoded = "0.7.1"
 thiserror = "1.0.30"
 console = "0.15.0"
