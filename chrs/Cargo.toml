@@ -1,6 +1,6 @@
 [package]
 name = "chrs"
-version = "0.2.1"
+version = "0.2.2"
 authors = ["FNNDSC <dev@babyMRI.org>"]
 
 edition = "2021"
@@ -14,7 +14,7 @@ categories = ["command-line-utilities", "science"]
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [dependencies]
-chris = { path = "../chris", version = "0.3.2" }
+chris = { path = "../chris", version = "0.3.2", features = ["rustls"] }
 clap = { version = "4.1.1", features = ["derive", "string"] }
 lazy_static = "1.4.0"
 keyring = "1.1.2"
@@ -44,11 +44,6 @@ aliri_braid = "0.3.1"
 [dev-dependencies]
 tempfile = "3.3.0"
 rstest = "0.16.0"
-
-[features]
-default = ["chris/default"]
-vendored-openssl = ["chris/vendored-openssl"]
-rustls = ["chris/rustls"]
 
 [package.metadata.binstall.overrides.x86_64-pc-windows-gnu]
 pkg-fmt = "zip"
