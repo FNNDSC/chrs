@@ -9,6 +9,18 @@ use serde::de::DeserializeOwned;
 use serde::{Deserialize, Serialize};
 use std::marker::PhantomData;
 
+/// An abstraction over collection APIs, i.e. paginated API endpoints which return a `results` list.
+///
+/// This is homologus to the Python implementation in aiochris:
+///
+/// https://github.com/FNNDSC/aiochris/blob/adaff5bbc1d4d886ec2ca8155d82d266fa81d093/chris/util/search.py
+pub enum Search<R: DeserializeOwned, Q: Serialize + Sized> {
+    /// A search to CUBE, possibly containing [0, n) items.
+    Search(ActualSearch<R, Q>),
+    /// A search which cannot possibly contain items. It does not make requests to CUBE.
+    Empty,
+}
+
 /// The "some" variant of [Search].
 pub struct ActualSearch<R: DeserializeOwned, Q: Serialize + Sized> {
     client: reqwest::Client,
@@ -38,7 +50,7 @@ impl<R: DeserializeOwned, Q: Serialize + Sized> ActualSearch<R, Q> {
 }
 
 impl<R: DeserializeOwned, Q: Serialize + Sized> ActualSearch<R, Q> {
-    /// Create a request for this search.
+    /// Create a HTTP GET request for this search.
     fn get_search(&self) -> RequestBuilder {
         if self.basic {
             let url = self.base_url.as_str();
@@ -105,18 +117,6 @@ impl<R: DeserializeOwned, Q: Serialize + Sized> ActualSearch<R, Q> {
             }
         }
     }
-}
-
-/// An abstraction over collection APIs, i.e. paginated API endpoints which return a `results` list.
-///
-/// This is homologus to the Python implementation in aiochris:
-///
-/// https://github.com/FNNDSC/aiochris/blob/adaff5bbc1d4d886ec2ca8155d82d266fa81d093/chris/util/search.py
-pub enum Search<R: DeserializeOwned, Q: Serialize + Sized> {
-    /// A search to CUBE, possibly containing [0, n) items.
-    Search(ActualSearch<R, Q>),
-    /// A search which cannot possibly contain items. It does not make requests to CUBE.
-    Empty,
 }
 
 impl<R: DeserializeOwned> Search<R, ()> {
