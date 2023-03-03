@@ -1,4 +1,5 @@
 use chris::common_types::{CUBEApiUrl, Username};
+use chris::constants::*;
 use chris::errors::FileIOError;
 use chris::filebrowser::FileBrowserPath;
 use chris::models::*;
@@ -26,6 +27,8 @@ fn sample_files_dir() -> PathBuf {
     assert!(p.is_dir());
     p
 }
+
+type AnyResult = Result<(), Box<dyn std::error::Error>>;
 
 // ========================================
 //                 HELPERS
@@ -143,4 +146,16 @@ async fn test_filebrowser_browse_uploads(
         .into_iter()
         .filter(|f| f.fname().as_str().ends_with("logo_chris.png"));
     assert!(found.next().is_some());
+}
+
+#[rstest]
+#[tokio::test(flavor = "multi_thread")]
+async fn test_get_plugin(chris_client: &ChrisClient) -> AnyResult {
+    let plugin = chris_client
+        .get_plugin(&DIRCOPY_NAME, &DIRCOPY_VERSION)
+        .await?
+        .unwrap();
+    assert_eq!(&plugin.data.name, &*DIRCOPY_NAME);
+    assert_eq!(&plugin.data.version, &*DIRCOPY_VERSION);
+    Ok(())
 }

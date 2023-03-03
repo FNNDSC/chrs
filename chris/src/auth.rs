@@ -109,18 +109,26 @@ mod tests {
     }
 
     #[fixture]
+    fn client() -> reqwest::Client {
+        CLIENT.clone()
+    }
+
+    #[fixture]
     fn cube_url() -> CUBEApiUrl {
         CUBEApiUrl::try_from(CUBE_URL).unwrap()
     }
 
     #[rstest]
-    #[tokio::test]
-    async fn test_get_token(cube_url: CUBEApiUrl) -> Result<(), Box<dyn std::error::Error>> {
+    #[tokio::test(flavor = "multi_thread")]
+    async fn test_get_token(
+        cube_url: CUBEApiUrl,
+        client: reqwest::Client,
+    ) -> Result<(), Box<dyn std::error::Error>> {
         let account = CUBEAuth {
             username: Username::from_str("chris")?,
             password: "chris1234".to_string(),
             url: cube_url,
-            client: &CLIENT,
+            client,
         };
 
         let token = account.get_token().await?;
@@ -134,8 +142,11 @@ mod tests {
     }
 
     #[rstest]
-    #[tokio::test]
-    async fn test_create_user(cube_url: CUBEApiUrl) -> Result<(), Box<dyn std::error::Error>> {
+    #[tokio::test(flavor = "multi_thread")]
+    async fn test_create_user(
+        cube_url: CUBEApiUrl,
+        client: reqwest::Client,
+    ) -> Result<(), Box<dyn std::error::Error>> {
         let mut generator = Generator::default();
         let username = generator.next().unwrap();
         let password = format!("{}1234", &username.chars().rev().collect::<String>());
@@ -145,7 +156,7 @@ mod tests {
             username: Username::new(username.clone()),
             password,
             url: cube_url,
-            client: &CLIENT,
+            client,
         };
 
         if account_creator.get_token().await.is_ok() {

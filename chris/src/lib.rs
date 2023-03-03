@@ -8,7 +8,7 @@ extern crate core;
 pub mod auth;
 mod client;
 pub mod common_types;
-mod constants;
+pub mod constants;
 pub mod models;
 pub mod pipeline;
 mod requests;

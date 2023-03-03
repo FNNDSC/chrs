@@ -297,7 +297,7 @@ struct DircopyPayload<'a> {
 mod tests {
     use super::*;
     use crate::auth::CUBEAuth;
-    use crate::models::data::{ParameterName, ParameterValue, PluginName, PluginVersion};
+    use crate::models::{ParameterName, ParameterValue, PluginName, PluginVersion};
     use crate::pipeline::canon::{
         ExpandedTreeParameter, ExpandedTreePipeline, ExpandedTreePiping, PipingTitle,
     };
@@ -310,7 +310,6 @@ mod tests {
 
     const CUBE_URL: &str = "http://localhost:8000/api/v1/";
 
-    type AnyResult = Result<(), Box<dyn std::error::Error>>;
     //
     // #[rstest]
     // #[tokio::test]
@@ -416,30 +415,6 @@ mod tests {
     //     Ok(())
     // }
 
-    #[fixture]
-    #[once]
-    fn chris() -> ChrisClient {
-        // due to a limitation of rstest, we cannot have a once setup async fixture
-        // run before every other unit test, so we have to create a new ChRIS account
-        // for each unit test.
-        //
-        // https://github.com/la10736/rstest/issues/141
-        let username = Generator::default().next().unwrap();
-        let email = format!("{}@example.org", &username);
-        let account_creator = CUBEAuth {
-            password: format!(
-                "{}1234",
-                username.as_str().chars().rev().collect::<String>()
-            ),
-            username: Username::new(username),
-            url: CUBEApiUrl::try_from(CUBE_URL).unwrap(),
-            client: &reqwest::Client::new(),
-        };
-        futures::executor::block_on(async {
-            account_creator.create_account(&email).await.unwrap();
-            account_creator.into_client().await.unwrap()
-        })
-    }
     //
     // #[fixture]
     // fn example_pipeline() -> ExpandedTreePipeline {
@@ -472,17 +447,6 @@ mod tests {
     //     }
     // }
 
-    #[rstest]
-    #[tokio::test(flavor = "multi_thread")]
-    async fn test_get_plugin(chris: &ChrisClient) -> AnyResult {
-        let plugin = chris
-            .get_plugin(&DIRCOPY_NAME, &DIRCOPY_VERSION)
-            .await?
-            .unwrap();
-        assert_eq!(&plugin.data.name, &*DIRCOPY_NAME);
-        assert_eq!(&plugin.data.version, &*DIRCOPY_VERSION);
-        Ok(())
-    }
     //
     // /// This test can fail if `pl-simpledsapp` is changed upstream.
     // #[rstest]
