@@ -13,14 +13,10 @@ This workspace provides:
 
 ## Development
 
-To set up a development environment, spin up [miniChRIS](https://github.com/FNNDSC/miniChRIS-docker)
-and then you will be able to run
+To set up a development environment, spin up [miniChRIS](https://github.com/FNNDSC/miniChRIS-docker).
 
-```shell
-cargo test
-```
-
-Alternatively, use [`cargo nextest`](https://nexte.st/):
+[`cargo nextest`](https://nexte.st/) is recommended as an alternative to `cargo test`, and it may also
+[be a workaround for a concurrency bug](https://github.com/seanmonstar/reqwest/issues/1148#issuecomment-1453832078).
 
 ```shell
 cargo nextest run

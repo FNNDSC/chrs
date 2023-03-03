@@ -29,14 +29,17 @@ jobs:
           profile: minimal
       - name: Setup rust cache
         uses: Swatinem/rust-cache@v2
+        # https://nexte.st/book/test-coverage.html
       - name: Install cargo-llvm-cov
         uses: taiki-e/install-action@cargo-llvm-cov
+      - name: Install nextest
+        uses: taiki-e/install-action@nextest
       - name: Run tests
         id: test
         continue-on-error: true
         run: |
           cd chris
-          cargo llvm-cov --color always --locked --all-features --lcov --output-path lcov.info
+          cargo llvm-cov nextest --locked --all-features --lcov --output-path lcov.info
 
       - name: Upload coverage to Codecov
         uses: codecov/codecov-action@v3

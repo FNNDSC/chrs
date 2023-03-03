@@ -312,7 +312,7 @@ mod tests {
 
     //
     // #[rstest]
-    // #[tokio::test]
+    // #[tokio::test(flavor = "multi_thread")]
     // async fn test_download(#[future] future_client: ChrisClient) -> AnyResult {
     //     let chris: ChrisClient = future_client.await;
     //     let data = b"finally some good content";
@@ -332,7 +332,7 @@ mod tests {
     // }
     //
     // #[rstest]
-    // #[tokio::test]
+    // #[tokio::test(flavor = "multi_thread")]
     // async fn test_files_upload_iter(#[future] future_client: ChrisClient) -> AnyResult {
     //     // ---------- create some test files ----------
     //     let num_files = 42;
@@ -450,7 +450,7 @@ mod tests {
     //
     // /// This test can fail if `pl-simpledsapp` is changed upstream.
     // #[rstest]
-    // #[tokio::test]
+    // #[tokio::test(flavor = "multi_thread")]
     // async fn test_get_plugin_latest_and_parameters(
     //     #[future] future_client: ChrisClient,
     // ) -> AnyResult {
@@ -473,7 +473,7 @@ mod tests {
     // }
     //
     // #[rstest]
-    // #[tokio::test]
+    // #[tokio::test(flavor = "multi_thread")]
     // async fn test_e2e(
     //     example_pipeline: ExpandedTreePipeline,
     //     #[future] future_client: ChrisClient,

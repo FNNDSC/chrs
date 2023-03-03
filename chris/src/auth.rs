@@ -100,7 +100,6 @@ mod tests {
     use lazy_static::lazy_static;
     use names::Generator;
     use rstest::*;
-    use std::str::FromStr;
 
     const CUBE_URL: &str = "http://localhost:8000/api/v1/";
 
@@ -119,34 +118,27 @@ mod tests {
     }
 
     #[rstest]
-    #[tokio::test(flavor = "multi_thread")]
-    async fn test_get_token(
-        cube_url: CUBEApiUrl,
-        client: reqwest::Client,
-    ) -> Result<(), Box<dyn std::error::Error>> {
+    #[tokio::test]
+    async fn test_get_token(cube_url: CUBEApiUrl, client: reqwest::Client) {
         let account = CUBEAuth {
-            username: Username::from_str("chris")?,
+            username: Username::new("chris".to_string()),
             password: "chris1234".to_string(),
             url: cube_url,
-            client,
+            client: client.clone(),
         };
 
-        let token = account.get_token().await?;
+        let token = account.get_token().await.unwrap();
 
-        let req = CLIENT
+        let req = client
             .get(CUBE_URL)
             .header(reqwest::header::AUTHORIZATION, format!("Token {}", &token));
-        let res = req.send().await?;
+        let res = req.send().await.unwrap();
         assert_eq!(res.status(), reqwest::StatusCode::OK);
-        Ok(())
     }
 
     #[rstest]
-    #[tokio::test(flavor = "multi_thread")]
-    async fn test_create_user(
-        cube_url: CUBEApiUrl,
-        client: reqwest::Client,
-    ) -> Result<(), Box<dyn std::error::Error>> {
+    #[tokio::test]
+    async fn test_create_user(cube_url: CUBEApiUrl, client: reqwest::Client) {
         let mut generator = Generator::default();
         let username = generator.next().unwrap();
         let password = format!("{}1234", &username.chars().rev().collect::<String>());
@@ -163,11 +155,10 @@ mod tests {
             panic!("Account already exists for username {}", username);
         }
 
-        let created_account = account_creator.create_account(&email).await?;
+        let created_account = account_creator.create_account(&email).await.unwrap();
         assert_eq!(*created_account.username.as_str(), username);
         assert_eq!(created_account.email, email);
 
-        let _token = account_creator.get_token().await?;
-        Ok(())
+        let _token = account_creator.get_token().await.unwrap();
     }
 }

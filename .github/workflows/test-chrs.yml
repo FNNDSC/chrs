@@ -33,8 +33,11 @@ jobs:
           profile: minimal
       - name: Setup rust cache
         uses: Swatinem/rust-cache@v2
+        # https://nexte.st/book/test-coverage.html
       - name: Install cargo-llvm-cov
         uses: taiki-e/install-action@cargo-llvm-cov
+      - name: Install nextest
+        uses: taiki-e/install-action@nextest
       - name: Run tests
         id: test
         continue-on-error: true
@@ -46,7 +49,7 @@ jobs:
           rm -f $HOME/.local/share/keyrings/*
           echo -n "test" | gnome-keyring-daemon --unlock
           
-          exec cargo llvm-cov --color always --locked --all-features --lcov --output-path lcov.info
+          exec cargo llvm-cov nextest --locked --all-features --lcov --output-path lcov.info
           
           EOF
           dbus-run-session -- bash -ex test.sh
