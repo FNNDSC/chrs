@@ -42,6 +42,8 @@ tokio-test = "0.4.2"
 async-std = { version = "1.11.0", features = ["attributes"] }
 tempfile = "3.3.0"
 futures = { version = "0.3.21", features = [ "executor" ] }
+macro_rules_attribute = "0.1.3"
+pathdiff = "0.2.1"
 
 
 # https://github.com/cross-rs/cross/issues/229#issuecomment-597898074

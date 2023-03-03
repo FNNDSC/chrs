@@ -1,9 +1,8 @@
-//! Beware: code quality here is much lower than the rest of the
-//! code base because I'm running out of steam.
+//! CUBE filebrowser API client module.
 
 use crate::errors::{check, CUBEError};
-use crate::models::data::{DownloadableFile, FileBrowserUrl, FileResourceFname};
-use crate::pagination::{paginate, PaginatedUrl};
+use crate::models::{DownloadableFile, FileBrowserUrl, FileResourceFname};
+use crate::search::Search;
 use aliri_braid::braid;
 use futures::Stream;
 use serde::Deserialize;
@@ -17,10 +16,12 @@ pub struct FileBrowser {
     search: FileBrowserSearchUrl,
 }
 
+/// Filebrowser search API URL, e.g.
+/// `https://cube.chrisproject.org/api/v1/filebrowser/search/`
 #[braid(serde)]
 pub(crate) struct FileBrowserSearchUrl;
 
-/// A path which can be browsed by the file browser API.
+/// A path which can be browsed by the file browser API, e.g. `chris/uploads`
 #[braid(serde)]
 pub struct FileBrowserPath;
 
@@ -37,6 +38,7 @@ impl From<FileBrowserUrl> for FileBrowserSearchUrl {
 }
 
 impl FileBrowser {
+    /// Creates a filebrowser client.
     pub(crate) fn new(client: reqwest::Client, url: FileBrowserUrl) -> Self {
         FileBrowser {
             client,
@@ -44,10 +46,13 @@ impl FileBrowser {
         }
     }
 
-    pub async fn browse(
+    /// List directories and files in _ChRIS_ storage from a given `path` prefix.
+    ///
+    /// You can think of this method like the `ls` UNIX command.
+    pub async fn readdir(
         &self,
         path: &FileBrowserPath,
-    ) -> Result<Option<FileBrowserView>, CUBEError> {
+    ) -> Result<Option<FileBrowserEntry>, CUBEError> {
         let res = self
             .client
             .get(self.search.as_str())
@@ -59,10 +64,11 @@ impl FileBrowser {
             return Ok(None);
         }
         let dir = data.results.swap_remove(0);
-        Ok(Some(FileBrowserView::new(dir, self.client.clone())))
+        Ok(Some(FileBrowserEntry::new(dir, self.client.clone())))
     }
 }
 
+/// Raw response from a GET request to `api/v1/filebrowser/search/`
 #[derive(Deserialize)]
 struct FileBrowserSearch {
     // count: u8,
@@ -84,9 +90,8 @@ struct FileBrowserDir {
 #[braid(serde)]
 struct FileBrowserFilesUrl;
 
-impl PaginatedUrl for FileBrowserFilesUrl {}
-
-pub struct FileBrowserView {
+/// A filebrowser API response, which contains a listing for a _ChRIS_ file path.
+pub struct FileBrowserEntry {
     client: reqwest::Client,
     path: FileBrowserPath,
     subfolders: Vec<String>,
@@ -96,9 +101,9 @@ pub struct FileBrowserView {
     files: Option<FileBrowserFilesUrl>,
 }
 
-impl FileBrowserView {
+impl FileBrowserEntry {
     fn new(dir: FileBrowserDir, client: reqwest::Client) -> Self {
-        FileBrowserView {
+        FileBrowserEntry {
             client,
             path: dir.path,
             subfolders: dir.subfolders,
@@ -112,12 +117,12 @@ impl FileBrowserView {
         &self.path
     }
 
-    /// Iterate over subfolders.
+    /// Get subfolder basenames.
     pub fn subfolders(&self) -> &Vec<String> {
         &self.subfolders
     }
 
-    /// Produce the subpaths from this level's subfolders.
+    /// Get absolute paths of subfolders.
     pub fn subpaths(&self) -> impl Iterator<Item = FileBrowserPath> + '_ {
         self.subfolders()
             .iter()
@@ -126,8 +131,12 @@ impl FileBrowserView {
     }
 
     /// Iterate over files.
-    pub fn iter_files(&self) -> impl Stream<Item = Result<DownloadableFile, reqwest::Error>> + '_ {
-        paginate(&self.client, self.files.clone())
+    pub fn iter_files(&self) -> Search<DownloadableFile, ()> {
+        if let Some(url) = &self.files {
+            Search::basic(&self.client, url)
+        } else {
+            Search::Empty
+        }
     }
 }
 

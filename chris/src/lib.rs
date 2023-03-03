@@ -9,11 +9,13 @@ pub mod auth;
 mod client;
 pub mod common_types;
 mod constants;
-mod models;
+pub mod models;
 pub mod pipeline;
 mod requests;
 pub mod reqwest;
 
 pub use crate::client::pipeline::Pipeline;
 pub use client::cube::ChrisClient;
-pub use client::errors;
+pub use client::*;
+
+pub use auth::CUBEAuth;

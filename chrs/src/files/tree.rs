@@ -8,7 +8,7 @@ use crate::files::fname_util::MaybeNamer;
 use anyhow::bail;
 use async_recursion::async_recursion;
 use async_stream::stream;
-use chris::filebrowser::{FileBrowser, FileBrowserPath, FileBrowserView};
+use chris::filebrowser::{FileBrowser, FileBrowserPath, FileBrowserEntry};
 use chris::models::data::{Downloadable, DownloadableFile};
 use chris::{ChrisClient, reqwest};
 use console::{style, StyledObject};
@@ -42,7 +42,7 @@ pub(crate) async fn files_tree(
 
 async fn print_tree_from(
     fb: &FileBrowser,
-    v: FileBrowserView,
+    v: FileBrowserEntry,
     full: bool,
     depth: u16,
     mut namer: MaybeNamer,
@@ -106,7 +106,7 @@ async fn construct(
 }
 
 struct DescentState {
-    fbv: FileBrowserView,
+    fbv: FileBrowserEntry,
     subfolder: String,
     context: Option<DescentContext>,
     full: bool,
@@ -114,7 +114,7 @@ struct DescentState {
 }
 
 impl DescentState {
-    fn new(fbv: FileBrowserView, subfolder: String, full: bool, depth: u16) -> Self {
+    fn new(fbv: FileBrowserEntry, subfolder: String, full: bool, depth: u16) -> Self {
         Self {
             context: None,
             fbv,
@@ -125,7 +125,7 @@ impl DescentState {
     }
 
     /// Change states to the next [DescentContext] for the folder name.
-    fn next(&self, fbv: FileBrowserView, subfolder: String) -> Self {
+    fn next(&self, fbv: FileBrowserEntry, subfolder: String) -> Self {
         if self.depth == 0 {
             panic!("depth underflow, calling recursive function should have quit.");
         }
@@ -186,9 +186,9 @@ fn initial_context(path: &FileBrowserPath) -> DescentContext {
 /// Get subfolders under a given filebrowser path. Returns 2-tuples of (name, object)
 async fn subfolders(
     fb: &FileBrowser,
-    v: &FileBrowserView,
+    v: &FileBrowserEntry,
     tx: UnboundedSender<()>,
-) -> Result<Vec<(String, FileBrowserView)>, anyhow::Error> {
+) -> Result<Vec<(String, FileBrowserEntry)>, anyhow::Error> {
     let browses = stream! {
         for subpath in v.subpaths() {
             yield fb.browse(&subpath).await;
@@ -196,7 +196,7 @@ async fn subfolders(
             tx.send(()).unwrap();
         }
     };
-    let option_subviews: Vec<Option<FileBrowserView>> = browses.try_collect().await?;
+    let option_subviews: Vec<Option<FileBrowserEntry>> = browses.try_collect().await?;
 
     let maybe_subviews = option_subviews
         .into_iter()
@@ -223,7 +223,7 @@ async fn subfolders(
 ///
 /// We're using `Vec` just to avoid dealing with streams.
 async fn subfiles(
-    v: &FileBrowserView,
+    v: &FileBrowserEntry,
     namer: &mut MaybeNamer,
     full: bool,
 ) -> Result<Vec<Tree<StyledObject<String>>>, reqwest::Error> {
@@ -240,7 +240,7 @@ async fn subfiles(
 
 /// Use `namer` to convert the subfiles of `v` to user-friendly names.
 async fn subfiles_full_names(
-    v: &FileBrowserView,
+    v: &FileBrowserEntry,
     namer: &mut MaybeNamer,
 ) -> Result<Vec<String>, reqwest::Error> {
     let namer = Arc::new(Mutex::new(namer));
@@ -257,7 +257,7 @@ async fn subfiles_full_names(
         .await
 }
 
-async fn subfiles_names(v: &FileBrowserView) -> Result<Vec<String>, reqwest::Error> {
+async fn subfiles_names(v: &FileBrowserEntry) -> Result<Vec<String>, reqwest::Error> {
     v.iter_files().map(|f| f.map(file2name)).try_collect().await
 }
 
