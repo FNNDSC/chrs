@@ -59,12 +59,6 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "224afbd727c3d6e4b90103ece64b8d1b67fbb1973b1046c2281eed3f3803f800"
 
 [[package]]
-name = "arc-swap"
-version = "1.6.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "bddcadddf5e9015d310179a59bb28c4d4b9920ad0f11e8e14dbadf654890c9a6"
-
-[[package]]
 name = "async-attributes"
 version = "1.1.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -308,16 +302,6 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "89b2fd2a0dcf38d7971e2194b6b6eebab45ae01067456a7fd93d5547a61b70be"
 
 [[package]]
-name = "caps"
-version = "0.5.5"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "190baaad529bcfbde9e1a19022c42781bdb6ff9de25721abdb8fd98c0807730b"
-dependencies = [
- "libc",
- "thiserror",
-]
-
-[[package]]
 name = "cc"
 version = "1.0.79"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -365,11 +349,9 @@ name = "chrmnt"
 version = "0.1.0"
 dependencies = [
  "anyhow",
- "async-trait",
  "chris",
  "clap",
- "fuse-backend-rs",
- "libc",
+ "fuser",
  "tokio",
 ]
 
@@ -830,26 +812,19 @@ dependencies = [
 ]
 
 [[package]]
-name = "fuse-backend-rs"
-version = "0.10.2"
+name = "fuser"
+version = "0.12.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "08af89cb80a7c5693bd63a2b1ee7ac31a307670977c18fda036b3aa94be8c47f"
+checksum = "5910691a0ececcc6eba8bb14029025c2d123e96a53db1533f6a4602861a5aaf7"
 dependencies = [
- "arc-swap",
- "async-trait",
- "bitflags",
- "caps",
- "core-foundation-sys",
- "io-uring",
- "lazy_static",
  "libc",
  "log",
- "mio",
- "nix 0.24.3",
- "tokio",
- "tokio-uring",
- "vm-memory",
- "vmm-sys-util",
+ "memchr",
+ "page_size",
+ "pkg-config",
+ "smallvec",
+ "users",
+ "zerocopy",
 ]
 
 [[package]]
@@ -1256,16 +1231,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "io-uring"
-version = "0.5.13"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "dd1e1a01cfb924fd8c5c43b6827965db394f5a3a16c599ce03452266e1cf984c"
-dependencies = [
- "bitflags",
- "libc",
-]
-
-[[package]]
 name = "ipconfig"
 version = "0.3.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -1517,18 +1482,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "nix"
-version = "0.24.3"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "fa52e972a9a719cecb6864fb88568781eb706bac2cd1d4f04a648542dbf78069"
-dependencies = [
- "bitflags",
- "cfg-if",
- "libc",
- "memoffset",
-]
-
-[[package]]
 name = "nom8"
 version = "0.2.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -1701,6 +1654,16 @@ name = "os_str_bytes"
 version = "6.4.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "9b7820b9daea5457c9f21c69448905d723fbd21136ccf521748f23fd49e723ee"
+
+[[package]]
+name = "page_size"
+version = "0.4.2"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "eebde548fbbf1ea81a99b128872779c437752fb99f217c45245e1a61dcd9edcd"
+dependencies = [
+ "libc",
+ "winapi",
+]
 
 [[package]]
 name = "parking"
@@ -2526,20 +2489,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "tokio-uring"
-version = "0.4.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "0d5e02bb137e030b3a547c65a3bd2f1836d66a97369fdcc69034002b10e155ef"
-dependencies = [
- "io-uring",
- "libc",
- "scoped-tls",
- "slab",
- "socket2",
- "tokio",
-]
-
-[[package]]
 name = "tokio-util"
 version = "0.7.7"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -2744,6 +2693,16 @@ dependencies = [
 ]
 
 [[package]]
+name = "users"
+version = "0.11.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "24cc0f6d6f267b73e5a2cadf007ba8f9bc39c6a6f9666f8cf25ea809a153b032"
+dependencies = [
+ "libc",
+ "log",
+]
+
+[[package]]
 name = "value-bag"
 version = "1.0.0-alpha.9"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -2764,26 +2723,6 @@ name = "version_check"
 version = "0.9.4"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "49874b5167b65d7193b8aba1567f5c7d93d001cafc34600cee003eda787e483f"
-
-[[package]]
-name = "vm-memory"
-version = "0.9.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "583f213899e8a5eea23d9c507252d4bed5bc88f0ecbe0783262f80034630744b"
-dependencies = [
- "libc",
- "winapi",
-]
-
-[[package]]
-name = "vmm-sys-util"
-version = "0.10.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "08604d7be03eb26e33b3cee3ed4aef2bf550b305d1cca60e84da5d28d3790b62"
-dependencies = [
- "bitflags",
- "libc",
-]
 
 [[package]]
 name = "waker-fn"
@@ -3064,7 +3003,7 @@ dependencies = [
  "fastrand",
  "futures",
  "nb-connect",
- "nix 0.22.3",
+ "nix",
  "once_cell",
  "polling",
  "scoped-tls",
@@ -3081,6 +3020,27 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "fa3959a7847cf95e3d51e312856617c5b1b77191176c65a79a5f14d778bbe0a6"
 dependencies = [
  "proc-macro-crate 0.1.5",
+ "proc-macro2",
+ "quote",
+ "syn",
+]
+
+[[package]]
+name = "zerocopy"
+version = "0.6.1"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "332f188cc1bcf1fe1064b8c58d150f497e697f49774aa846f2dc949d9a25f236"
+dependencies = [
+ "byteorder",
+ "zerocopy-derive",
+]
+
+[[package]]
+name = "zerocopy-derive"
+version = "0.3.2"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "6505e6815af7de1746a08f69c69606bb45695a17149517680f3b2149713b19a3"
+dependencies = [
  "proc-macro2",
  "quote",
  "syn",
