@@ -5,10 +5,13 @@ use chris::filebrowser::FileBrowserPath;
 use chris::models::*;
 use chris::CUBEAuth;
 use chris::ChrisClient;
+use fs_err::tokio::File;
 use futures::{StreamExt, TryStreamExt};
 use names::Generator;
 use rstest::*;
 use std::path::{Path, PathBuf};
+use tempfile::TempDir;
+use tokio::io::AsyncWriteExt;
 
 // ========================================
 //                 CONSTANTS
@@ -135,7 +138,7 @@ impl FileToUpload<'_> {
 async fn test_filebrowser_browse_uploads(
     chris_client: &ChrisClient,
     sample_upload_path: FileBrowserPath,
-    example_uploaded_files: &Vec<FileUploadResponse>,
+    _example_uploaded_files: &Vec<FileUploadResponse>,
 ) {
     let filebrowser = chris_client.file_browser();
     let req = filebrowser.readdir(&sample_upload_path).await.unwrap();
@@ -157,5 +160,53 @@ async fn test_get_plugin(chris_client: &ChrisClient) -> AnyResult {
         .unwrap();
     assert_eq!(&plugin.data.name, &*DIRCOPY_NAME);
     assert_eq!(&plugin.data.version, &*DIRCOPY_VERSION);
+    Ok(())
+}
+
+#[rstest]
+#[tokio::test(flavor = "multi_thread")]
+async fn test_download(chris_client: &ChrisClient) -> AnyResult {
+    let data = b"finally some good food";
+    let tmp_path = TempDir::new()?.into_path();
+    let input_file = tmp_path.join(Path::new("hello.txt"));
+    let output_file = tmp_path.join(Path::new("same.txt"));
+    {
+        File::create(&input_file).await?.write_all(data).await?;
+    }
+    let upload = chris_client
+        .upload_file(&input_file, "test_files_upload_iter.txt")
+        .await?;
+
+    let search = chris_client.search_all_files_under(upload.fname());
+    let found_file = search.get_only().await?;
+    found_file.download(&output_file, false).await.unwrap();
+    let downloaded = fs_err::tokio::read(output_file).await?;
+    assert_eq!(data, downloaded.as_slice());
+    Ok(())
+}
+
+#[rstest]
+#[tokio::test(flavor = "multi_thread")]
+async fn test_search_files_raw(
+    chris_client: &ChrisClient,
+    _example_uploaded_files: &Vec<FileUploadResponse>,
+) -> AnyResult {
+    let cube = chris_client.url().as_str();
+    let url = format!("{cube}uploadedfiles/search/?fname_nslashes=4");
+
+    let search = chris_client.search_files_raw(url);
+    assert!(search.get_count().await? > 0);
+
+    let all_results: Vec<String> = search
+        .stream()
+        .map_ok(|f| f.fname().to_string())
+        .try_collect()
+        .await?;
+    let expected_fname = "pikachu_testpass.txt";
+    let mut filter = all_results.iter().filter(|f| f.ends_with(expected_fname));
+    if filter.next().is_none() {
+        panic!("Expected \"{}\" to be in {:?}", expected_fname, all_results)
+    }
+
     Ok(())
 }

@@ -9,14 +9,14 @@ pub struct BaseResponse {
     pub count: u32,
     pub next: Option<FeedsPaginatedUrl>,
     pub previous: Option<FeedsPaginatedUrl>,
-    pub collection_links: CUBELinks,
+    pub collection_links: CubeLinks,
 }
 
 #[braid(serde)]
 pub struct FeedsPaginatedUrl;
 
 #[derive(Debug, Clone, Deserialize)]
-pub struct CUBELinks {
+pub struct CubeLinks {
     pub files: FeedFilesUrl,
     pub uploadedfiles: UploadedFilesUrl,
     pub user: UserUrl,
@@ -24,6 +24,8 @@ pub struct CUBELinks {
     pub filebrowser: FileBrowserUrl,
     pub plugins: PluginsUrl,
     pub plugin_instances: PluginInstancesUrl,
+    pub pacsfiles: PacsFilesUrl,
+    pub servicefiles: ServiceFilesUrl,
 }
 
 /// CUBE file browser API URL, e.g. `https://cube.chrisproject.org/api/v1/filebrowser/`
@@ -93,17 +95,13 @@ pub struct PipelineInstancesUrl;
 #[braid(serde)]
 pub struct PipelineWorkflowsUrl;
 
-/// A URL which produces a collection of files.
-///
-/// # Examples
-///
-/// - `https://cube.chrisproject.org/api/v1/files/`
-/// - `https://cube.chrisproject.org/api/v1/files/search/`
-/// - `https://cube.chrisproject.org/api/v1/uploadedfiles/search/?fname=txt`
-/// - `https://cube.chrisproject.org/api/v1/20/files/`
-/// - `https://cube.chrisproject.org/api/v1/plugins/instances/40/files/`
+/// CUBE PACS files URL, e.g. `https://cube.chrisproject.org/api/v1/pacsfiles/`
 #[braid(serde)]
-pub struct AnyFilesUrl;
+pub struct PacsFilesUrl;
+
+/// CUBE services files API URL, e.g. `https://cube.chrisproject.org/api/v1/servicefiles/`
+#[braid(serde)]
+pub struct ServiceFilesUrl;
 
 /// Download URL for a file resource.
 ///
@@ -263,6 +261,9 @@ pub struct PluginInstanceParametersUrl;
 pub struct PluginInstanceSplitsUrl;
 
 #[braid(serde)]
+pub struct PluginInstanceFilesUrl;
+
+#[braid(serde)]
 pub struct ComputeResourceUrl;
 
 #[braid(serde)]
@@ -299,7 +300,7 @@ pub struct PluginInstanceResponse {
     pub previous: Option<PluginInstanceUrl>,
     pub feed: FeedUrl,
     pub descendants: DescendantsUrl,
-    pub files: AnyFilesUrl,
+    pub files: PluginInstanceFilesUrl,
     pub parameters: PluginInstanceParametersUrl,
     pub splits: PluginInstanceSplitsUrl,
 }

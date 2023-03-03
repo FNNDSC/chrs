@@ -30,8 +30,11 @@ pub struct ChrisClient {
     client: reqwest::Client,
     url: CUBEApiUrl,
     username: Username,
-    links: CUBELinks,
+    links: CubeLinks,
 }
+
+/// A search for files in _ChRIS_ which start with a given fname.
+pub type FnameSearch = Search<DownloadableFile, FnameParam>;
 
 impl ChrisClient {
     pub async fn new(
@@ -106,6 +109,63 @@ impl ChrisClient {
     //     self.paginate(url)
     // }
     //
+
+    // ==================================================
+    //                 FILES SEARCH
+    // ==================================================
+
+    /// Produce a [Search] for an arbitrary files collection URL.
+    ///
+    /// # Examples
+    ///
+    /// - `https://cube.chrisproject.org/api/v1/files/`
+    /// - `https://cube.chrisproject.org/api/v1/files/search/`
+    /// - `https://cube.chrisproject.org/api/v1/uploadedfiles/search/?fname=txt&min_creation_date=2023-03-03T15%3A45%3A28.054989-05%3A00`
+    /// - `https://cube.chrisproject.org/api/v1/20/files/`
+    /// - `https://cube.chrisproject.org/api/v1/plugins/instances/40/files/`
+    pub fn search_files_raw(&self, search_url: impl ToString) -> Search<DownloadableFile, ()> {
+        Search::basic(&self.client, search_url)
+    }
+
+    /// Produce a [Search] which yields all files under a fname prefix.
+    pub fn search_all_files_under(&self, fname: impl ToString) -> FnameSearch {
+        let fname = fname.to_string();
+        let base_url = files_url_for(&fname, &self.links);
+        let query = FnameParam { fname };
+        Search::new(&self.client, base_url, query)
+    }
+
+    /// Search for uploaded files.
+    pub fn search_uploadedfiles<Q: Serialize + Sized>(
+        &self,
+        query: Q,
+    ) -> Search<DownloadableFile, Q> {
+        Search::new(&self.client, &self.links.uploadedfiles, query)
+    }
+
+    /// Search for files in feeds created by plugin instances.
+    pub fn search_feed_files<Q: Serialize + Sized>(&self, query: Q) -> Search<DownloadableFile, Q> {
+        Search::new(&self.client, &self.links.files, query)
+    }
+
+    /// Search for service files (not used).
+    pub fn search_servicefiles<Q: Serialize + Sized>(
+        &self,
+        query: Q,
+    ) -> Search<DownloadableFile, Q> {
+        Search::new(&self.client, &self.links.servicefiles, query)
+    }
+
+    /// Search for DICOM files from PACS/pfdcm.
+    pub fn search_pacsfiles<Q: Serialize + Sized>(&self, query: Q) -> Search<DownloadableFile, Q> {
+        // TODO return PACSFiles type with all of the DICOM metadata
+        Search::new(&self.client, &self.links.pacsfiles, query)
+    }
+
+    // ==================================================
+    //                 FILES UPLOAD
+    // ==================================================
+
     /// Create a _ChRIS_ uploadedfile from a stream of bytes.
     ///
     /// [`ChrisClient::upload_file`] is a lower-level function called by
@@ -164,44 +224,6 @@ impl ChrisClient {
         self.upload_stream(stream, filename, path, content_length)
             .await
     }
-    //
-    // /// Stream the bytes data of a file from _ChRIS_.
-    // /// Returns the bytestream and content-length.
-    // pub async fn stream_file(
-    //     &self,
-    //     src: &impl Downloadable,
-    // ) -> Result<impl Stream<Item = Result<bytes::Bytes, reqwest::Error>>, CUBEError> {
-    //     let res = self.client.get(src.file_resource().as_str()).send().await?;
-    //     let stream = check(res).await?.bytes_stream();
-    //     Ok(stream)
-    // }
-    //
-    // /// Download a file from _ChRIS_ to a local path.
-    // pub async fn download_file(
-    //     &self,
-    //     src: &impl Downloadable,
-    //     dst: &Path,
-    //     clobber: bool,
-    // ) -> Result<(), FileIOError> {
-    //     let mut file = if clobber {
-    //         File::create(dst).await
-    //     } else {
-    //         OpenOptions::new()
-    //             .write(true)
-    //             .create_new(true)
-    //             .open(dst)
-    //             .await
-    //     }
-    //     .map_err(FileIOError::IO)?;
-    //     let stream = self
-    //         .stream_file(src)
-    //         .await?
-    //         .map_err(|e| std::io::Error::new(std::io::ErrorKind::ConnectionAborted, e));
-    //     let mut reader = StreamReader::new(stream);
-    //     tokio::io::copy(&mut reader, &mut file).await?;
-    //     Ok(())
-    // }
-    //
     // /// Get a plugin instance by ID. If not found, error is returned.
     // pub async fn get_plugin_instance(
     //     &self,
@@ -286,9 +308,27 @@ fn token2header(token: &str) -> HeaderMap {
     headers
 }
 
+/// Decide which _ChRIS_ files endpoint (files, uploadedfiles, servicefiles, or pacsfiles)
+/// the given fname can be found from.
+fn files_url_for<'a, 'b>(fname: &'a str, links: &'b CubeLinks) -> &'b str {
+    if fname.starts_with("SERVICES") {
+        if fname.starts_with("SERVICES/PACS") {
+            return links.pacsfiles.as_str();
+        }
+        return links.servicefiles.as_str();
+    }
+    if let Some((_username, subdir)) = fname.split_once('/') {
+        if subdir.starts_with("uploads") {
+            return links.uploadedfiles.as_str();
+        }
+    }
+    links.files.as_str()
+}
+
+/// GET querystring for searching for files in _ChRIS_ given `fname`.
 #[derive(Serialize)]
-struct DircopyPayload<'a> {
-    dir: &'a str,
+pub struct FnameParam {
+    fname: String,
 }
 
 // ============================== TESTS ==============================
@@ -296,19 +336,39 @@ struct DircopyPayload<'a> {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::auth::CUBEAuth;
-    use crate::models::{ParameterName, ParameterValue, PluginName, PluginVersion};
-    use crate::pipeline::canon::{
-        ExpandedTreeParameter, ExpandedTreePipeline, ExpandedTreePiping, PipingTitle,
-    };
-    use futures::future::{join_all, try_join_all};
-    use futures::{pin_mut, StreamExt};
-    use names::Generator;
+    use lazy_static::lazy_static;
     use rstest::*;
-    use std::path::PathBuf;
-    use tempfile::TempDir;
+    lazy_static! {
+        static ref EXAMPLE_LINKS: CubeLinks = CubeLinks {
+            files: FeedFilesUrl::from_static("https://example.com/api/v1/files/"),
+            uploadedfiles: UploadedFilesUrl::from_static(
+                "https://example.com/api/v1/uploadedfiles/"
+            ),
+            user: UserUrl::from_static("https://example.com/api/v1/users/100/"),
+            pipelines: PipelinesUrl::from_static("https://example.com/api/v1/pipelines/"),
+            filebrowser: FileBrowserUrl::from_static("https://example.com/api/v1/filebrowser/"),
+            plugins: PluginsUrl::from_static("https://example.com/api/v1/plugins/"),
+            plugin_instances: PluginInstancesUrl::from_static(
+                "https://example.com/api/v1/plugins/instances/"
+            ),
+            pacsfiles: PacsFilesUrl::from_static("https://example.com/api/v1/pacsfiles/"),
+            servicefiles: ServiceFilesUrl::from_static("https://example.com/api/v1/servicefiles/"),
+        };
+    }
 
-    const CUBE_URL: &str = "http://localhost:8000/api/v1/";
+    #[rstest]
+    #[case("chris/uploads", &EXAMPLE_LINKS.uploadedfiles)]
+    #[case("chris/uploads/whatever", &EXAMPLE_LINKS.uploadedfiles)]
+    #[case("SERVICES/PACS", &EXAMPLE_LINKS.pacsfiles)]
+    #[case("SERVICES/PACS/xxxxxx-patient", &EXAMPLE_LINKS.pacsfiles)]
+    #[case("SERVICES/somthing/else", &EXAMPLE_LINKS.servicefiles)]
+    #[case("peanut/feed_151", &EXAMPLE_LINKS.files)]
+    #[case("peanut/feed_151/pl-brainmgz_616", &EXAMPLE_LINKS.files)]
+    #[case("peanut/feed_151/pl-brainmgz_616/data", &EXAMPLE_LINKS.files)]
+    fn test_files_url_for(#[case] fname: &str, #[case] expected: impl AsRef<str>) {
+        let actual = files_url_for(fname, &EXAMPLE_LINKS);
+        assert_eq!(actual, expected.as_ref())
+    }
 
     //
     // #[rstest]
