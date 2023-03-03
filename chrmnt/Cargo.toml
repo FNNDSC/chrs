@@ -1,0 +1,15 @@
+[package]
+name = "chrmnt"
+version = "0.1.0"
+edition = "2021"
+
+# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
+
+[dependencies]
+chris = { path = "../chris", version = "0.4.0", features = ["rustls"], default-features = false }
+clap = { version = "4.1.6", features = ["derive"] }
+fuse-backend-rs = { version = "0.10.2", features = ["tokio", "async-io"] }
+async-trait = "0.1.64"
+tokio = { version = "1.25.0", features = ["full"] }
+anyhow = "1.0.69"
+libc = "0.2.139"

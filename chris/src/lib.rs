@@ -16,4 +16,5 @@ pub mod reqwest;
 
 pub use crate::client::pipeline::Pipeline;
 pub use client::cube::ChrisClient;
+pub use auth::CUBEAuth;
 pub use client::errors;

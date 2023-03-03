@@ -36,14 +36,25 @@ struct CreateUserData<'a> {
     email: &'a str,
 }
 
-pub struct CUBEAuth<'a> {
-    pub client: &'a reqwest::Client,
+/// CUBE username and password struct.
+/// [CUBEAuth] is a builder for [chris::ChrisClient].
+pub struct CUBEAuth {
+    pub client: reqwest::Client,
     pub url: CUBEApiUrl,
     pub username: Username,
     pub password: String,
 }
 
-impl CUBEAuth<'_> {
+impl CUBEAuth {
+    pub fn new(url: CUBEApiUrl, username: Username, password: String) -> Self {
+        Self {
+            client: Default::default(),
+            url,
+            username,
+            password
+        }
+    }
+
     pub async fn get_token(&self) -> Result<String, reqwest::Error> {
         let auth_url = format!("{}auth-token/", &self.url);
         let req = self
