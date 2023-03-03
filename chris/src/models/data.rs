@@ -117,32 +117,11 @@ pub struct FileResourceUrl;
 #[braid(serde)]
 pub struct FileResourceFname;
 
-/// A CUBE item which has a `file_resource` and `fname`.
-pub trait Downloadable {
-    fn file_resource(&self) -> &FileResourceUrl;
-    fn fname(&self) -> &FileResourceFname;
-    fn fsize(&self) -> u64;
-}
-
 #[derive(Deserialize)]
 pub struct DownloadableFile {
-    file_resource: FileResourceUrl,
-    fname: FileResourceFname,
-    fsize: u64,
-}
-
-impl Downloadable for DownloadableFile {
-    fn file_resource(&self) -> &FileResourceUrl {
-        &self.file_resource
-    }
-
-    fn fname(&self) -> &FileResourceFname {
-        &self.fname
-    }
-
-    fn fsize(&self) -> u64 {
-        self.fsize
-    }
+    pub(crate) file_resource: FileResourceUrl,
+    pub(crate) fname: FileResourceFname,
+    pub(crate) fsize: u64,
 }
 
 #[derive(Debug, Deserialize)]
@@ -169,24 +148,10 @@ pub struct FileUploadResponse {
     pub url: String,
     pub id: u32,
     pub creation_date: String,
-    fname: FileResourceFname,
-    fsize: u64,
-    file_resource: FileResourceUrl,
+    pub(crate) fname: FileResourceFname,
+    pub(crate) fsize: u64,
+    pub(crate) file_resource: FileResourceUrl,
     pub owner: String,
-}
-
-impl Downloadable for FileUploadResponse {
-    fn file_resource(&self) -> &FileResourceUrl {
-        &self.file_resource
-    }
-
-    fn fname(&self) -> &FileResourceFname {
-        &self.fname
-    }
-
-    fn fsize(&self) -> u64 {
-        self.fsize
-    }
 }
 
 /// Plugin URL.
