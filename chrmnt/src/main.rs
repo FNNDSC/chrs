@@ -10,12 +10,17 @@ use fuser::{
 use libc::ENOENT;
 use std::ffi::OsStr;
 use std::time::{Duration, UNIX_EPOCH};
+use anyhow::Context;
+use clap::builder::Str;
+use chris::filebrowser::FileBrowserPath;
+use futures::TryStreamExt;
+use chris::models::Downloadable;
 
 #[derive(Parser)]
 #[clap(about = "chrs mount proof-of-concept")]
 struct Cli {
     /// CUBE filebrowser path
-    path: String,
+    path: FileBrowserPath,
     /// mount point
     mountpoint: PathBuf,
 }
@@ -37,7 +42,14 @@ async fn main() -> anyhow::Result<()> {
         // MountOption::AllowRoot
     ];
 
-    fuser::mount2(HelloFS, mountpoint, &options).unwrap();
+    let contents: Vec<String> = chris.file_browser().readdir(&args.path).await?
+        .with_context(|| format!("Path not found in ChRIS: {:?}", &args.path))?
+        .iter_files()
+        .stream()
+        .map_ok(|f| f.fname().as_str().rsplit_once('/').unwrap_or(("", f.fname().as_str())).1.to_string())
+        .try_collect().await?;
+    let fs = HelloFS{ contents: dbg!(contents) };
+    fuser::mount2(fs, mountpoint, &options).unwrap();
 
     Ok(())
 }
@@ -63,11 +75,11 @@ const HELLO_DIR_ATTR: FileAttr = FileAttr {
     blksize: 512,
 };
 
-const HELLO_TXT_CONTENT: &str = "Hello World!\n";
+const HELLO_TXT_CONTENT: &str = "Hello from chrs!\n";
 
 const HELLO_TXT_ATTR: FileAttr = FileAttr {
     ino: 2,
-    size: 13,
+    size: 17,
     blocks: 1,
     atime: UNIX_EPOCH, // 1970-01-01 00:00:00
     mtime: UNIX_EPOCH,
@@ -83,11 +95,13 @@ const HELLO_TXT_ATTR: FileAttr = FileAttr {
     blksize: 512,
 };
 
-struct HelloFS;
+struct HelloFS {
+    contents: Vec<String>
+}
 
 impl Filesystem for HelloFS {
     fn lookup(&mut self, _req: &Request, parent: u64, name: &OsStr, reply: ReplyEntry) {
-        if parent == 1 && name.to_str() == Some("hello.txt") {
+        if parent == 1 {
             reply.entry(&TTL, &HELLO_TXT_ATTR, 0);
         } else {
             reply.error(ENOENT);
@@ -139,12 +153,13 @@ impl Filesystem for HelloFS {
             (2, FileType::RegularFile, "hello.txt"),
         ];
 
-        for (i, entry) in entries.into_iter().enumerate().skip(offset as usize) {
+        for (i, entry) in self.contents.iter().enumerate().skip(offset as usize) {
             // i + 1 means the index of the next entry
-            if reply.add(entry.0, (i + 1) as i64, entry.1, entry.2) {
+            if reply.add((i + 100) as u64, (i + 101) as i64, FileType::RegularFile, entry) {
                 break;
             }
         }
         reply.ok();
+        dbg!("sent reply");
     }
 }
