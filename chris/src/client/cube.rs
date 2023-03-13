@@ -168,8 +168,8 @@ impl ChrisClient {
 
     /// Create a _ChRIS_ uploadedfile from a stream of bytes.
     ///
-    /// [`ChrisClient::upload_file`] is a lower-level function called by
-    /// [`ChrisClient::upload_stream`]. Most often, developers would be
+    /// [`ChrisClient::upload_stream`] is a lower-level function called by
+    /// [`ChrisClient::upload_file`]. Most often, developers would be
     /// interested in the former.
     ///
     /// # Arguments
