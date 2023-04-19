@@ -2,10 +2,10 @@ use futures::Stream;
 
 use crate::errors::{check, CUBEError};
 use crate::models::data::{PluginInstanceResponse, PluginParameter, PluginResponse};
-use crate::models::ConnectedModel;
+use crate::models::linked::LinkedModel;
 use serde::Serialize;
 
-pub type Plugin = ConnectedModel<PluginResponse>;
+pub type Plugin = LinkedModel<PluginResponse>;
 
 impl Plugin {
     pub async fn create_instance<T: Serialize + ?Sized>(

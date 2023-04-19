@@ -1,7 +1,7 @@
-//! Types produced by the _ChRIS_ backend (CUBE) API.
+//! Definitions of structs describing response data from the *CUBE* API.
 
-use crate::common_types::Username;
-use aliri_braid::braid;
+use super::enums::*;
+use super::types::*;
 use serde::{Deserialize, Serialize};
 
 #[derive(Debug, Deserialize)]
@@ -11,9 +11,6 @@ pub struct BaseResponse {
     pub previous: Option<FeedsPaginatedUrl>,
     pub collection_links: CubeLinks,
 }
-
-#[braid(serde)]
-pub struct FeedsPaginatedUrl;
 
 #[derive(Debug, Clone, Deserialize)]
 pub struct CubeLinks {
@@ -27,93 +24,6 @@ pub struct CubeLinks {
     pub pacsfiles: PacsFilesUrl,
     pub servicefiles: ServiceFilesUrl,
 }
-
-/// CUBE file browser API URL, e.g. `https://cube.chrisproject.org/api/v1/filebrowser/`
-#[braid(serde)]
-pub struct FileBrowserUrl;
-
-/// CUBE files resource URL, e.g. `https://cube.chrisproject.org/api/v1/files/`
-#[braid(serde)]
-pub struct FeedFilesUrl;
-
-/// CUBE uploaded files resource URL, e.g. `https://cube.chrisproject.org/api/v1/uploadedfiles/`
-#[braid(serde)]
-pub struct UploadedFilesUrl;
-
-/// CUBE plugins resource URL, e.g. `https://cube.chrisproject.org/api/v1/plugins/`
-#[braid(serde)]
-pub struct PluginsUrl;
-
-/// CUBE User ID
-#[derive(Shrinkwrap, Deserialize)]
-pub struct UserId(pub u32);
-
-/// CUBE user resource URL, e.g. `https://cube.chrisproject.org/api/v1/users/3/`
-#[braid(serde)]
-pub struct UserUrl;
-
-/// CUBE pipelines resource URL, e.g. `https://cube.chrisproject.org/api/v1/pipelines/`
-#[braid(serde)]
-pub struct PipelinesUrl;
-
-#[braid(serde)]
-pub struct PluginName;
-
-#[braid(serde)]
-pub struct PluginVersion;
-
-#[braid(serde)]
-pub struct ParameterName;
-
-#[derive(Debug, Serialize, Deserialize, PartialEq, Clone)]
-#[serde(untagged)]
-pub enum ParameterValue {
-    Bool(bool),
-    Int(i64),
-    Float(f64),
-    Str(String),
-}
-
-#[braid(serde)]
-pub struct PipelineUrl;
-
-#[derive(Shrinkwrap, Deserialize, Debug)]
-pub struct PipelineId(pub u32);
-
-#[braid(serde)]
-pub struct PipelinePluginsUrl;
-
-#[braid(serde)]
-pub struct PipelinePipingsUrl;
-
-#[braid(serde)]
-pub struct PipelineDefaultParametersUrl;
-
-#[braid(serde)]
-pub struct PipelineInstancesUrl;
-
-#[braid(serde)]
-pub struct PipelineWorkflowsUrl;
-
-/// CUBE PACS files URL, e.g. `https://cube.chrisproject.org/api/v1/pacsfiles/`
-#[braid(serde)]
-pub struct PacsFilesUrl;
-
-/// CUBE services files API URL, e.g. `https://cube.chrisproject.org/api/v1/servicefiles/`
-#[braid(serde)]
-pub struct ServiceFilesUrl;
-
-/// Download URL for a file resource.
-///
-/// # Examples
-///
-/// - `https://cube.chrisproject.org/api/v1/files/84360/aparc.a2009s+aseg.mgz`
-#[braid(serde)]
-pub struct FileResourceUrl;
-
-/// File fname.
-#[braid(serde)]
-pub struct FileResourceFname;
 
 #[derive(Deserialize)]
 pub struct DownloadableFile {
@@ -152,47 +62,6 @@ pub struct FileUploadResponse {
     pub owner: String,
 }
 
-/// Plugin URL.
-#[braid(serde)]
-pub struct PluginUrl;
-
-/// Plugin ID
-#[derive(Shrinkwrap, Deserialize, Debug)]
-pub struct PluginId(pub u32);
-
-/// Container image name of a plugin.
-#[braid(serde)]
-pub struct DockImage;
-
-/// Public source code repository of a plugin.
-#[braid(serde)]
-pub struct PluginRepo;
-
-/// <https://github.com/FNNDSC/CHRIS_docs/blob/master/specs/ChRIS_Plugins.adoc#plugin-type>
-#[derive(Deserialize, Debug, Clone, Eq, PartialEq)]
-#[serde(rename_all = "lowercase")]
-pub enum PluginType {
-    Fs,
-    Ds,
-    Ts,
-}
-
-/// Plugin meta URL.
-#[braid(serde)]
-pub struct PluginMetaUrl;
-
-/// Plugin parameters URL.
-#[braid(serde)]
-pub struct PluginParametersUrl;
-
-/// Plugin instances URL.
-#[braid(serde)]
-pub struct PluginInstancesUrl;
-
-/// Plugin compute resources URL.
-#[braid(serde)]
-pub struct PluginComputeResourcesUrl;
-
 #[derive(Debug, Deserialize)]
 pub struct PluginResponse {
     pub url: PluginUrl,
@@ -229,15 +98,6 @@ pub struct PluginResponse {
     pub compute_resources: PluginComputeResourcesUrl,
 }
 
-#[braid(serde)]
-pub struct PluginInstanceUrl;
-
-#[braid(serde)]
-pub struct FeedUrl;
-
-#[derive(Copy, Clone, Shrinkwrap, Serialize, Deserialize, Debug, Hash, Eq, PartialEq)]
-pub struct FeedId(pub u32);
-
 #[derive(Deserialize)]
 pub struct FeedResponse {
     pub url: FeedUrl,
@@ -247,27 +107,6 @@ pub struct FeedResponse {
     // pub creation_date:
     // many fields missing ;-;
 }
-
-#[derive(Copy, Clone, Shrinkwrap, Serialize, Deserialize, Debug, Hash, Eq, PartialEq)]
-pub struct PluginInstanceId(pub u32);
-
-#[braid(serde)]
-pub struct DescendantsUrl;
-
-#[braid(serde)]
-pub struct PluginInstanceParametersUrl;
-
-#[braid(serde)]
-pub struct PluginInstanceSplitsUrl;
-
-#[braid(serde)]
-pub struct PluginInstanceFilesUrl;
-
-#[braid(serde)]
-pub struct ComputeResourceUrl;
-
-#[braid(serde)]
-pub struct ComputeResourceName;
 
 #[derive(Deserialize, Debug)]
 pub struct PluginInstanceResponse {
@@ -305,12 +144,6 @@ pub struct PluginInstanceResponse {
     pub splits: PluginInstanceSplitsUrl,
 }
 
-#[braid(serde)]
-pub struct PluginParameterUrl;
-
-#[derive(Shrinkwrap, Deserialize, Debug, Copy, Clone, Eq, PartialEq)]
-pub struct PluginParameterId(pub u32);
-
 #[derive(Deserialize, Debug, Clone, PartialEq)]
 pub struct PluginParameter {
     pub url: PluginParameterUrl,
@@ -327,57 +160,6 @@ pub struct PluginParameter {
     pub ui_exposed: bool,
     pub plugin: PluginUrl,
 }
-
-#[derive(Deserialize, Debug, Copy, Clone, Eq, PartialEq)]
-#[serde(rename_all = "lowercase")]
-pub enum PluginParameterType {
-    Boolean,
-    Integer,
-    Float,
-    String,
-    Path,
-    Unextpath,
-}
-
-impl PluginParameterType {
-    pub fn as_str(&self) -> &'static str {
-        match self {
-            PluginParameterType::Boolean => "boolean",
-            PluginParameterType::Integer => "int",
-            PluginParameterType::Float => "float",
-            PluginParameterType::String => "string",
-            PluginParameterType::Path => "path",
-            PluginParameterType::Unextpath => "unextpath",
-        }
-    }
-}
-
-#[derive(Serialize, Deserialize, Debug, Clone, PartialEq)]
-#[serde(untagged)]
-pub enum PluginParameterValue {
-    Boolean(bool),
-    Integer(i64),
-    Float(f64),
-
-    /// Either a `str`, `path`, or `unextpath`
-    Stringish(String),
-}
-
-#[derive(Deserialize, Debug, Copy, Clone, Eq, PartialEq)]
-pub enum PluginParameterAction {
-    #[serde(rename = "store")]
-    Store,
-    #[serde(rename = "store_true")]
-    StoreTrue,
-    #[serde(rename = "store_false")]
-    StoreFalse,
-}
-
-#[derive(Shrinkwrap, Deserialize, Debug)]
-pub struct WorkflowId(pub u32);
-
-#[braid(serde)]
-pub struct WorkflowUrl;
 
 #[derive(Debug, Deserialize)]
 pub struct WorkflowCreatedResponse {

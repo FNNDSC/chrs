@@ -1,17 +1,7 @@
-//! NewTypes for values used by users when interacting with the CUBE API.
+//! NewTypes for values used by users when first interacting and authenticating with the CUBE API.
 
+use crate::errors::InvalidCUBEUrl;
 use aliri_braid::braid;
-
-#[derive(thiserror::Error, Debug)]
-pub enum InvalidCUBEUrl {
-    #[error("Given URL does not end with \"/api/v1/\": {0}")]
-    EndpointVersion(String),
-
-    #[error("Given URL does not start with \"http://\" or \"https://\": {0}")]
-    Protocol(String),
-}
-
-aliri_braid::from_infallible!(InvalidCUBEUrl);
 
 /// A [CUBEApiUrl] is the base URL for a CUBE, e.g.
 /// `https://cube.chrisproject.org/api/v1/`

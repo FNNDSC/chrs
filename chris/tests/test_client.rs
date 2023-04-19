@@ -1,8 +1,8 @@
-use chris::common_types::{CUBEApiUrl, Username};
 use chris::constants::*;
 use chris::errors::FileIOError;
 use chris::filebrowser::FileBrowserPath;
-use chris::models::*;
+use chris::models::{data::*, *};
+
 use chris::CUBEAuth;
 use chris::ChrisClient;
 use fs_err::tokio::File;

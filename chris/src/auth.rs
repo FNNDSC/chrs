@@ -1,9 +1,8 @@
-//! Predecessors to [crate::ChrisClient] for getting _ChRIS_ authorization
+//! Predecessors to [ChrisClient] for getting _ChRIS_ authorization
 //! tokens or creating _ChRIS_ accounts.
 
-use crate::common_types::{CUBEApiUrl, Username};
 use crate::errors::CUBEError;
-use crate::models::{UserId, UserUrl};
+use crate::models::{CUBEApiUrl, UserId, UserUrl, Username};
 use crate::ChrisClient;
 use serde::{Deserialize, Serialize};
 
@@ -37,7 +36,7 @@ struct CreateUserData<'a> {
 }
 
 /// CUBE username and password struct.
-/// [CUBEAuth] is a builder for [chris::ChrisClient].
+/// [CUBEAuth] is a builder for [ChrisClient].
 pub struct CUBEAuth {
     pub client: reqwest::Client,
     pub url: CUBEApiUrl,

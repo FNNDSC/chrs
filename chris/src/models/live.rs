@@ -1,3 +1,4 @@
+//! Definitions of associated methods for response objects.
 pub mod downloadable;
 pub mod plugin;
 

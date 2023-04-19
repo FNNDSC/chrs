@@ -1,7 +1,7 @@
 //! Helpers for pagination.
 
 use crate::errors::{check, CUBEError};
-use crate::models::ConnectedModel;
+use crate::models::linked::LinkedModel;
 use async_stream::{stream, try_stream};
 use futures::Stream;
 use reqwest::{RequestBuilder, Url};
@@ -13,7 +13,7 @@ use std::marker::PhantomData;
 ///
 /// This is homologus to the Python implementation in aiochris:
 ///
-/// https://github.com/FNNDSC/aiochris/blob/adaff5bbc1d4d886ec2ca8155d82d266fa81d093/chris/util/search.py
+/// <https://github.com/FNNDSC/aiochris/blob/adaff5bbc1d4d886ec2ca8155d82d266fa81d093/chris/util/search.py>
 pub enum Search<R: DeserializeOwned, Q: Serialize + Sized> {
     /// A search to CUBE, possibly containing [0, n) items.
     Search(ActualSearch<R, Q>),
@@ -62,11 +62,11 @@ impl<R: DeserializeOwned, Q: Serialize + Sized> ActualSearch<R, Q> {
     }
 
     /// See [Search::get_first]
-    async fn get_first(&self) -> Result<Option<ConnectedModel<R>>, CUBEError> {
+    async fn get_first(&self) -> Result<Option<LinkedModel<R>>, CUBEError> {
         let res = self.get_search().query(&LIMIT_ONE).send().await?;
         let page: Paginated<R> = check(res).await?.json().await?;
         let first = page.results.into_iter().next();
-        let ret = first.map(|data| ConnectedModel {
+        let ret = first.map(|data| LinkedModel {
             client: self.client.clone(),
             data,
         });
@@ -74,7 +74,7 @@ impl<R: DeserializeOwned, Q: Serialize + Sized> ActualSearch<R, Q> {
     }
 
     /// See [Search::get_only]
-    async fn get_only(&self) -> Result<ConnectedModel<R>, GetOnlyError> {
+    async fn get_only(&self) -> Result<LinkedModel<R>, GetOnlyError> {
         let res = self.get_search().query(&LIMIT_ONE).send().await?;
         let page: Paginated<R> = check(res).await?.json().await?;
 
@@ -83,7 +83,7 @@ impl<R: DeserializeOwned, Q: Serialize + Sized> ActualSearch<R, Q> {
         }
 
         if let Some(data) = page.results.into_iter().next() {
-            Ok(ConnectedModel {
+            Ok(LinkedModel {
                 client: self.client.clone(),
                 data,
             })
@@ -165,7 +165,7 @@ impl<R: DeserializeOwned, Q: Serialize + Sized> Search<R, Q> {
     /// Get the first item from this collection.
     ///
     /// See also: [Search::get_only]
-    pub async fn get_first(&self) -> Result<Option<ConnectedModel<R>>, CUBEError> {
+    pub async fn get_first(&self) -> Result<Option<LinkedModel<R>>, CUBEError> {
         match self {
             Search::Search(s) => s.get_first().await,
             Search::Empty => Ok(None),
@@ -177,7 +177,7 @@ impl<R: DeserializeOwned, Q: Serialize + Sized> Search<R, Q> {
     /// This function _should_ only be called when some invariant holds that
     /// the collection has only one item, e.g. searching for plugins giving
     /// both `name` and `version`, or searching for anything giving `id`.
-    pub async fn get_only(&self) -> Result<ConnectedModel<R>, GetOnlyError> {
+    pub async fn get_only(&self) -> Result<LinkedModel<R>, GetOnlyError> {
         match self {
             Search::Search(s) => s.get_only().await,
             Search::Empty => Err(GetOnlyError::None),
@@ -203,12 +203,12 @@ impl<R: DeserializeOwned, Q: Serialize + Sized> Search<R, Q> {
     /// on the returned items.
     pub fn stream_connected(
         &self,
-    ) -> impl Stream<Item = Result<ConnectedModel<R>, CUBEError>> + '_ {
+    ) -> impl Stream<Item = Result<LinkedModel<R>, CUBEError>> + '_ {
         try_stream! {
             match self {
                 Search::Search(s) => {
                     for await item in s.stream() {
-                        yield ConnectedModel { client: s.client.clone(), data: item? }
+                        yield LinkedModel { client: s.client.clone(), data: item? }
                     }
                 }
                 Search::Empty => {}

@@ -1,3 +1,5 @@
+//! Constants (and global statics) for *ChRIS*.
+
 use crate::models::{PluginName, PluginVersion};
 use lazy_static::lazy_static;
 

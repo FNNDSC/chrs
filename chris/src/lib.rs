@@ -1,21 +1,17 @@
 //! Client library for [_ChRIS_](https://chrisproject.org/) built
 //! on [reqwest](https://crates.io/crates/reqwest).
 
-#[macro_use]
-extern crate shrinkwraprs;
-extern crate core;
+mod client;
+mod requests;
 
 pub mod auth;
-mod client;
-pub mod common_types;
 pub mod constants;
+pub mod errors;
 pub mod models;
 pub mod pipeline;
-mod requests;
 pub mod reqwest;
 
-pub use crate::client::pipeline::Pipeline;
-pub use client::cube::ChrisClient;
-pub use client::*;
-
 pub use auth::CUBEAuth;
+pub use client::cube::ChrisClient;
+pub use client::pipeline::Pipeline;
+pub use client::*;

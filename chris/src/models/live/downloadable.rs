@@ -1,6 +1,7 @@
 use crate::errors::{check, CUBEError, FileIOError};
 use crate::models::data::*;
-use crate::models::ConnectedModel;
+use crate::models::linked::*;
+use crate::models::types::*;
 use fs_err::tokio::{File, OpenOptions};
 use futures::{Stream, TryStreamExt};
 use serde::de::DeserializeOwned;
@@ -14,7 +15,7 @@ pub trait Downloadable {
     fn fsize(&self) -> u64;
 }
 
-impl<D: Downloadable + DeserializeOwned> ConnectedModel<D> {
+impl<D: Downloadable + DeserializeOwned> LinkedModel<D> {
     /// Stream the bytes data of a file from _ChRIS_.
     /// Returns the bytestream and content-length.
     pub async fn stream(

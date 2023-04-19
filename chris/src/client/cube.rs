@@ -1,16 +1,14 @@
 use bytes::Bytes;
-use futures::{pin_mut, Stream, TryStream, TryStreamExt};
+use futures::{TryStream, TryStreamExt};
 use std::borrow::Cow;
-use std::fmt::Display;
-use std::ops::Deref;
 use std::path::Path;
 
-use super::errors::{check, CUBEError, FileIOError};
-use crate::client::filebrowser::FileBrowser;
-use crate::client::pipeline::Pipeline;
-use crate::client::search::{Search, LIMIT_ZERO};
-use crate::common_types::{CUBEApiUrl, Username};
+use super::filebrowser::FileBrowser;
+use super::pipeline::Pipeline;
+use super::search::{Search, LIMIT_ZERO};
+
 use crate::constants::{DIRCOPY_NAME, DIRCOPY_VERSION};
+use crate::errors::{check, CUBEError, FileIOError};
 use crate::errors::{DircopyError, GetError};
 use crate::models::*;
 use crate::pipeline::CanonPipeline;
@@ -18,11 +16,13 @@ use fs_err::tokio::{File, OpenOptions};
 use reqwest::header::{HeaderMap, HeaderValue, ACCEPT, AUTHORIZATION};
 use reqwest::multipart::{Form, Part};
 use reqwest::Body;
-use serde::de::DeserializeOwned;
-use serde::Serialize;
+use serde::{de::DeserializeOwned, Serialize};
 use tokio::io::AsyncWriteExt;
 use tokio_util::codec::{BytesCodec, FramedRead};
 use tokio_util::io::StreamReader;
+
+use crate::models::data::*;
+use crate::models::*;
 
 /// _ChRIS_ client object.
 #[derive(Debug, Clone)]

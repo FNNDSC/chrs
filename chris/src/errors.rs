@@ -1,5 +1,18 @@
+//! Errors for this crate.
+
 use crate::models::{PluginName, PluginVersion};
 use reqwest::StatusCode;
+
+#[derive(thiserror::Error, Debug)]
+pub enum InvalidCUBEUrl {
+    #[error("Given URL does not end with \"/api/v1/\": {0}")]
+    EndpointVersion(String),
+
+    #[error("Given URL does not start with \"http://\" or \"https://\": {0}")]
+    Protocol(String),
+}
+
+aliri_braid::from_infallible!(InvalidCUBEUrl);
 
 /// Errors representing failed interactions with CUBE.
 #[derive(thiserror::Error, Debug)]

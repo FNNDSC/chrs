@@ -1,8 +1,9 @@
 //! CUBE filebrowser API client module.
 
+use super::search::Search;
 use crate::errors::{check, CUBEError};
-use crate::models::{DownloadableFile, FileBrowserUrl, FileResourceFname};
-use crate::search::Search;
+use crate::models::data::DownloadableFile;
+use crate::models::types::*;
 use aliri_braid::braid;
 use futures::Stream;
 use serde::Deserialize;
