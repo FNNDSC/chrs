@@ -25,7 +25,6 @@ jobs:
   crate:
     runs-on: ubuntu-latest
     name: Publish to crates.io
-    if: false
     steps:
       - name: Git checkout
         uses: actions/checkout@v3
