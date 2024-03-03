@@ -11,9 +11,9 @@ and can run and feeds (computational experiments) on _ChRIS_.
 
 ## Installation
 
-There are two ways to install `chrs`.
+There are four ways to install `chrs`.
 
-### Download
+### Direct Download
 
 You can download `chrs` from
 [Github Releases](https://github.com/FNNDSC/chrs/releases).
@@ -23,6 +23,23 @@ https://github.com/FNNDSC/chrs/releases/latest
 
 This is the easiest installation method, however there is no
 mechanism for automatic updates.
+
+### Using Pip
+
+`chrs` is published to [PyPi](https://pypi.org/project/chrs) using
+[PyO3/maturin](https://github.com/PyO3/maturin). Installing `chrs`
+using `pip` will be preferable for users who are already comfortable with Python.
+
+```shell
+pip install --user chrs
+```
+
+If necessary, add the `bin` folder to `$PATH`:
+
+```shell
+echo 'export PATH="$HOME/.local/bin:$PATH"' >> ~/.bashrc
+source ~/.bashrc
+```
 
 ### `cargo binstall`
 
@@ -46,7 +63,7 @@ cargo install chrs
 If necessary, add the `bin` folder to `$PATH`:
 
 ```shell
-echo 'export PATH=$HOME/.cargo/bin:$PATH' >> ~/.bashrc
+echo 'export PATH="$HOME/.cargo/bin:$PATH"' >> ~/.bashrc
 source ~/.bashrc
 ```
 
