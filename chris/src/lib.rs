@@ -4,14 +4,15 @@
 mod client;
 mod requests;
 
-pub mod auth;
-pub mod constants;
+// pub mod auth;
 pub mod errors;
 pub mod models;
-pub mod pipeline;
+// pub mod pipeline;
 pub mod reqwest;
+pub mod types;
 
-pub use auth::CUBEAuth;
-pub use client::cube::ChrisClient;
-pub use client::pipeline::Pipeline;
-pub use client::*;
+// pub use auth::CUBEAuth;
+pub use client::anon::AnonChrisClient;
+pub use client::base::PublicChrisClient;
+pub use client::filebrowser::{FileBrowser, FileBrowserEntry};
+pub use client::search::Search;

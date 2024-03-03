@@ -1,30 +1,26 @@
 //! NewTypes for values used by users when first interacting and authenticating with the CUBE API.
 
-use crate::errors::InvalidCUBEUrl;
+use crate::errors::InvalidCubeUrl;
 use aliri_braid::braid;
 
-/// A [CUBEApiUrl] is the base URL for a CUBE, e.g.
+/// A [CubeUrl] is the base URL for a CUBE, e.g.
 /// `https://cube.chrisproject.org/api/v1/`
 #[braid(validator, serde)]
-pub struct CUBEApiUrl(String);
+pub struct CubeUrl(String);
 
-impl aliri_braid::Validator for CUBEApiUrl {
-    type Error = InvalidCUBEUrl;
+impl aliri_braid::Validator for CubeUrl {
+    type Error = InvalidCubeUrl;
 
     fn validate(s: &str) -> Result<(), Self::Error> {
         if !(s.starts_with("http://") || s.starts_with("https://")) {
-            Err(InvalidCUBEUrl::Protocol(s.to_string()))
+            Err(InvalidCubeUrl::Protocol(s.to_string()))
         } else if !s.ends_with("/api/v1/") {
-            Err(InvalidCUBEUrl::EndpointVersion(s.to_string()))
+            Err(InvalidCubeUrl::EndpointVersion(s.to_string()))
         } else {
             Ok(())
         }
     }
 }
-
-/// *ChRIS* user's username.
-#[braid(serde)]
-pub struct Username;
 
 #[cfg(test)]
 mod tests {
@@ -36,7 +32,7 @@ mod tests {
     #[case("http://localhost:8000/api/v1/")]
     #[case("https://cube.chrisproject.org/api/v1/")]
     fn test_parse_url(#[case] url: &str) {
-        assert!(CUBEApiUrl::try_from(url).is_ok());
+        assert!(CubeUrl::try_from(url).is_ok());
     }
 
     #[rstest]
@@ -44,8 +40,8 @@ mod tests {
     #[case("localhost/api/v1/")]
     fn test_reject_bad_protocol(#[case] url: &str) {
         assert!(matches!(
-            CUBEApiUrl::try_from(url).unwrap_err(),
-            InvalidCUBEUrl::Protocol { .. }
+            CubeUrl::try_from(url).unwrap_err(),
+            InvalidCubeUrl::Protocol { .. }
         ))
     }
 
@@ -56,8 +52,8 @@ mod tests {
     #[case("http://localhost/api/v1")]
     fn test_reject_bad_endpoint_version(#[case] url: &str) {
         assert!(matches!(
-            CUBEApiUrl::try_from(url).unwrap_err(),
-            InvalidCUBEUrl::EndpointVersion { .. }
+            CubeUrl::try_from(url).unwrap_err(),
+            InvalidCubeUrl::EndpointVersion { .. }
         ))
     }
 }

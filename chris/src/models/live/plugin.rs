@@ -1,6 +1,4 @@
-use futures::Stream;
-
-use crate::errors::{check, CUBEError};
+use crate::errors::{check, CubeError};
 use crate::models::data::{PluginInstanceResponse, PluginParameter, PluginResponse};
 use crate::models::linked::LinkedModel;
 use serde::Serialize;
@@ -11,7 +9,7 @@ impl Plugin {
     pub async fn create_instance<T: Serialize + ?Sized>(
         &self,
         body: &T,
-    ) -> Result<PluginInstanceResponse, CUBEError> {
+    ) -> Result<PluginInstanceResponse, CubeError> {
         let res = self
             .client
             .post(self.data.instances.as_str())

@@ -28,7 +28,7 @@ use crate::models::*;
 #[derive(Debug, Clone)]
 pub struct ChrisClient {
     client: reqwest::Client,
-    url: CUBEApiUrl,
+    url: CubeUrl,
     username: Username,
     links: CubeLinks,
 }
@@ -37,8 +37,10 @@ pub struct ChrisClient {
 pub type FnameSearch = Search<DownloadableFile, FnameParam>;
 
 impl ChrisClient {
+
+    /// Connect to the ChRIS API.
     pub async fn new(
-        url: CUBEApiUrl,
+        url: CubeUrl,
         username: Username,
         token: String,
     ) -> Result<Self, CUBEError> {
@@ -56,7 +58,7 @@ impl ChrisClient {
     }
 
     /// Get the URL this client is connected to.
-    pub fn url(&self) -> &CUBEApiUrl {
+    pub fn url(&self) -> &CubeUrl {
         &self.url
     }
 

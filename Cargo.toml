@@ -1,10 +1,11 @@
 [workspace]
 
+resolver = "2"
+
 members = [
     "chrs",
     "chris"
 ]
-
 
 # https://github.com/johnthagen/min-sized-rust
 [profile.release]

@@ -1,8 +1,8 @@
 //! Predecessors to [ChrisClient] for getting _ChRIS_ authorization
 //! tokens or creating _ChRIS_ accounts.
 
-use crate::errors::CUBEError;
-use crate::models::{CUBEApiUrl, UserId, UserUrl, Username};
+use crate::errors::CubeError;
+use crate::models::{CubeUrl, UserId, UserUrl, Username};
 use crate::ChrisClient;
 use serde::{Deserialize, Serialize};
 
@@ -39,13 +39,13 @@ struct CreateUserData<'a> {
 /// [CUBEAuth] is a builder for [ChrisClient].
 pub struct CUBEAuth {
     pub client: reqwest::Client,
-    pub url: CUBEApiUrl,
+    pub url: CubeUrl,
     pub username: Username,
     pub password: String,
 }
 
 impl CUBEAuth {
-    pub fn new(url: CUBEApiUrl, username: Username, password: String) -> Self {
+    pub fn new(url: CubeUrl, username: Username, password: String) -> Self {
         Self {
             client: Default::default(),
             url,
@@ -87,7 +87,7 @@ impl CUBEAuth {
         Ok(created_user)
     }
 
-    pub async fn into_client(self) -> Result<ChrisClient, CUBEError> {
+    pub async fn into_client(self) -> Result<ChrisClient, CubeError> {
         let token = self.get_token().await?;
         ChrisClient::new(self.url, self.username, token).await
     }
@@ -112,13 +112,13 @@ mod tests {
     }
 
     #[fixture]
-    fn cube_url() -> CUBEApiUrl {
-        CUBEApiUrl::try_from(CUBE_URL).unwrap()
+    fn cube_url() -> CubeUrl {
+        CubeUrl::try_from(CUBE_URL).unwrap()
     }
 
     #[rstest]
     #[tokio::test]
-    async fn test_get_token(cube_url: CUBEApiUrl, client: reqwest::Client) {
+    async fn test_get_token(cube_url: CubeUrl, client: reqwest::Client) {
         let account = CUBEAuth {
             username: Username::new("chris".to_string()),
             password: "chris1234".to_string(),
@@ -137,7 +137,7 @@ mod tests {
 
     #[rstest]
     #[tokio::test]
-    async fn test_create_user(cube_url: CUBEApiUrl, client: reqwest::Client) {
+    async fn test_create_user(cube_url: CubeUrl, client: reqwest::Client) {
         let mut generator = Generator::default();
         let username = generator.next().unwrap();
         let password = format!("{}1234", &username.chars().rev().collect::<String>());
