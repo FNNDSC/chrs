@@ -19,7 +19,7 @@
 use aliri_braid::braid;
 use async_stream::stream;
 use chris::common_types::CUBEApiUrl;
-use chris::errors::CUBEError;
+use chris::errors::CubeError;
 use chris::models::data::{AnyFilesUrl, FeedId, FileResourceFname, PluginInstanceId};
 use chris::{ChrisClient, reqwest};
 use futures::{pin_mut, Stream, StreamExt, TryStreamExt};
@@ -571,7 +571,7 @@ enum PluginInstanceTitleError<'a> {
     Malformed(&'a str),
 
     #[error(transparent)]
-    CUBE(#[from] CUBEError),
+    CUBE(#[from] CubeError),
 }
 
 #[cfg(test)]

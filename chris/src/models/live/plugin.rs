@@ -1,30 +1,47 @@
-use futures::Stream;
-
-use crate::errors::{check, CUBEError};
-use crate::models::data::{PluginInstanceResponse, PluginParameter, PluginResponse};
+use crate::errors::{check, CubeError};
+use crate::models::data::{AuthedPluginResponse, PluginInstanceResponse, PluginParameter};
 use crate::models::linked::LinkedModel;
+use crate::models::AnonPluginResponse;
+use crate::Search;
 use serde::Serialize;
 
-pub type Plugin = LinkedModel<PluginResponse>;
+/// ChRIS plugin
+pub trait ChrisPlugin {
+    /// Get plugin parameters
+    fn get_parameters(&self) -> Search<PluginParameter, ()>;
+}
+
+/// A [ChrisPlugin]. Call [Plugin::create_instance] to "run" this plugin.
+pub type Plugin = LinkedModel<AuthedPluginResponse>;
 
 impl Plugin {
+    /// Create a plugin instance (i.e. "run" a plugin)
     pub async fn create_instance<T: Serialize + ?Sized>(
         &self,
         body: &T,
-    ) -> Result<PluginInstanceResponse, CUBEError> {
+    ) -> Result<PluginInstanceResponse, CubeError> {
         let res = self
             .client
-            .post(self.data.instances.as_str())
+            .post(self.object.instances.as_str())
             .json(body)
             .send()
             .await?;
         let data = check(res).await?.json().await?;
         Ok(data)
     }
-    //
-    // pub fn get_parameters(
-    //     &self,
-    // ) -> impl Stream<Item = Result<PluginParameter, reqwest::Error>> + '_ {
-    //     paginate(&self.client, Some(self.plugin.parameters.clone()))
-    // }
+}
+
+impl ChrisPlugin for Plugin {
+    fn get_parameters(&self) -> Search<PluginParameter, ()> {
+        Search::basic(&self.client, &self.object.parameters)
+    }
+}
+
+/// A [ChrisPlugin]. You cannot create plugin instances of a [PublicPlugin].
+pub type PublicPlugin = LinkedModel<AnonPluginResponse>;
+
+impl ChrisPlugin for PublicPlugin {
+    fn get_parameters(&self) -> Search<PluginParameter, ()> {
+        Search::basic(&self.client, &self.object.parameters)
+    }
 }

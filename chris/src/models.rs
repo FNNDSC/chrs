@@ -7,17 +7,15 @@
 //! create *plugin instances*.
 //! [linked] defines wrappers which pair a response struct from [data] with a [reqwest::Client].
 //! In the private submodules of `live`, associated methods are defined on specific wrapped objects.
-//! For instance, [`linked::LinkedModel<PluginResponse>`] (type aliased as [Plugin]) has methods
+//! For instance, [`linked::LinkedModel<AuthedPluginResponse>`] (type aliased as [ChrisPlugin]) has methods
 //! for creating plugin instances.
 
-pub mod data;
-pub mod linked;
+mod data;
+mod file;
+mod linked;
+mod live;
 
-pub(crate) mod auth_types;
-
-pub(crate) mod enums;
-pub(crate) mod live;
-pub(crate) mod types;
-pub use enums::*;
+pub use data::*;
+pub use file::*;
+pub use linked::*;
 pub use live::*;
-pub use types::*;

@@ -8,19 +8,19 @@ use std::marker::PhantomData;
 /// other things or even itself.
 pub struct LinkedModel<T: DeserializeOwned> {
     pub(crate) client: reqwest::Client,
-    pub data: T,
+    pub object: T,
 }
 
-/// You can think of [ThinModel] as a lazy [LinkedModel]: it has methods
+/// You can think of [LazyLinkedModel] as a lazy [LinkedModel]: it has methods
 /// for changing this resource, and can be transformed into a [LinkedModel]
-/// by calling [ThinModel::get].
-pub struct ThinModel<T: DeserializeOwned, U: reqwest::IntoUrl> {
+/// by calling [LazyLinkedModel::get].
+pub struct LazyLinkedModel<T: DeserializeOwned, U: reqwest::IntoUrl> {
     pub(crate) client: reqwest::Client,
     pub url: U,
     phantom: PhantomData<T>,
 }
 
-impl<T: DeserializeOwned, U: reqwest::IntoUrl> ThinModel<T, U> {
+impl<T: DeserializeOwned, U: reqwest::IntoUrl> LazyLinkedModel<T, U> {
     /// Make a HTTP GET request to populate the data of this object.
     pub async fn get(self) -> LinkedModel<T> {
         todo!()

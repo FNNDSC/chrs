@@ -1,12 +1,11 @@
 //! Helpers for pagination.
 
-use crate::errors::{check, CUBEError};
-use crate::models::linked::LinkedModel;
+use crate::errors::{check, CubeError};
+use crate::models::LinkedModel;
 use async_stream::{stream, try_stream};
 use futures::Stream;
-use reqwest::{RequestBuilder, Url};
-use serde::de::DeserializeOwned;
-use serde::{Deserialize, Serialize};
+use reqwest::RequestBuilder;
+use serde::{de::DeserializeOwned, Deserialize, Serialize};
 use std::marker::PhantomData;
 
 /// An abstraction over collection APIs, i.e. paginated API endpoints which return a `results` list.
@@ -36,7 +35,7 @@ pub struct ActualSearch<R: DeserializeOwned, Q: Serialize + Sized> {
 
 impl<R: DeserializeOwned, Q: Serialize + Sized> ActualSearch<R, Q> {
     /// See [Search::get_count]
-    async fn get_count(&self) -> Result<u32, CUBEError> {
+    async fn get_count(&self) -> Result<u32, CubeError> {
         let res = self
             .client
             .get(&self.base_url)
@@ -62,13 +61,13 @@ impl<R: DeserializeOwned, Q: Serialize + Sized> ActualSearch<R, Q> {
     }
 
     /// See [Search::get_first]
-    async fn get_first(&self) -> Result<Option<LinkedModel<R>>, CUBEError> {
+    async fn get_first(&self) -> Result<Option<LinkedModel<R>>, CubeError> {
         let res = self.get_search().query(&LIMIT_ONE).send().await?;
         let page: Paginated<R> = check(res).await?.json().await?;
         let first = page.results.into_iter().next();
         let ret = first.map(|data| LinkedModel {
             client: self.client.clone(),
-            data,
+            object: data,
         });
         Ok(ret)
     }
@@ -85,7 +84,7 @@ impl<R: DeserializeOwned, Q: Serialize + Sized> ActualSearch<R, Q> {
         if let Some(data) = page.results.into_iter().next() {
             Ok(LinkedModel {
                 client: self.client.clone(),
-                data,
+                object: data,
             })
         } else {
             Err(GetOnlyError::None)
@@ -93,7 +92,7 @@ impl<R: DeserializeOwned, Q: Serialize + Sized> ActualSearch<R, Q> {
     }
 
     /// See [Search::stream]
-    fn stream(&self) -> impl Stream<Item = Result<R, CUBEError>> + '_ {
+    fn stream(&self) -> impl Stream<Item = Result<R, CubeError>> + '_ {
         try_stream! {
             // retrieval of the first page works a little differently, since we
             // don't know what `next_url` is, we call client.get(...).query(...)
@@ -153,7 +152,7 @@ impl<R: DeserializeOwned, Q: Serialize + Sized> Search<R, Q> {
     }
 
     /// Get the count of items in this collection.
-    pub async fn get_count(&self) -> Result<u32, CUBEError> {
+    pub async fn get_count(&self) -> Result<u32, CubeError> {
         match self {
             Self::Search(s) => s.get_count().await,
             Self::Empty => Ok(0),
@@ -165,7 +164,7 @@ impl<R: DeserializeOwned, Q: Serialize + Sized> Search<R, Q> {
     /// Get the first item from this collection.
     ///
     /// See also: [Search::get_only]
-    pub async fn get_first(&self) -> Result<Option<LinkedModel<R>>, CUBEError> {
+    pub async fn get_first(&self) -> Result<Option<LinkedModel<R>>, CubeError> {
         match self {
             Search::Search(s) => s.get_first().await,
             Search::Empty => Ok(None),
@@ -186,7 +185,7 @@ impl<R: DeserializeOwned, Q: Serialize + Sized> Search<R, Q> {
 
     /// Produce items from this collection. Pagination is handled transparently,
     /// i.e. HTTP GET requests are sent as-needed.
-    pub fn stream(&self) -> impl Stream<Item = Result<R, CUBEError>> + '_ {
+    pub fn stream(&self) -> impl Stream<Item = Result<R, CubeError>> + '_ {
         stream! {
             match self {
                 Search::Search(s) => {
@@ -201,14 +200,12 @@ impl<R: DeserializeOwned, Q: Serialize + Sized> Search<R, Q> {
 
     /// Like [Self::stream], but clones the client for each item, so that methods can be called
     /// on the returned items.
-    pub fn stream_connected(
-        &self,
-    ) -> impl Stream<Item = Result<LinkedModel<R>, CUBEError>> + '_ {
+    pub fn stream_connected(&self) -> impl Stream<Item = Result<LinkedModel<R>, CubeError>> + '_ {
         try_stream! {
             match self {
                 Search::Search(s) => {
                     for await item in s.stream() {
-                        yield LinkedModel { client: s.client.clone(), data: item? }
+                        yield LinkedModel { client: s.client.clone(), object: item? }
                     }
                 }
                 Search::Empty => {}
@@ -234,12 +231,12 @@ pub enum GetOnlyError {
     #[error("More than one result in collection")]
     MoreThanOne,
     #[error(transparent)]
-    Error(#[from] CUBEError),
+    Error(#[from] CubeError),
 }
 
 impl From<reqwest::Error> for GetOnlyError {
     fn from(value: reqwest::Error) -> Self {
-        CUBEError::Raw(value).into()
+        CubeError::Raw(value).into()
     }
 }
 

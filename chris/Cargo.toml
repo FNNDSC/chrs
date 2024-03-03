@@ -16,15 +16,12 @@ reqwest = { version = "0.11.10", features = ["json", "multipart", "stream"], def
 serde_urlencoded = "0.7.1"
 thiserror = "1.0.30"
 console = "0.15.0"
-aliri_braid = "0.3.1"
-shrinkwraprs = "0.3.0"
 serde_json = "1.0.79"
 futures = "0.3.21"
 async-stream = "0.3.3"
 tokio-util = { version = "0.7.1", features = [ "io" ] }
 tokio = { version = "1.17.0", features = ["full"] }
 itertools = "0.10.3"
-lazy_static = "1.4.0"
 bytes = "1.2.0"
 fs-err = { version = "2.9.0", features = ["tokio"] }
 
@@ -32,6 +29,9 @@ fs-err = { version = "2.9.0", features = ["tokio"] }
 openssl = { version = "0.10", optional = true }
 trust-dns-resolver = "0.22.0"
 serde_with = { version = "2.1.0", features = ["json"] }
+aliri_braid = "0.4.0"
+shrinkwraprs = "0.3.0"
+camino = "1.1.6"
 
 [dev-dependencies]
 serde_json = "1.0.79"

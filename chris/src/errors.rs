@@ -1,10 +1,10 @@
 //! Errors for this crate.
 
-use crate::models::{PluginName, PluginVersion};
+use crate::types::*;
 use reqwest::StatusCode;
 
 #[derive(thiserror::Error, Debug)]
-pub enum InvalidCUBEUrl {
+pub enum InvalidCubeUrl {
     #[error("Given URL does not end with \"/api/v1/\": {0}")]
     EndpointVersion(String),
 
@@ -12,11 +12,11 @@ pub enum InvalidCUBEUrl {
     Protocol(String),
 }
 
-aliri_braid::from_infallible!(InvalidCUBEUrl);
+aliri_braid::from_infallible!(InvalidCubeUrl);
 
 /// Errors representing failed interactions with CUBE.
 #[derive(thiserror::Error, Debug)]
-pub enum CUBEError {
+pub enum CubeError {
     /// Error response with an explanation from CUBE.
     #[error("({status:?} {reason:?}): {text}")]
     Error {
@@ -34,7 +34,7 @@ pub enum CUBEError {
 #[derive(thiserror::Error, Debug)]
 pub enum DircopyError {
     #[error(transparent)]
-    CUBEError(#[from] CUBEError),
+    CUBEError(#[from] CubeError),
 
     #[error("\"{0}\" version {1} not found")]
     DircopyNotFound(&'static PluginName, &'static PluginVersion),
@@ -43,21 +43,21 @@ pub enum DircopyError {
 #[derive(thiserror::Error, Debug)]
 pub enum GetError {
     #[error(transparent)]
-    CUBEError(#[from] CUBEError),
+    CUBEError(#[from] CubeError),
 
     /// Error when trying to get an object but it is not found.
     #[error("\"{0}\" not found")]
     NotFound(String),
 }
 
-pub(crate) async fn check(res: reqwest::Response) -> Result<reqwest::Response, CUBEError> {
+pub(crate) async fn check(res: reqwest::Response) -> Result<reqwest::Response, CubeError> {
     match res.error_for_status_ref() {
         Ok(_) => Ok(res),
         Err(source) => {
             let status = res.status();
             let reason = status.canonical_reason().unwrap_or("unknown reason");
-            let text = res.text().await.map_err(CUBEError::Raw)?;
-            Err(CUBEError::Error {
+            let text = res.text().await.map_err(CubeError::Raw)?;
+            Err(CubeError::Error {
                 status,
                 reason,
                 text,
@@ -73,19 +73,19 @@ pub enum FileIOError {
     #[error("\"{0}\" is an invalid file path")]
     PathError(String),
     #[error(transparent)]
-    Cube(CUBEError),
+    Cube(CubeError),
     #[error(transparent)]
     IO(std::io::Error),
 }
 
 impl From<reqwest::Error> for FileIOError {
     fn from(e: reqwest::Error) -> Self {
-        FileIOError::Cube(CUBEError::Raw(e))
+        FileIOError::Cube(CubeError::Raw(e))
     }
 }
 
-impl From<CUBEError> for FileIOError {
-    fn from(e: CUBEError) -> Self {
+impl From<CubeError> for FileIOError {
+    fn from(e: CubeError) -> Self {
         FileIOError::Cube(e)
     }
 }

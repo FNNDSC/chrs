@@ -1,11 +1,10 @@
 //! CUBE filebrowser API client module.
 
 use super::search::Search;
-use crate::errors::{check, CUBEError};
-use crate::models::data::DownloadableFile;
-use crate::models::types::*;
+use crate::errors::{check, CubeError};
+use crate::models::CubeFile;
+use crate::types::*;
 use aliri_braid::braid;
-use futures::Stream;
 use serde::Deserialize;
 use serde::Serialize;
 use serde_with::json::JsonString;
@@ -17,33 +16,12 @@ pub struct FileBrowser {
     search: FileBrowserSearchUrl,
 }
 
-/// Filebrowser search API URL, e.g.
-/// `https://cube.chrisproject.org/api/v1/filebrowser/search/`
-#[braid(serde)]
-pub(crate) struct FileBrowserSearchUrl;
-
-/// A path which can be browsed by the file browser API, e.g. `chris/uploads`
-#[braid(serde)]
-pub struct FileBrowserPath;
-
-impl From<FileBrowserPath> for FileResourceFname {
-    fn from(p: FileBrowserPath) -> Self {
-        FileResourceFname::new(p.to_string())
-    }
-}
-
-impl From<FileBrowserUrl> for FileBrowserSearchUrl {
-    fn from(url: FileBrowserUrl) -> Self {
-        FileBrowserSearchUrl::new(format!("{}search/", url))
-    }
-}
-
 impl FileBrowser {
     /// Creates a filebrowser client.
-    pub(crate) fn new(client: reqwest::Client, url: FileBrowserUrl) -> Self {
+    pub(crate) fn new(client: reqwest::Client, url: &FileBrowserUrl) -> Self {
         FileBrowser {
             client,
-            search: url.into(),
+            search: FileBrowserSearchUrl::from(format!("{}search/", url)),
         }
     }
 
@@ -52,12 +30,14 @@ impl FileBrowser {
     /// You can think of this method like the `ls` UNIX command.
     pub async fn readdir(
         &self,
-        path: &FileBrowserPath,
-    ) -> Result<Option<FileBrowserEntry>, CUBEError> {
+        path: impl AsRef<str>,
+    ) -> Result<Option<FileBrowserEntry>, CubeError> {
         let res = self
             .client
             .get(self.search.as_str())
-            .query(&FileBrowserQuery { path })
+            .query(&FileBrowserQuery {
+                path: path.as_ref(),
+            })
             .send()
             .await?;
         let mut data: FileBrowserSearch = check(res).await?.json().await?;
@@ -132,7 +112,7 @@ impl FileBrowserEntry {
     }
 
     /// Iterate over files.
-    pub fn iter_files(&self) -> Search<DownloadableFile, ()> {
+    pub fn iter_files(&self) -> Search<CubeFile, ()> {
         if let Some(url) = &self.files {
             Search::basic(&self.client, url)
         } else {
@@ -143,5 +123,5 @@ impl FileBrowserEntry {
 
 #[derive(Serialize)]
 struct FileBrowserQuery<'a> {
-    path: &'a FileBrowserPath,
+    path: &'a str,
 }

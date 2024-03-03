@@ -3,7 +3,7 @@ use crate::executor::collect_then_do_with_progress;
 use crate::io_helper::progress_bar_bytes;
 use anyhow::{bail, Context, Error, Ok, Result};
 use chris::common_types::Username;
-use chris::errors::CUBEError;
+use chris::errors::CubeError;
 use chris::models::data::{Downloadable, FileUploadResponse, PluginInstanceId};
 use chris::{errors::FileIOError, ChrisClient, Pipeline};
 use futures::{try_join, TryStreamExt};
@@ -131,7 +131,7 @@ async fn create_feed(
 async fn maybe_create_workflow(
     pipeline: Option<Pipeline>,
     previous_plugin_inst_id: PluginInstanceId,
-) -> core::result::Result<(), CUBEError> {
+) -> core::result::Result<(), CubeError> {
     if let Some(p) = pipeline {
         p.create_workflow(previous_plugin_inst_id).await.map(|_| ())
     } else {
