@@ -8,7 +8,7 @@ use std::marker::PhantomData;
 /// other things or even itself.
 pub struct LinkedModel<T: DeserializeOwned> {
     pub(crate) client: reqwest::Client,
-    pub data: T,
+    pub object: T,
 }
 
 /// You can think of [LazyLinkedModel] as a lazy [LinkedModel]: it has methods

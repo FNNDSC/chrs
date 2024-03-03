@@ -1,11 +1,11 @@
 //! Helpers for pagination.
 
 use crate::errors::{check, CubeError};
-use crate::models::linked::LinkedModel;
+use crate::models::LinkedModel;
 use async_stream::{stream, try_stream};
 use futures::Stream;
 use reqwest::RequestBuilder;
-use serde::{Deserialize, Serialize, de::DeserializeOwned};
+use serde::{de::DeserializeOwned, Deserialize, Serialize};
 use std::marker::PhantomData;
 
 /// An abstraction over collection APIs, i.e. paginated API endpoints which return a `results` list.
@@ -67,7 +67,7 @@ impl<R: DeserializeOwned, Q: Serialize + Sized> ActualSearch<R, Q> {
         let first = page.results.into_iter().next();
         let ret = first.map(|data| LinkedModel {
             client: self.client.clone(),
-            data,
+            object: data,
         });
         Ok(ret)
     }
@@ -84,7 +84,7 @@ impl<R: DeserializeOwned, Q: Serialize + Sized> ActualSearch<R, Q> {
         if let Some(data) = page.results.into_iter().next() {
             Ok(LinkedModel {
                 client: self.client.clone(),
-                data,
+                object: data,
             })
         } else {
             Err(GetOnlyError::None)
@@ -205,7 +205,7 @@ impl<R: DeserializeOwned, Q: Serialize + Sized> Search<R, Q> {
             match self {
                 Search::Search(s) => {
                     for await item in s.stream() {
-                        yield LinkedModel { client: s.client.clone(), data: item? }
+                        yield LinkedModel { client: s.client.clone(), object: item? }
                     }
                 }
                 Search::Empty => {}

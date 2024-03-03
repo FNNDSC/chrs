@@ -1,6 +1,6 @@
 //! Definitions of associated methods for response objects.
-pub mod downloadable;
-pub mod plugin;
+mod downloadable;
+mod plugin;
 
-pub use downloadable::Downloadable;
-pub use plugin::Plugin;
+pub use downloadable::*;
+pub use plugin::*;

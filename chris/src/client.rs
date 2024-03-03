@@ -5,4 +5,6 @@ pub(crate) mod anon;
 pub(crate) mod filebrowser;
 pub(crate) mod search;
 
+mod authed;
 pub(crate) mod base;
+mod searches;

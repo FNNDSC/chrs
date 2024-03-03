@@ -22,7 +22,7 @@ impl<D: Downloadable + DeserializeOwned> LinkedModel<D> {
     ) -> Result<impl Stream<Item = Result<bytes::Bytes, reqwest::Error>>, CubeError> {
         let res = self
             .client
-            .get(self.data.file_resource_url().as_str())
+            .get(self.object.file_resource_url().as_str())
             .send()
             .await?;
         let stream = check(res).await?.bytes_stream();
