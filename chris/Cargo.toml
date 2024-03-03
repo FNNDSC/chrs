@@ -22,7 +22,6 @@ async-stream = "0.3.3"
 tokio-util = { version = "0.7.1", features = [ "io" ] }
 tokio = { version = "1.17.0", features = ["full"] }
 itertools = "0.10.3"
-lazy_static = "1.4.0"
 bytes = "1.2.0"
 fs-err = { version = "2.9.0", features = ["tokio"] }
 

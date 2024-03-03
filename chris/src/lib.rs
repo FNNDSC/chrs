@@ -8,12 +8,14 @@ mod requests;
 // pub mod auth;
 pub mod errors;
 // pub mod pipeline;
+mod account;
 pub mod reqwest;
 pub mod types;
 
-// pub use auth::CUBEAuth;
+pub use account::Account;
 pub use client::anon::AnonChrisClient;
+pub use client::authed::ChrisClient;
 pub use client::base::BaseChrisClient;
 pub use client::filebrowser::{FileBrowser, FileBrowserEntry};
 pub use client::search::Search;
-pub use models::{ChrisPlugin, Downloadable, Plugin, PublicPlugin};
+pub use models::*;

@@ -5,9 +5,7 @@ use rstest::*;
 use std::collections::HashSet;
 
 mod helpers;
-use helpers::AnyResult;
-
-const TESTING_URL: &str = "https://cube-for-testing-chrisui.apps.shift.nerc.mghpcc.org/api/v1/";
+use helpers::{AnyResult, TESTING_URL};
 
 #[fixture]
 fn cube_url() -> CubeUrl {

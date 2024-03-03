@@ -30,9 +30,9 @@ pub(crate) struct CubeLinks {
     pub servicefiles: CollectionUrl,
     pub filebrowser: FileBrowserUrl,
 
-    // Renamed in https://github.com/FNNDSC/ChRIS_ultron_backEnd/pull/528
+    // Was renamed in https://github.com/FNNDSC/ChRIS_ultron_backEnd/pull/528
     #[serde(alias = "userfiles", alias = "uploadedfiles")]
-    pub userfiles: Option<CollectionUrl>,
+    pub userfiles: CollectionUrl,
 
     pub user: Option<ItemUrl>,
     pub admin: Option<CollectionUrl>,
