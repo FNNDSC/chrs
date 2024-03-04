@@ -21,11 +21,8 @@ jobs:
         run: |
           sudo apt update -y
           sudo apt install -y gnome-keyring
-      - name: Run ChRIS backend
-        uses: FNNDSC/miniChRIS-docker@20230109
-
       - name: Git checkout
-        uses: actions/checkout@v3
+        uses: actions/checkout@v4
       - name: Setup Rust
         uses: dtolnay/rust-toolchain@stable
       - name: Setup rust cache
@@ -36,8 +33,6 @@ jobs:
       - name: Install nextest
         uses: taiki-e/install-action@nextest
       - name: Run tests
-        id: test
-        continue-on-error: true
         # Use wrapper script to access keyring
         # https://github.com/hwchen/keyring-rs/blob/4297618e0cf061eacedf6d7c3f164ee4074a3c5d/linux-test.sh
         run: |
@@ -51,9 +46,8 @@ jobs:
           EOF
           dbus-run-session -- bash -ex test.sh
       - name: Upload coverage to Codecov
-        uses: codecov/codecov-action@v3
+        uses: codecov/codecov-action@v4
+        if: always()
         with:
           files: ./chrs/lcov.info
           flags: chrs
-      - name: End test
-        run: '[ "${{ steps.test.outcome }}" = "success" ]'

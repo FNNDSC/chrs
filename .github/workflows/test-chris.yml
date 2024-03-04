@@ -17,11 +17,8 @@ jobs:
   test:
     runs-on: ubuntu-latest
     steps:
-      - name: Run ChRIS backend
-        uses: FNNDSC/miniChRIS-docker@20230109
-
       - name: Git checkout
-        uses: actions/checkout@v3
+        uses: actions/checkout@v4
       - name: Setup Rust
         uses: dtolnay/rust-toolchain@stable
       - name: Setup rust cache
@@ -32,16 +29,12 @@ jobs:
       - name: Install nextest
         uses: taiki-e/install-action@nextest
       - name: Run tests
-        id: test
-        continue-on-error: true
         run: |
           cd chris
           cargo llvm-cov nextest --locked --all-features --lcov --output-path lcov.info
-
       - name: Upload coverage to Codecov
-        uses: codecov/codecov-action@v3
+        uses: codecov/codecov-action@v4
+        if: always()
         with:
           files: ./chris/lcov.info
           flags: chris
-      - name: End test
-        run: '[ "${{ steps.test.outcome }}" = "success" ]'
