@@ -110,3 +110,12 @@ async fn test_get_feed(chris_client: &AnonChrisClient) -> AnyResult {
     assert_eq!(feed.object.id, id);
     Ok(())
 }
+
+#[rstest]
+#[tokio::test(flavor = "multi_thread")]
+async fn test_get_plugin_instance(chris_client: &AnonChrisClient) -> AnyResult {
+    let id = PluginInstanceId(875);
+    let pi = chris_client.get_plugin_instance(id).await?;
+    assert_eq!(pi.object.id, id);
+    Ok(())
+}

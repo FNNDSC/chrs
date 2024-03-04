@@ -1,13 +1,13 @@
+use super::base::fetch_id;
+use super::base::BaseChrisClient;
 use super::filebrowser::FileBrowser;
-use crate::client::base;
-use crate::client::base::BaseChrisClient;
-use crate::client::search::LIMIT_ZERO;
-use crate::client::searches::{FeedSearchBuilder, PluginSearchBuilder, SearchBuilder};
-use crate::client::variant::RoAccess;
+use super::search::LIMIT_ZERO;
+use super::searches::{FeedSearchBuilder, PluginSearchBuilder, SearchBuilder};
+use super::variant::RoAccess;
 use crate::errors::{check, CubeError};
 use crate::models::{BaseResponse, CubeLinks};
 use crate::types::*;
-use crate::{FeedResponse, LinkedModel};
+use crate::{FeedResponse, LinkedModel, PluginInstanceResponse};
 use reqwest::header::{HeaderMap, ACCEPT};
 
 /// Anonymous ChRIS client.
@@ -85,6 +85,13 @@ impl BaseChrisClient<RoAccess> for AnonChrisClient {
     }
 
     async fn get_feed(&self, id: FeedId) -> Result<LinkedModel<FeedResponse, RoAccess>, CubeError> {
-        base::get_feed(&self.client, self.url(), id).await
+        fetch_id(&self.client, self.url(), id.0).await
+    }
+
+    async fn get_plugin_instance(
+        &self,
+        id: PluginInstanceId,
+    ) -> Result<LinkedModel<PluginInstanceResponse, RoAccess>, CubeError> {
+        fetch_id(&self.client, &self.links.plugin_instances, id.0).await
     }
 }

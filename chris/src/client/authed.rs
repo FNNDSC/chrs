@@ -1,11 +1,14 @@
-use super::base;
+use super::base::fetch_id;
 use super::search::LIMIT_ZERO;
 use super::searches::{FeedSearchBuilder, PluginSearchBuilder, SearchBuilder};
 use super::variant::RoAccess;
 use crate::errors::{check, CubeError, FileIOError};
 use crate::models::{BaseResponse, CubeLinks, FileUploadResponse};
 use crate::types::*;
-use crate::{Access, BaseChrisClient, FeedResponse, FileBrowser, LinkedModel, RwAccess};
+use crate::{
+    Access, BaseChrisClient, FeedResponse, FileBrowser, LinkedModel, PluginInstanceResponse,
+    RwAccess,
+};
 use bytes::Bytes;
 use camino::Utf8Path;
 use fs_err::tokio::File;
@@ -169,7 +172,7 @@ fn token2header(token: &str) -> HeaderMap {
     headers
 }
 
-impl<A: Access> BaseChrisClient<A> for AuthedChrisClient<A> {
+impl<A: Access + Sync> BaseChrisClient<A> for AuthedChrisClient<A> {
     fn filebrowser(&self) -> FileBrowser {
         FileBrowser::new(self.client.clone(), &self.links.filebrowser)
     }
@@ -187,7 +190,14 @@ impl<A: Access> BaseChrisClient<A> for AuthedChrisClient<A> {
     }
 
     async fn get_feed(&self, id: FeedId) -> Result<LinkedModel<FeedResponse, A>, CubeError> {
-        base::get_feed(&self.client, self.url(), id).await
+        fetch_id(&self.client, self.url(), id.0).await
+    }
+
+    async fn get_plugin_instance(
+        &self,
+        id: PluginInstanceId,
+    ) -> Result<LinkedModel<PluginInstanceResponse, A>, CubeError> {
+        fetch_id(&self.client, &self.links.plugin_instances, id.0).await
     }
 }
 
