@@ -2,7 +2,7 @@
 //! When saved to keyring, the token is identified by a string in the form
 //! "<CUBEUsername>@<CUBEAddress>"
 
-use chris::types::{CubeUrl, Username};
+use chris::types::{CubeUrl, PluginInstanceId, Username};
 use color_eyre::eyre::Result;
 use serde::{Deserialize, Serialize};
 
@@ -21,20 +21,21 @@ pub enum StoredToken {
     None,
 }
 
-/// A [SavedCubeAuth] is a precursor to [Login] which is what is stored
+/// A [SavedCubeState] is a precursor to [CubeState] which is what is stored
 /// in the application's configuration file. The token might be stored
 /// in the same file as plaintext, or it might be stored by a keyring.
 #[derive(Serialize, Deserialize, Eq, PartialEq, Debug, Clone)]
-pub struct SavedCubeAuth {
+pub struct SavedCubeState {
     pub cube: CubeUrl,
     pub username: Username,
     pub store: StoredToken,
+    pub current_plugin_instance_id: Option<PluginInstanceId>,
 }
 
-impl SavedCubeAuth {
-    /// Convert this [SavedCubeAuth] to a [Login]. In the case where the
+impl SavedCubeState {
+    /// Convert this [SavedCubeState] to a [CubeState]. In the case where the
     /// token is stored by a keyring, fetch it from the keyring.
-    pub fn into_login(self, service: &str) -> Result<Login> {
+    pub fn into_login(self, service: &str) -> Result<CubeState> {
         let token = match &self.store {
             StoredToken::Keyring => {
                 let entry = keyring::Entry::new(service, &self.to_keyring_username());
@@ -44,10 +45,11 @@ impl SavedCubeAuth {
             StoredToken::Text(token) => Ok(Some(token.to_owned())),
             StoredToken::None => Ok(None),
         }?;
-        Ok(Login {
+        Ok(CubeState {
             cube: self.cube,
             username: self.username,
             token,
+            current_plugin_instance_id: self.current_plugin_instance_id,
         })
     }
 
@@ -56,19 +58,20 @@ impl SavedCubeAuth {
     }
 }
 
-/// A [Login] is the data required to authenticate with CUBE.
+/// A [CubeState] is the data required to authenticate with CUBE.
 /// If username is empty, then the client is anonymous.
 #[derive(Eq, PartialEq, Debug)]
-pub struct Login {
+pub struct CubeState {
     pub cube: CubeUrl,
     pub username: Username,
     pub token: Option<String>,
+    pub current_plugin_instance_id: Option<PluginInstanceId>,
 }
 
-impl Login {
-    /// Convert to [SavedCubeAuth]. If specified to use keyring backend,
+impl CubeState {
+    /// Convert to [SavedCubeState]. If specified to use keyring backend,
     /// token is saved to the keyring.
-    pub fn into_saved(self, backend: Backend, service: &str) -> Result<SavedCubeAuth> {
+    pub fn into_saved(self, backend: Backend, service: &str) -> Result<SavedCubeState> {
         let token: StoredToken = if let Some(token) = &self.token {
             match backend {
                 Backend::ClearText => StoredToken::Text(token.to_string()),
@@ -81,10 +84,11 @@ impl Login {
         } else {
             StoredToken::None
         };
-        let saved = SavedCubeAuth {
+        let saved = SavedCubeState {
             username: self.username,
             cube: self.cube,
             store: token,
+            current_plugin_instance_id: self.current_plugin_instance_id,
         };
         Ok(saved)
     }
@@ -130,16 +134,18 @@ mod tests {
         username: &Username,
         stored_token: StoredToken,
         actual_token: &str,
-    ) -> Result<(Login, Login)> {
-        let cube = SavedCubeAuth {
+    ) -> Result<(CubeState, CubeState)> {
+        let cube = SavedCubeState {
             cube: cube_url.clone(),
             username: username.clone(),
             store: stored_token,
+            current_plugin_instance_id: None,
         };
-        let login = Login {
+        let login = CubeState {
             cube: cube_url.clone(),
             username: username.clone(),
             token: Some(actual_token.to_string()),
+            current_plugin_instance_id: None,
         };
         Ok((login, cube.into_login(TEST_SERVICE)?))
     }
@@ -163,10 +169,11 @@ mod tests {
         let token = "my-secret-secure-token-again";
         let address = CubeUrl::from_static("https://another.example.com/api/v1/");
         let username = Username::from_str("testing-chrs").unwrap();
-        let login = Login {
+        let login = CubeState {
             cube: address.to_owned(),
             username: username.to_owned(),
             token: Some(token.to_string()),
+            current_plugin_instance_id: None,
         };
         login.into_saved(Backend::Keyring, TEST_SERVICE)?;
 
