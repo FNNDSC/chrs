@@ -1,3 +1,4 @@
+use crate::client::anon::AnonChrisClientBuilder;
 use crate::client::search::LIMIT_ZERO;
 use crate::client::searches::PluginSearchBuilder;
 use crate::errors::{check, CubeError, FileIOError};
@@ -17,30 +18,70 @@ use tokio_util::codec::{BytesCodec, FramedRead};
 /// _ChRIS_ client with login.
 #[derive(Debug)]
 pub struct ChrisClient {
-    client: reqwest::Client,
+    client: reqwest_middleware::ClientWithMiddleware,
     url: CubeUrl,
     username: Username,
     links: CubeLinks,
 }
 
-impl ChrisClient {
-    /// Connect to the ChRIS API using an authorization token.
-    pub async fn connect(
+pub struct ChrisClientBuilder {
+    url: CubeUrl,
+    username: Username,
+    builder: reqwest_middleware::ClientBuilder,
+}
+
+impl ChrisClientBuilder {
+    pub(crate) fn new(
         url: CubeUrl,
         username: Username,
-        token: impl AsRef<str>,
-    ) -> Result<Self, CubeError> {
+        token: &str,
+    ) -> Result<Self, reqwest::Error> {
         let client = reqwest::ClientBuilder::new()
-            .default_headers(token2header(token.as_ref()))
+            .default_headers(token2header(token))
             .build()?;
-        let res = client.get(url.as_str()).query(&LIMIT_ZERO).send().await?;
+        let builder = reqwest_middleware::ClientBuilder::new(client);
+        Ok(Self {
+            url,
+            username,
+            builder,
+        })
+    }
+
+    /// Add middleware to the HTTP client.
+    pub fn with<M: reqwest_middleware::Middleware>(mut self, middleware: M) -> Self {
+        Self {
+            url: self.url,
+            username: self.username,
+            builder: self.builder.with(middleware),
+        }
+    }
+
+    /// Connect to the ChRIS API.
+    pub async fn connect(self) -> Result<ChrisClient, CubeError> {
+        let client = self.builder.build();
+        let res = client
+            .get(self.url.as_str())
+            .query(&LIMIT_ZERO)
+            .send()
+            .await?;
         let base_response: BaseResponse = check(res).await?.json().await?;
         Ok(ChrisClient {
             client,
-            url,
-            username,
+            username: self.username,
+            url: self.url,
             links: base_response.collection_links,
         })
+    }
+}
+
+impl ChrisClient {
+    /// Create a client builder.
+    pub fn new(
+        url: CubeUrl,
+        username: Username,
+        token: impl AsRef<str>,
+    ) -> Result<ChrisClientBuilder, reqwest::Error> {
+        ChrisClientBuilder::new(url, username, token.as_ref())
     }
 
     /// Get username

@@ -1,7 +1,8 @@
 //! Errors for this crate.
+//! About anyhow: see https://github.com/TrueLayer/reqwest-middleware/issues/119
 
-use crate::types::*;
 use reqwest::StatusCode;
+use reqwest_middleware::Error;
 
 #[derive(thiserror::Error, Debug)]
 pub enum InvalidCubeUrl {
@@ -29,15 +30,10 @@ pub enum CubeError {
     /// Error response without explanation from CUBE (badness 100000).
     #[error(transparent)]
     Raw(#[from] reqwest::Error),
-}
 
-#[derive(thiserror::Error, Debug)]
-pub enum DircopyError {
+    /// Error from reqwest middleware function.
     #[error(transparent)]
-    CUBEError(#[from] CubeError),
-
-    #[error("\"{0}\" version {1} not found")]
-    DircopyNotFound(&'static PluginName, &'static PluginVersion),
+    Middleware(anyhow::Error),
 }
 
 #[derive(thiserror::Error, Debug)]
@@ -84,6 +80,12 @@ impl From<reqwest::Error> for FileIOError {
     }
 }
 
+impl From<reqwest_middleware::Error> for FileIOError {
+    fn from(e: reqwest_middleware::Error) -> Self {
+        FileIOError::Cube(e.into())
+    }
+}
+
 impl From<CubeError> for FileIOError {
     fn from(e: CubeError) -> Self {
         FileIOError::Cube(e)
@@ -93,5 +95,14 @@ impl From<CubeError> for FileIOError {
 impl From<std::io::Error> for FileIOError {
     fn from(e: std::io::Error) -> Self {
         FileIOError::IO(e)
+    }
+}
+
+impl From<reqwest_middleware::Error> for CubeError {
+    fn from(error: reqwest_middleware::Error) -> Self {
+        match error {
+            Error::Middleware(e) => CubeError::Middleware(e),
+            Error::Reqwest(e) => CubeError::Raw(e),
+        }
     }
 }

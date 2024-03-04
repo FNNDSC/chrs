@@ -1,6 +1,6 @@
 use bytes::Bytes;
 use chris::{types::*, AnonChrisClient, BaseChrisClient, ChrisPlugin, Downloadable};
-use futures::{future, pin_mut, StreamExt, TryFutureExt, TryStreamExt};
+use futures::{future, pin_mut, StreamExt, TryStreamExt};
 use rstest::*;
 use std::collections::HashSet;
 
@@ -15,7 +15,13 @@ fn cube_url() -> CubeUrl {
 #[fixture]
 #[once]
 fn chris_client(cube_url: CubeUrl) -> AnonChrisClient {
-    futures::executor::block_on(async { AnonChrisClient::connect(cube_url).await.unwrap() })
+    futures::executor::block_on(async {
+        AnonChrisClient::new(cube_url)
+            .unwrap()
+            .connect()
+            .await
+            .unwrap()
+    })
 }
 
 #[rstest]

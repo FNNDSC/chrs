@@ -12,13 +12,16 @@ use serde_with::serde_as;
 
 /// A client for the _ChRIS_ filebrowser API.
 pub struct FileBrowser {
-    client: reqwest::Client,
+    client: reqwest_middleware::ClientWithMiddleware,
     search: FileBrowserSearchUrl,
 }
 
 impl FileBrowser {
     /// Creates a filebrowser client.
-    pub(crate) fn new(client: reqwest::Client, url: &FileBrowserUrl) -> Self {
+    pub(crate) fn new(
+        client: reqwest_middleware::ClientWithMiddleware,
+        url: &FileBrowserUrl,
+    ) -> Self {
         FileBrowser {
             client,
             search: FileBrowserSearchUrl::from(format!("{}search/", url)),
@@ -73,7 +76,7 @@ struct FileBrowserFilesUrl;
 
 /// A filebrowser API response, which contains a listing for a _ChRIS_ file path.
 pub struct FileBrowserEntry {
-    client: reqwest::Client,
+    client: reqwest_middleware::ClientWithMiddleware,
     path: FileBrowserPath,
     subfolders: Vec<String>,
     // url: String,
@@ -83,7 +86,7 @@ pub struct FileBrowserEntry {
 }
 
 impl FileBrowserEntry {
-    fn new(dir: FileBrowserDir, client: reqwest::Client) -> Self {
+    fn new(dir: FileBrowserDir, client: reqwest_middleware::ClientWithMiddleware) -> Self {
         FileBrowserEntry {
             client,
             path: dir.path,

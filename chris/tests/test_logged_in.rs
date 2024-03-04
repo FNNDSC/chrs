@@ -73,10 +73,17 @@ fn chris_client(cube_url: CubeUrl) -> ChrisClient {
     let email = format!("{}@example.org", &username);
     let password = format!("{}1234", &username.chars().rev().collect::<String>());
     let username = Username::new(username);
-    let account_creator = Account::new(cube_url, username, password);
     futures::executor::block_on(async {
-        account_creator.create_account(&email).await.unwrap();
-        account_creator.into_client().await.unwrap()
+        let token = {
+            let account_creator = Account::new(&cube_url, &username, &password);
+            account_creator.create_account(&email).await.unwrap();
+            account_creator.get_token().await.unwrap()
+        };
+        ChrisClient::new(cube_url, username, token)
+            .unwrap()
+            .connect()
+            .await
+            .unwrap()
     })
 }
 

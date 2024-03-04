@@ -4,7 +4,6 @@ use crate::errors::{check, CubeError};
 use crate::models::LinkedModel;
 use async_stream::{stream, try_stream};
 use futures::Stream;
-use reqwest::RequestBuilder;
 use serde::{de::DeserializeOwned, Deserialize, Serialize};
 use std::marker::PhantomData;
 
@@ -22,7 +21,7 @@ pub enum Search<R: DeserializeOwned, Q: Serialize + Sized> {
 
 /// The "some" variant of [Search].
 pub struct ActualSearch<R: DeserializeOwned, Q: Serialize + Sized> {
-    client: reqwest::Client,
+    client: reqwest_middleware::ClientWithMiddleware,
     base_url: String,
     query: Q,
     phantom: PhantomData<R>,
@@ -50,7 +49,7 @@ impl<R: DeserializeOwned, Q: Serialize + Sized> ActualSearch<R, Q> {
 
 impl<R: DeserializeOwned, Q: Serialize + Sized> ActualSearch<R, Q> {
     /// Create a HTTP GET request for this search.
-    fn get_search(&self) -> RequestBuilder {
+    fn get_search(&self) -> reqwest_middleware::RequestBuilder {
         if self.basic {
             let url = self.base_url.as_str();
             self.client.get(url)
@@ -121,7 +120,10 @@ impl<R: DeserializeOwned, Q: Serialize + Sized> ActualSearch<R, Q> {
 impl<R: DeserializeOwned> Search<R, ()> {
     /// Constructor for retrieving items from the given `base_url` itself
     /// (instead of `{base_url}search/`), without any query parameters.
-    pub(crate) fn basic(client: &reqwest::Client, base_url: impl ToString) -> Self {
+    pub(crate) fn basic(
+        client: &reqwest_middleware::ClientWithMiddleware,
+        base_url: impl ToString,
+    ) -> Self {
         let s = ActualSearch {
             client: client.clone(),
             base_url: base_url.to_string(),
@@ -135,7 +137,11 @@ impl<R: DeserializeOwned> Search<R, ()> {
 
 impl<R: DeserializeOwned, Q: Serialize + Sized> Search<R, Q> {
     /// Create a search query.
-    pub(crate) fn new(client: &reqwest::Client, base_url: impl ToString, query: Q) -> Self {
+    pub(crate) fn new(
+        client: &reqwest_middleware::ClientWithMiddleware,
+        base_url: impl ToString,
+        query: Q,
+    ) -> Self {
         let s = ActualSearch {
             client: client.clone(),
             base_url: base_url.to_string(),
@@ -234,9 +240,15 @@ pub enum GetOnlyError {
     Error(#[from] CubeError),
 }
 
+impl From<reqwest_middleware::Error> for GetOnlyError {
+    fn from(error: reqwest_middleware::Error) -> Self {
+        CubeError::from(error).into()
+    }
+}
+
 impl From<reqwest::Error> for GetOnlyError {
-    fn from(value: reqwest::Error) -> Self {
-        CubeError::Raw(value).into()
+    fn from(error: reqwest::Error) -> Self {
+        CubeError::from(error).into()
     }
 }
 

@@ -1,9 +1,7 @@
 //! Predecessors to [ChrisClient] for getting _ChRIS_ authorization
 //! tokens or creating _ChRIS_ accounts.
 
-use crate::errors::CubeError;
 use crate::types::{CubeUrl, ItemUrl, UserId, Username};
-use crate::ChrisClient;
 use serde::{Deserialize, Serialize};
 
 #[derive(Deserialize)]
@@ -37,15 +35,15 @@ struct CreateUserData<'a> {
 
 /// CUBE username and password struct.
 /// [Account] is a builder for [ChrisClient].
-pub struct Account {
+pub struct Account<'a> {
     pub client: reqwest::Client,
-    pub url: CubeUrl,
-    pub username: Username,
-    pub password: String,
+    pub url: &'a CubeUrl,
+    pub username: &'a Username,
+    pub password: &'a str,
 }
 
-impl Account {
-    pub fn new(url: CubeUrl, username: Username, password: String) -> Self {
+impl<'a> Account<'a> {
+    pub fn new(url: &'a CubeUrl, username: &'a Username, password: &'a str) -> Self {
         Self {
             client: Default::default(),
             url,
@@ -85,10 +83,5 @@ impl Account {
         res.error_for_status_ref()?;
         let created_user: UserCreatedResponse = res.json().await?;
         Ok(created_user)
-    }
-
-    pub async fn into_client(self) -> Result<ChrisClient, CubeError> {
-        let token = self.get_token().await?;
-        ChrisClient::connect(self.url, self.username, token).await
     }
 }

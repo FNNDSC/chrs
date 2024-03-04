@@ -1,44 +1,41 @@
-mod constants;
-mod executor;
-mod feeds;
-mod files;
-mod get;
-mod io_helper;
-mod login;
-mod pipeline_add;
-mod plugin;
-mod upload;
-mod whoami;
+// mod constants;
+// mod executor;
+// mod feeds;
+// mod files;
+// mod get;
+// mod io_helper;
+// mod login;
+// mod pipeline_add;
+// mod plugin;
+// mod upload;
+// mod whoami;
 
-use std::path::PathBuf;
-
-use anyhow::Result;
 use clap::{ArgGroup, Parser, Subcommand};
 
-use crate::feeds::list_feeds;
-use crate::files::download::download;
-use crate::files::ls;
-use crate::get::get;
-use crate::login::get_client::get_client;
-use crate::pipeline_add::{add_pipeline, convert_pipeline};
-use crate::plugin::{describe_plugin, run_latest};
-use crate::upload::upload;
-use crate::whoami::cube_info;
-use chris::common_types::{CUBEApiUrl, Username};
-use chris::models::data::{ComputeResourceName, PluginInstanceId, PluginName};
-use login::saved::SavedLogins;
+// use crate::feeds::list_feeds;
+// use crate::files::download::download;
+// use crate::files::ls;
+// use crate::get::get;
+// use crate::login::get_client::get_client;
+// use crate::pipeline_add::{add_pipeline, convert_pipeline};
+// use crate::plugin::{describe_plugin, run_latest};
+// use crate::upload::upload;
+// use crate::whoami::cube_info;
+use chris::types::{CubeUrl, Username};
+// use chris::models::data::{ComputeResourceName, PluginInstanceId, PluginName};
+// use login::saved::SavedLogins;
 
 #[derive(Parser)]
 #[clap(
     version,
-    about = "Manage ChRIS files and run pipelines.",
+    about = "ChRIS Research Integration System -- command line client",
     propagate_version = false,
     disable_help_subcommand = true
 )]
 struct Cli {
-    /// ChRIS backend URL
+    /// ChRIS backend API URL
     #[clap(short, long, global = true)]
-    address: Option<String>,
+    cube: Option<String>,
 
     /// account username
     #[clap(long, global = true)]

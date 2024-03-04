@@ -7,7 +7,7 @@ use std::marker::PhantomData;
 /// In less fancy speak, [LinkedModel] is a thing which can get, create, modify, or delete
 /// other things or even itself.
 pub struct LinkedModel<T: DeserializeOwned> {
-    pub(crate) client: reqwest::Client,
+    pub(crate) client: reqwest_middleware::ClientWithMiddleware,
     pub object: T,
 }
 
@@ -15,7 +15,7 @@ pub struct LinkedModel<T: DeserializeOwned> {
 /// for changing this resource, and can be transformed into a [LinkedModel]
 /// by calling [LazyLinkedModel::get].
 pub struct LazyLinkedModel<T: DeserializeOwned, U: reqwest::IntoUrl> {
-    pub(crate) client: reqwest::Client,
+    pub(crate) client: reqwest_middleware::ClientWithMiddleware,
     pub url: U,
     phantom: PhantomData<T>,
 }

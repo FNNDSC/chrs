@@ -6,7 +6,7 @@ use std::marker::PhantomData;
 
 /// Plugin search query
 pub struct PluginSearchBuilder<'a, P: DeserializeOwned> {
-    pub(crate) client: &'a reqwest::Client,
+    pub(crate) client: &'a reqwest_middleware::ClientWithMiddleware,
     pub(crate) url: &'a CollectionUrl,
     query: HashMap<&'static str, String>,
     phantom: PhantomData<P>,
@@ -14,7 +14,10 @@ pub struct PluginSearchBuilder<'a, P: DeserializeOwned> {
 
 impl<'a, P: DeserializeOwned> PluginSearchBuilder<'a, P> {
     /// Create a plugin search query
-    pub(crate) fn new(client: &'a reqwest::Client, url: &'a CollectionUrl) -> Self {
+    pub(crate) fn new(
+        client: &'a reqwest_middleware::ClientWithMiddleware,
+        url: &'a CollectionUrl,
+    ) -> Self {
         Self {
             client,
             url,
