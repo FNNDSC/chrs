@@ -1,19 +1,28 @@
 use super::variant::Access;
 use crate::types::CollectionUrl;
 use crate::{FeedResponse, PluginResponse, Search};
+use serde::de::DeserializeOwned;
+use serde::Serialize;
 use std::collections::HashMap;
 use std::marker::PhantomData;
 
-/// Plugin search query
-pub struct PluginSearchBuilder<'a, A: Access> {
-    pub(crate) client: &'a reqwest_middleware::ClientWithMiddleware,
-    pub(crate) url: &'a CollectionUrl,
-    query: HashMap<&'static str, String>,
-    phantom: PhantomData<A>,
+#[derive(Serialize)]
+#[serde(untagged)]
+pub enum QueryValue {
+    U32(u32),
+    String(String),
 }
 
-impl<'a, A: Access> PluginSearchBuilder<'a, A> {
-    /// Create a plugin search query
+/// A `SearchBuilder` builds a request for a search API, e.g. `api/v1/plugins/search/`
+pub struct SearchBuilder<'a, A: Access, T: DeserializeOwned> {
+    pub(crate) client: &'a reqwest_middleware::ClientWithMiddleware,
+    pub(crate) url: &'a CollectionUrl,
+    query: HashMap<&'static str, QueryValue>,
+    phantom: PhantomData<(A, T)>,
+}
+
+impl<'a, A: Access, T: DeserializeOwned> SearchBuilder<'a, A, T> {
+    /// Create a search query
     pub(crate) fn new(
         client: &'a reqwest_middleware::ClientWithMiddleware,
         url: &'a CollectionUrl,
@@ -26,66 +35,54 @@ impl<'a, A: Access> PluginSearchBuilder<'a, A> {
         }
     }
 
-    /// Complete the plugin search query
-    pub fn search(&self) -> Search<PluginResponse, A, &HashMap<&'static str, String>> {
+    /// Complete the search query
+    pub fn search(&self) -> Search<T, A, &HashMap<&'static str, QueryValue>> {
         Search::new(self.client, self.url, &self.query)
     }
 
-    /// Search for plugin by name
-    pub fn name(mut self, name: impl Into<String>) -> Self {
-        self.query.insert("name", name.into());
+    pub(crate) fn add_string(mut self, key: &'static str, value: impl Into<String>) -> Self {
+        self.query.insert(key, QueryValue::String(value.into()));
         self
+    }
+
+    #[allow(unused)]
+    pub(crate) fn add_u32(mut self, key: &'static str, value: u32) -> Self {
+        self.query.insert(key, QueryValue::U32(value));
+        self
+    }
+}
+
+/// Plugin search query
+pub type PluginSearchBuilder<'a, A> = SearchBuilder<'a, A, PluginResponse>;
+
+impl<A: Access> PluginSearchBuilder<'_, A> {
+    /// Search for plugin by name
+    pub fn name(self, name: impl Into<String>) -> Self {
+        self.add_string("name", name)
     }
 
     /// Search for plugin by name_exact
-    pub fn name_exact(mut self, name_exact: impl Into<String>) -> Self {
-        self.query.insert("name_exact", name_exact.into());
-        self
+    pub fn name_exact(self, name_exact: impl Into<String>) -> Self {
+        self.add_string("name_exact", name_exact)
     }
 
     /// Search for plugin by version
-    pub fn version(mut self, version: impl Into<String>) -> Self {
-        self.query.insert("version", version.into());
-        self
+    pub fn version(self, version: impl Into<String>) -> Self {
+        self.add_string("version", version)
     }
 }
 
-/// Feed search query
-pub struct FeedSearchBuilder<'a, A: Access> {
-    pub(crate) client: &'a reqwest_middleware::ClientWithMiddleware,
-    pub(crate) url: &'a CollectionUrl,
-    query: HashMap<&'static str, String>,
-    phantom: PhantomData<A>,
-}
+/// Plugin search query
+pub type FeedSearchBuilder<'a, A> = SearchBuilder<'a, A, FeedResponse>;
 
-impl<'a, A: Access> FeedSearchBuilder<'a, A> {
-    /// Create a feed search query
-    pub(crate) fn new(
-        client: &'a reqwest_middleware::ClientWithMiddleware,
-        url: &'a CollectionUrl,
-    ) -> Self {
-        Self {
-            client,
-            url,
-            query: Default::default(),
-            phantom: Default::default(),
-        }
+impl<A: Access> FeedSearchBuilder<'_, A> {
+    /// Search for feed by name
+    pub fn name(self, name: impl Into<String>) -> Self {
+        self.add_string("name", name)
     }
 
-    /// Complete the feed search query
-    pub fn search(&self) -> Search<FeedResponse, A, &HashMap<&'static str, String>> {
-        Search::new(self.client, self.url, &self.query)
-    }
-
-    /// Search for feeds by name
-    pub fn name(mut self, name: impl Into<String>) -> Self {
-        self.query.insert("name", name.into());
-        self
-    }
-
-    /// Search for feeds with the exact name
-    pub fn name_exact(mut self, name_exact: impl Into<String>) -> Self {
-        self.query.insert("name_exact", name_exact.into());
-        self
+    /// Search for feed by name_exact
+    pub fn name_exact(self, name_exact: impl Into<String>) -> Self {
+        self.add_string("name_exact", name_exact)
     }
 }
