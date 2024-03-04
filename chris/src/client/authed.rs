@@ -1,6 +1,6 @@
 use crate::client::search::LIMIT_ZERO;
-use crate::client::searches::PluginSearchBuilder;
-use crate::client::variant::RwAccess;
+use crate::client::searches::{FeedSearchBuilder, PluginSearchBuilder};
+use crate::client::variant::{RoAccess, RwAccess};
 use crate::errors::{check, CubeError, FileIOError};
 use crate::models::{BaseResponse, CubeLinks, FileUploadResponse, PluginResponse};
 use crate::types::*;
@@ -173,5 +173,9 @@ impl BaseChrisClient<RwAccess> for ChrisClient {
 
     fn plugin(&self) -> PluginSearchBuilder<RwAccess> {
         PluginSearchBuilder::new(&self.client, &self.links.plugins)
+    }
+
+    fn public_feeds(&self) -> FeedSearchBuilder<RoAccess> {
+        FeedSearchBuilder::new(&self.client, &self.links.public_feeds)
     }
 }

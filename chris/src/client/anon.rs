@@ -1,7 +1,7 @@
 use super::filebrowser::FileBrowser;
 use crate::client::base::BaseChrisClient;
 use crate::client::search::LIMIT_ZERO;
-use crate::client::searches::PluginSearchBuilder;
+use crate::client::searches::{FeedSearchBuilder, PluginSearchBuilder};
 use crate::client::variant::RoAccess;
 use crate::errors::{check, CubeError};
 use crate::models::{BaseResponse, CubeLinks, PluginResponse};
@@ -76,5 +76,9 @@ impl BaseChrisClient<RoAccess> for AnonChrisClient {
 
     fn plugin(&self) -> PluginSearchBuilder<RoAccess> {
         PluginSearchBuilder::new(&self.client, &self.links.plugins)
+    }
+
+    fn public_feeds(&self) -> FeedSearchBuilder<RoAccess> {
+        FeedSearchBuilder::new(&self.client, &self.links.public_feeds)
     }
 }

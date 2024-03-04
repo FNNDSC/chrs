@@ -90,3 +90,14 @@ async fn test_get_plugin_parameters(chris_client: &AnonChrisClient) -> AnyResult
     assert_eq!(expected, actual);
     Ok(())
 }
+
+#[rstest]
+#[tokio::test(flavor = "multi_thread")]
+async fn test_search_public_feeds(chris_client: &AnonChrisClient) -> AnyResult {
+    let query = chris_client
+        .public_feeds()
+        .name_exact("Fetal Brain Atlases");
+    let feed = query.search().get_first().await?.expect("Feed not found");
+    assert_eq!(&feed.object.name, "Fetal Brain Atlases");
+    Ok(())
+}

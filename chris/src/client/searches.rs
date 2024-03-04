@@ -1,6 +1,6 @@
 use super::variant::Access;
 use crate::types::CollectionUrl;
-use crate::{PluginResponse, Search};
+use crate::{FeedResponse, PluginResponse, Search};
 use serde::de::DeserializeOwned;
 use std::collections::HashMap;
 use std::marker::PhantomData;
@@ -60,29 +60,32 @@ pub struct FeedSearchBuilder<'a, A: Access> {
 }
 
 impl<'a, A: Access> FeedSearchBuilder<'a, A> {
-    // /// Create a plugin search query
-    // pub(crate) fn new(
-    //     client: &'a reqwest_middleware::ClientWithMiddleware,
-    //     url: &'a CollectionUrl,
-    // ) -> Self {
-    //     Self {
-    //         client,
-    //         url,
-    //         query: Default::default(),
-    //         phantom: Default::default(),
-    //     }
-    // }
+    /// Create a feed search query
+    pub(crate) fn new(
+        client: &'a reqwest_middleware::ClientWithMiddleware,
+        url: &'a CollectionUrl,
+    ) -> Self {
+        Self {
+            client,
+            url,
+            query: Default::default(),
+            phantom: Default::default(),
+        }
+    }
 
-    // /// Complete the plugin search query
-    // pub fn search(&self) -> Search<P, &HashMap<&'static str, String>> {
-    //     Search::new(self.client, self.url, &self.query)
-    // }
-    fn name(mut self, name: impl Into<String>) -> Self {
+    /// Complete the feed search query
+    pub fn search(&self) -> Search<FeedResponse, A, &HashMap<&'static str, String>> {
+        Search::new(self.client, self.url, &self.query)
+    }
+
+    /// Search for feeds by name
+    pub fn name(mut self, name: impl Into<String>) -> Self {
         self.query.insert("name", name.into());
         self
     }
 
-    fn name_exact(mut self, name_exact: impl Into<String>) -> Self {
+    /// Search for feeds with the exact name
+    pub fn name_exact(mut self, name_exact: impl Into<String>) -> Self {
         self.query.insert("name_exact", name_exact.into());
         self
     }
