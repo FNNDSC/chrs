@@ -16,7 +16,6 @@ categories = ["command-line-utilities", "science"]
 [dependencies]
 chris = { path = "../chris", version = "0.4.0", features = ["rustls"], default-features = false }
 clap = { version = "4.1.1", features = ["derive", "string"] }
-lazy_static = "1.4.0"
 keyring = "1.1.2"
 anyhow = "1.0.56"
 thiserror = "1.0.30"
@@ -28,7 +27,6 @@ async-recursion = "1.0.0"
 confy = "0.5.1"
 dialoguer = "0.10.0"
 indicatif = "0.17.3"
-console = "0.15.0"
 serde = "1.0.136"
 serde_json = "1.0.79"
 serde_yaml = "0.9.14"
@@ -39,6 +37,8 @@ regex = "1.5"
 url = "2.2.2"
 termtree = "0.4.0"
 aliri_braid = "0.3.1"
+color-eyre = "0.6.2"
+owo-colors = "4.0.0"
 
 [dev-dependencies]
 tempfile = "3.3.0"
