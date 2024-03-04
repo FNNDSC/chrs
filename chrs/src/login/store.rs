@@ -3,7 +3,8 @@
 //! "<CUBEUsername>@<CUBEAddress>"
 
 use chris::types::{CubeUrl, PluginInstanceId, Username};
-use color_eyre::eyre::Result;
+use color_eyre::eyre::{Result, WrapErr};
+use owo_colors::OwoColorize;
 use serde::{Deserialize, Serialize};
 
 /// Supported mechanisms for storing secrets.
@@ -77,7 +78,16 @@ impl CubeState {
                 Backend::ClearText => StoredToken::Text(token.to_string()),
                 Backend::Keyring => {
                     let entry = keyring::Entry::new(service, &self.to_keyring_username());
-                    entry.set_password(&token)?; // TODO suggest trying again with --no-keyring
+                    entry.set_password(token).wrap_err_with(|| {
+                        format!(
+                            "Could not save token to keyring. Please try again with: `{}`",
+                            format!(
+                                "chrs login --cube={} --username={} --token={}",
+                                &self.cube, &self.username, token
+                            )
+                            .bold()
+                        )
+                    })?;
                     StoredToken::Keyring
                 }
             }

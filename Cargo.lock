@@ -422,7 +422,6 @@ name = "chrs"
 version = "0.2.4"
 dependencies = [
  "aliri_braid 0.3.1",
- "anyhow",
  "async-recursion",
  "async-stream",
  "chris",

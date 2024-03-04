@@ -5,12 +5,13 @@
 // mod get;
 // mod io_helper;
 mod login;
+mod whoami;
 // mod pipeline_add;
 // mod plugin;
 // mod upload;
 // mod whoami;
 
-use clap::{ArgGroup, Parser, Subcommand};
+use clap::{Parser, Subcommand};
 
 // use crate::feeds::list_feeds;
 // use crate::files::download::download;
@@ -21,6 +22,9 @@ use clap::{ArgGroup, Parser, Subcommand};
 // use crate::plugin::{describe_plugin, run_latest};
 // use crate::upload::upload;
 // use crate::whoami::cube_info;
+use crate::login::cmd::{login, logout};
+use crate::login::store::Backend;
+use crate::whoami::whoami;
 use chris::types::{CubeUrl, Username};
 // use chris::models::data::{ComputeResourceName, PluginInstanceId, PluginName};
 // use login::saved::SavedLogins;
@@ -34,12 +38,12 @@ use chris::types::{CubeUrl, Username};
 )]
 struct Cli {
     /// ChRIS backend API URL
-    #[clap(short, long, global = true)]
+    #[clap(long, global = true)]
     cube: Option<CubeUrl>,
 
     /// account username
     #[clap(long, global = true)]
-    username: Option<String>,
+    username: Option<Username>,
 
     /// account password
     #[clap(long, global = true)]
@@ -68,8 +72,8 @@ enum Commands {
         password_stdin: bool,
     },
     //
-    // /// Forget login
-    // Logout {},
+    /// Remove a user session
+    Logout {},
     //
     // /// Switch user
     // Switch {},
@@ -250,12 +254,22 @@ async fn main() -> color_eyre::eyre::Result<()> {
             no_keyring,
             password_stdin,
         } => {
-            println!("ok, you are going to be logged in.");
-            Ok(())
+            let backend = if no_keyring {
+                Backend::ClearText
+            } else {
+                Backend::Keyring
+            };
+            login(
+                args.cube,
+                args.username,
+                args.password,
+                args.token,
+                backend,
+                password_stdin,
+            )
+            .await
         }
-        Commands::Whoami {} => {
-            println!("i am me!");
-            Ok(())
-        }
+        Commands::Whoami {} => whoami(args.cube, args.username),
+        Commands::Logout {} => logout(args.cube, args.username),
     }
 }

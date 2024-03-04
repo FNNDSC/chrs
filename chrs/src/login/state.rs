@@ -1,8 +1,8 @@
 use crate::login::store::{Backend, CubeState, SavedCubeState};
 use chris::types::{CubeUrl, PluginInstanceId, Username};
 use color_eyre::eyre::{Result, WrapErr};
+use owo_colors::OwoColorize;
 use serde::{Deserialize, Serialize};
-use std::str::FromStr;
 
 const SERVICE: &str = "org.chrisproject.chrs";
 const APP_NAME: &str = "chrs";
@@ -24,7 +24,7 @@ impl ChrsSessions {
         username: Option<&Username>,
         args: impl IntoIterator<Item = &'a str>,
     ) -> Result<Option<CubeState>> {
-        let cube_url = cube.map(|c| c.clone()).or_else(|| first_cube_urllike(args));
+        let cube_url = cube.cloned().or_else(|| first_cube_urllike(args));
         match self.get_cube(cube_url.as_ref(), username) {
             None => Ok(None),
             Some(cube) => Ok(Some(cube.to_owned().into_login(SERVICE)?)),
@@ -109,7 +109,8 @@ impl ChrsSessions {
 
     /// Load config from file.
     pub fn load() -> Result<Self> {
-        let c: Self = confy::load(APP_NAME, None).wrap_err("Could not load config file.")?;
+        let c: Self = confy::load(APP_NAME, None)
+            .wrap_err_with(|| format!("Could not load config file. If chrs was upgraded from an old version, please run `{}`", "rm -rf ~/.config/chrs".bold()))?;
         Ok(c)
     }
 
@@ -151,6 +152,7 @@ mod tests {
     use crate::login::store::StoredToken;
     use rstest::*;
     use std::env::args;
+    use std::str::FromStr;
     use url::quirks::username;
 
     #[fixture]
@@ -400,7 +402,7 @@ mod tests {
         )?;
         config.add(
             CubeState {
-                cube: CubeUrl::from_static(("https://two.example.com/api/v1/")),
+                cube: CubeUrl::from_static("https://two.example.com/api/v1/"),
                 username: Username::from_str("pear").unwrap(),
                 token: Some("yapearisachinesepear".to_string()),
                 current_plugin_instance_id: None,
