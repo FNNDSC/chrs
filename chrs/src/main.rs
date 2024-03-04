@@ -1,29 +1,10 @@
-// mod constants;
-// mod executor;
-// mod feeds;
-// mod files;
-// mod get;
-// mod io_helper;
 mod get_client;
 mod login;
 mod ls;
 mod whoami;
-// mod pipeline_add;
-// mod plugin;
-// mod upload;
-// mod whoami;
 
 use clap::{Parser, Subcommand};
 
-// use crate::feeds::list_feeds;
-// use crate::files::download::download;
-// use crate::files::ls;
-// use crate::get::get;
-// use crate::login::get_client::get_client;
-// use crate::pipeline_add::{add_pipeline, convert_pipeline};
-// use crate::plugin::{describe_plugin, run_latest};
-// use crate::upload::upload;
-// use crate::whoami::cube_info;
 use crate::get_client::Credentials;
 use crate::login::cmd::{login, logout};
 use crate::login::store::Backend;
@@ -31,8 +12,6 @@ use crate::login::switch::switch_login;
 use crate::ls::{ls, LsConfig};
 use crate::whoami::whoami;
 use chris::types::{CubeUrl, Username};
-// use chris::models::data::{ComputeResourceName, PluginInstanceId, PluginName};
-// use login::saved::SavedLogins;
 
 #[derive(Parser)]
 #[clap(
