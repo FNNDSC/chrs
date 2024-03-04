@@ -7,25 +7,25 @@ use std::marker::PhantomData;
 /// A client to the subset of the *CUBE* API linked to by this object's generic type.
 /// In less fancy speak, [LinkedModel] is a thing which can get, create, modify, or delete
 /// other things or even itself.
-pub struct LinkedModel<T: DeserializeOwned, V: Access> {
+pub struct LinkedModel<T: DeserializeOwned, A: Access> {
     pub(crate) client: reqwest_middleware::ClientWithMiddleware,
     pub object: T,
-    pub(crate) phantom: PhantomData<V>,
+    pub(crate) phantom: PhantomData<A>,
 }
 
 /// You can think of [LazyLinkedModel] as a lazy [LinkedModel]: it has methods
 /// for changing this resource, and can be transformed into a [LinkedModel]
 /// by calling [LazyLinkedModel::get].
-pub struct LazyLinkedModel<T: DeserializeOwned, V: Access, U: reqwest::IntoUrl> {
+pub struct LazyLinkedModel<T: DeserializeOwned, A: Access, U: reqwest::IntoUrl> {
     #[allow(unused)] // TODO remove me after implementing LazyLinkedModel.get
     pub(crate) client: reqwest_middleware::ClientWithMiddleware,
     pub url: U,
-    phantom: PhantomData<(T, V)>,
+    phantom: PhantomData<(T, A)>,
 }
 
-impl<T: DeserializeOwned, V: Access, U: reqwest::IntoUrl> LazyLinkedModel<T, V, U> {
+impl<T: DeserializeOwned, A: Access, U: reqwest::IntoUrl> LazyLinkedModel<T, A, U> {
     /// Make a HTTP GET request to populate the data of this object.
-    pub async fn get(self) -> LinkedModel<T, V> {
+    pub async fn get(self) -> LinkedModel<T, A> {
         todo!()
     }
 }

@@ -18,22 +18,15 @@
 
 use aliri_braid::braid;
 use async_stream::stream;
-use chris::common_types::CUBEApiUrl;
+use chris::types::{CubeUrl, CollectionUrl, FeedId, FileResourceFname, PluginInstanceId};
 use chris::errors::CubeError;
-use chris::models::data::{AnyFilesUrl, FeedId, FileResourceFname, PluginInstanceId};
 use chris::{ChrisClient, reqwest};
 use futures::{pin_mut, Stream, StreamExt, TryStreamExt};
 use itertools::Itertools;
-use lazy_static::lazy_static;
 use std::collections::HashMap;
 use url::Url;
 
-lazy_static! {
-    /// Substitutions for unallowed substrings for folder names.
-    static ref FOLDER_SUBSTR_SUBSTITUTIONS: HashMap<&'static str, &'static str> = [
-        ("/", "!SLASH!")
-    ].into_iter().collect();
-}
+const FOLDER_SUBSTR_SUBSTITUTIONS: [(&'static str, &'static str); 1] = [("/", "!SLASH!")];
 
 /// User-supplied argument to `chrs download` or `chrs ls`.
 ///
@@ -52,7 +45,7 @@ pub struct UnionFnameLike;
 pub struct FnameLike;
 
 impl FnameLike {
-    pub fn to_url(&self, base_url: &CUBEApiUrl) {
+    pub fn to_url(&self, base_url: &CubeUrl) {
         unimplemented!()
     }
 }
@@ -442,7 +435,7 @@ pub enum TranslationError {
 ///
 /// Returns the URL and the length of the given fname, or 0
 /// if not given an fname.
-pub fn parse_src(src: &str, address: &CUBEApiUrl) -> AnyFilesUrl {
+pub fn parse_src(src: &str, address: &CubeUrl) -> AnyFilesUrl {
     if src.starts_with(address.as_str()) {
         return src.into();
     }
@@ -461,7 +454,7 @@ pub fn parse_src(src: &str, address: &CUBEApiUrl) -> AnyFilesUrl {
 }
 
 /// Create a search API URL for the endpoint and fname.
-fn to_search(address: &CUBEApiUrl, endpoint: &str, fname: &str) -> AnyFilesUrl {
+fn to_search(address: &CubeUrl, endpoint: &str, fname: &str) -> AnyFilesUrl {
     Url::parse_with_params(
         &format!("{}{}/search/", address, endpoint),
         &[("fname", fname)],
@@ -510,7 +503,7 @@ fn split_renamed_path(path: &str) -> Option<(&str, &str, &str, &str, &str)> {
 }
 
 fn substitute_unallowed(mut folder_name: String) -> String {
-    for (from, to) in FOLDER_SUBSTR_SUBSTITUTIONS.iter() {
+    for (from, to) in FOLDER_SUBSTR_SUBSTITUTIONS {
         folder_name = folder_name.replace(from, to)
     }
     folder_name
@@ -596,7 +589,7 @@ mod tests {
         "cereal/feed_1/pl-dircopy_1",
         "https://example.com/api/v1/files/search/?fname=cereal%2Ffeed_1%2Fpl-dircopy_1"
     )]
-    fn test_parse_src_url(#[case] src: &str, #[case] expected: &str, example_address: &CUBEApiUrl) {
+    fn test_parse_src_url(#[case] src: &str, #[case] expected: &str, example_address: &CubeUrl) {
         assert_eq!(parse_src(src, example_address), AnyFilesUrl::from(expected));
     }
 
@@ -664,8 +657,8 @@ mod tests {
 
     #[fixture]
     #[once]
-    fn example_address() -> CUBEApiUrl {
-        CUBEApiUrl::try_from("https://example.com/api/v1/").unwrap()
+    fn example_address() -> CubeUrl {
+        CubeUrl::try_from("https://example.com/api/v1/").unwrap()
     }
 
     // TODO: use HTTP mocking to test PathNamer::rename
@@ -675,7 +668,7 @@ mod tests {
     //     let account = CUBEAuth {
     //         username: Username::new("chris".to_string()),
     //         password: "chris1234".to_string(),
-    //         url: CUBEApiUrl::try_from("https://cube.chrisproject.org/api/v1/")?,
+    //         url: CubeUrl::try_from("https://cube.chrisproject.org/api/v1/")?,
     //         client: &reqwest::Client::new(),
     //     };
     //     let client = account.into_client().await?;

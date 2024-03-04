@@ -32,6 +32,8 @@ impl FileBrowser {
     /// List directories and files in _ChRIS_ storage from a given `path` prefix.
     ///
     /// You can think of this method like the `ls` UNIX command.
+    ///
+    /// Returns `None` if path not found.
     pub async fn readdir(
         &self,
         path: impl AsRef<str>,

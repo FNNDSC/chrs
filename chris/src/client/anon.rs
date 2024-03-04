@@ -1,4 +1,5 @@
 use super::filebrowser::FileBrowser;
+use crate::client::base;
 use crate::client::base::BaseChrisClient;
 use crate::client::search::LIMIT_ZERO;
 use crate::client::searches::{FeedSearchBuilder, PluginSearchBuilder, SearchBuilder};
@@ -6,6 +7,7 @@ use crate::client::variant::RoAccess;
 use crate::errors::{check, CubeError};
 use crate::models::{BaseResponse, CubeLinks};
 use crate::types::*;
+use crate::{FeedResponse, LinkedModel};
 use reqwest::header::{HeaderMap, ACCEPT};
 
 /// Anonymous ChRIS client.
@@ -80,5 +82,9 @@ impl BaseChrisClient<RoAccess> for AnonChrisClient {
 
     fn public_feeds(&self) -> FeedSearchBuilder<RoAccess> {
         FeedSearchBuilder::new(&self.client, &self.links.public_feeds)
+    }
+
+    async fn get_feed(&self, id: FeedId) -> Result<LinkedModel<FeedResponse, RoAccess>, CubeError> {
+        base::get_feed(&self.client, self.url(), id).await
     }
 }

@@ -101,3 +101,12 @@ async fn test_search_public_feeds(chris_client: &AnonChrisClient) -> AnyResult {
     assert_eq!(&feed.object.name, "Fetal Brain Atlases");
     Ok(())
 }
+
+#[rstest]
+#[tokio::test(flavor = "multi_thread")]
+async fn test_get_feed(chris_client: &AnonChrisClient) -> AnyResult {
+    let id = FeedId(307);
+    let feed = chris_client.get_feed(id).await?;
+    assert_eq!(feed.object.id, id);
+    Ok(())
+}

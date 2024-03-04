@@ -1,10 +1,11 @@
-use crate::client::search::LIMIT_ZERO;
-use crate::client::searches::{FeedSearchBuilder, PluginSearchBuilder, SearchBuilder};
-use crate::client::variant::RoAccess;
+use super::base;
+use super::search::LIMIT_ZERO;
+use super::searches::{FeedSearchBuilder, PluginSearchBuilder, SearchBuilder};
+use super::variant::RoAccess;
 use crate::errors::{check, CubeError, FileIOError};
 use crate::models::{BaseResponse, CubeLinks, FileUploadResponse};
 use crate::types::*;
-use crate::{Access, BaseChrisClient, FileBrowser, RwAccess};
+use crate::{Access, BaseChrisClient, FeedResponse, FileBrowser, LinkedModel, RwAccess};
 use bytes::Bytes;
 use camino::Utf8Path;
 use fs_err::tokio::File;
@@ -183,6 +184,10 @@ impl<A: Access> BaseChrisClient<A> for AuthedChrisClient<A> {
 
     fn public_feeds(&self) -> FeedSearchBuilder<RoAccess> {
         FeedSearchBuilder::new(&self.client, &self.links.public_feeds)
+    }
+
+    async fn get_feed(&self, id: FeedId) -> Result<LinkedModel<FeedResponse, A>, CubeError> {
+        base::get_feed(&self.client, self.url(), id).await
     }
 }
 
