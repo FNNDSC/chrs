@@ -4,13 +4,14 @@ use super::variant::{Access, RoAccess};
 use crate::errors::{check, CubeError};
 use crate::types::{CubeUrl, FeedId, PluginInstanceId};
 use crate::{FeedResponse, LinkedModel, PluginInstanceResponse};
+use async_trait::async_trait;
 use reqwest_middleware::ClientWithMiddleware;
 use serde::de::DeserializeOwned;
 use std::fmt::Display;
-use std::future::Future;
 
 /// APIs you can interact with without having to log in.
-pub trait BaseChrisClient<A: Access + Sync> {
+#[async_trait]
+pub trait BaseChrisClient<A: Access> {
     /// Get a filebrowser API client.
     fn filebrowser(&self) -> FileBrowser;
 
@@ -24,16 +25,13 @@ pub trait BaseChrisClient<A: Access + Sync> {
     fn public_feeds(&self) -> FeedSearchBuilder<RoAccess>;
 
     /// Get a feed (directly).
-    fn get_feed(
-        &self,
-        id: FeedId,
-    ) -> impl Future<Output = Result<LinkedModel<FeedResponse, A>, CubeError>> + Send;
+    async fn get_feed(&self, id: FeedId) -> Result<LinkedModel<FeedResponse, A>, CubeError>;
 
     /// Get a plugin instance (directly).
-    fn get_plugin_instance(
+    async fn get_plugin_instance(
         &self,
         id: PluginInstanceId,
-    ) -> impl Future<Output = Result<LinkedModel<PluginInstanceResponse, A>, CubeError>> + Send;
+    ) -> Result<LinkedModel<PluginInstanceResponse, A>, CubeError>;
 }
 
 pub(crate) async fn fetch_id<A: Access, T: DeserializeOwned>(

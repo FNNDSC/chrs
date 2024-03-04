@@ -1,3 +1,4 @@
+use async_trait::async_trait;
 use super::base::fetch_id;
 use super::base::BaseChrisClient;
 use super::filebrowser::FileBrowser;
@@ -67,6 +68,7 @@ fn accept_json() -> HeaderMap {
     HeaderMap::from_iter([(ACCEPT, "application/json".parse().unwrap())])
 }
 
+#[async_trait]
 impl BaseChrisClient<RoAccess> for AnonChrisClient {
     fn filebrowser(&self) -> FileBrowser {
         FileBrowser::new(self.client.clone(), &self.links.filebrowser)

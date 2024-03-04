@@ -1,5 +1,5 @@
 /// An indicator for what mode API items can be accessed.
-pub trait Access {}
+pub trait Access: Send + Sync {}
 
 /// Read-only access
 pub struct RoAccess;

@@ -18,6 +18,7 @@ use reqwest::multipart::{Form, Part};
 use reqwest::Body;
 use std::borrow::Cow;
 use std::marker::PhantomData;
+use async_trait::async_trait;
 use tokio_util::codec::{BytesCodec, FramedRead};
 
 /// _ChRIS_ user client with read-write API access.
@@ -172,7 +173,8 @@ fn token2header(token: &str) -> HeaderMap {
     headers
 }
 
-impl<A: Access + Sync> BaseChrisClient<A> for AuthedChrisClient<A> {
+#[async_trait]
+impl<A: Access> BaseChrisClient<A> for AuthedChrisClient<A> {
     fn filebrowser(&self) -> FileBrowser {
         FileBrowser::new(self.client.clone(), &self.links.filebrowser)
     }
