@@ -3,13 +3,14 @@
 use crate::types::*;
 use serde::Deserialize;
 
-#[derive(Debug, Deserialize)]
-pub struct BaseResponse {
-    /// Number of feeds. Is `None` if client is not logged in.
-    pub count: Option<u32>,
-    pub next: Option<CollectionUrl>,
-    pub previous: Option<CollectionUrl>,
+#[derive(Deserialize)]
+pub(crate) struct BaseResponse {
     pub collection_links: CubeLinks,
+    // unused
+    // /// Number of feeds. Is `None` if client is not logged in.
+    // pub count: Option<u32>,
+    // pub next: Option<CollectionUrl>,
+    // pub previous: Option<CollectionUrl>,
 }
 
 #[derive(Debug, Deserialize, PartialEq)]

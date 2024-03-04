@@ -59,8 +59,8 @@ impl<'a> Account<'a> {
             .post(auth_url)
             .header(reqwest::header::ACCEPT, "application/json")
             .json(&Credentials {
-                username: &self.username,
-                password: &self.password,
+                username: self.username,
+                password: self.password,
             });
         let res = req.send().await?;
         res.error_for_status_ref()?;
@@ -75,8 +75,8 @@ impl<'a> Account<'a> {
             .post(users_url)
             .header(reqwest::header::ACCEPT, "application/json")
             .json(&CreateUserData {
-                username: &self.username,
-                password: &self.password,
+                username: self.username,
+                password: self.password,
                 email,
             });
         let res = req.send().await?;

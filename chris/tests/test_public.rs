@@ -16,7 +16,7 @@ fn cube_url() -> CubeUrl {
 #[once]
 fn chris_client(cube_url: CubeUrl) -> AnonChrisClient {
     futures::executor::block_on(async {
-        AnonChrisClient::new(cube_url)
+        AnonChrisClient::build(cube_url)
             .unwrap()
             .connect()
             .await

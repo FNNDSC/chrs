@@ -152,10 +152,10 @@ impl<R: DeserializeOwned, Q: Serialize + Sized> Search<R, Q> {
         Self::Search(s)
     }
 
-    /// Create a dummy empty search object which returns no results.
-    pub(crate) fn empty() -> Self {
-        Self::Empty
-    }
+    // /// Create a dummy empty search object which returns no results.
+    // pub(crate) fn empty() -> Self {
+    //     Self::Empty
+    // }
 
     /// Get the count of items in this collection.
     pub async fn get_count(&self) -> Result<u32, CubeError> {
@@ -225,6 +225,7 @@ impl<R: DeserializeOwned, Q: Serialize + Sized> Search<R, Q> {
 pub(crate) struct Paginated<R> {
     pub count: u32,
     pub next: Option<String>,
+    #[allow(unused)]
     pub previous: Option<String>,
     pub results: Vec<R>,
 }

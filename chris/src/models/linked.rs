@@ -15,6 +15,7 @@ pub struct LinkedModel<T: DeserializeOwned> {
 /// for changing this resource, and can be transformed into a [LinkedModel]
 /// by calling [LazyLinkedModel::get].
 pub struct LazyLinkedModel<T: DeserializeOwned, U: reqwest::IntoUrl> {
+    #[allow(unused)] // TODO remove me after implementing LazyLinkedModel.get
     pub(crate) client: reqwest_middleware::ClientWithMiddleware,
     pub url: U,
     phantom: PhantomData<T>,

@@ -79,7 +79,7 @@ fn chris_client(cube_url: CubeUrl) -> ChrisClient {
             account_creator.create_account(&email).await.unwrap();
             account_creator.get_token().await.unwrap()
         };
-        ChrisClient::new(cube_url, username, token)
+        ChrisClient::build(cube_url, username, token)
             .unwrap()
             .connect()
             .await

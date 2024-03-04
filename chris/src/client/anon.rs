@@ -29,7 +29,7 @@ impl AnonChrisClientBuilder {
     }
 
     /// Add middleware to the HTTP client.
-    pub fn with<M: reqwest_middleware::Middleware>(mut self, middleware: M) -> Self {
+    pub fn with<M: reqwest_middleware::Middleware>(self, middleware: M) -> Self {
         Self {
             url: self.url,
             builder: self.builder.with(middleware),
@@ -55,13 +55,13 @@ impl AnonChrisClientBuilder {
 
 impl AnonChrisClient {
     /// Create a client builder.
-    pub fn new(url: CubeUrl) -> Result<AnonChrisClientBuilder, reqwest::Error> {
+    pub fn build(url: CubeUrl) -> Result<AnonChrisClientBuilder, reqwest::Error> {
         AnonChrisClientBuilder::new(url)
     }
 }
 
 fn accept_json() -> HeaderMap {
-    HeaderMap::from_iter([(ACCEPT, "application/json".parse().unwrap())].into_iter())
+    HeaderMap::from_iter([(ACCEPT, "application/json".parse().unwrap())])
 }
 
 impl BaseChrisClient<AnonPluginResponse> for AnonChrisClient {

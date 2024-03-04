@@ -28,7 +28,7 @@ impl<'a, P: DeserializeOwned> PluginSearchBuilder<'a, P> {
 
     /// Complete the plugin search query
     pub fn search(&self) -> Search<P, &HashMap<&'static str, String>> {
-        Search::new(&self.client, &self.url, &self.query)
+        Search::new(self.client, self.url, &self.query)
     }
 
     /// Search for plugin by name

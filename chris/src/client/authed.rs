@@ -1,4 +1,3 @@
-use crate::client::anon::AnonChrisClientBuilder;
 use crate::client::search::LIMIT_ZERO;
 use crate::client::searches::PluginSearchBuilder;
 use crate::errors::{check, CubeError, FileIOError};
@@ -48,7 +47,7 @@ impl ChrisClientBuilder {
     }
 
     /// Add middleware to the HTTP client.
-    pub fn with<M: reqwest_middleware::Middleware>(mut self, middleware: M) -> Self {
+    pub fn with<M: reqwest_middleware::Middleware>(self, middleware: M) -> Self {
         Self {
             url: self.url,
             username: self.username,
@@ -76,7 +75,7 @@ impl ChrisClientBuilder {
 
 impl ChrisClient {
     /// Create a client builder.
-    pub fn new(
+    pub fn build(
         url: CubeUrl,
         username: Username,
         token: impl AsRef<str>,
