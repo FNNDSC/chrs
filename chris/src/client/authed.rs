@@ -1,7 +1,8 @@
 use crate::client::search::LIMIT_ZERO;
 use crate::client::searches::PluginSearchBuilder;
+use crate::client::variant::RwAccess;
 use crate::errors::{check, CubeError, FileIOError};
-use crate::models::{AuthedPluginResponse, BaseResponse, CubeLinks, FileUploadResponse};
+use crate::models::{BaseResponse, CubeLinks, FileUploadResponse, PluginResponse};
 use crate::types::*;
 use crate::{BaseChrisClient, FileBrowser};
 use bytes::Bytes;
@@ -161,7 +162,7 @@ fn token2header(token: &str) -> HeaderMap {
     headers
 }
 
-impl BaseChrisClient<AuthedPluginResponse> for ChrisClient {
+impl BaseChrisClient<RwAccess> for ChrisClient {
     fn filebrowser(&self) -> FileBrowser {
         FileBrowser::new(self.client.clone(), &self.links.filebrowser)
     }
@@ -170,7 +171,7 @@ impl BaseChrisClient<AuthedPluginResponse> for ChrisClient {
         &self.url
     }
 
-    fn plugin(&self) -> PluginSearchBuilder<AuthedPluginResponse> {
+    fn plugin(&self) -> PluginSearchBuilder<RwAccess> {
         PluginSearchBuilder::new(&self.client, &self.links.plugins)
     }
 }

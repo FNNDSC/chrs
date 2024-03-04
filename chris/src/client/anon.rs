@@ -2,8 +2,9 @@ use super::filebrowser::FileBrowser;
 use crate::client::base::BaseChrisClient;
 use crate::client::search::LIMIT_ZERO;
 use crate::client::searches::PluginSearchBuilder;
+use crate::client::variant::RoAccess;
 use crate::errors::{check, CubeError};
-use crate::models::{AnonPluginResponse, BaseResponse, CubeLinks};
+use crate::models::{BaseResponse, CubeLinks, PluginResponse};
 use crate::types::*;
 use reqwest::header::{HeaderMap, ACCEPT};
 
@@ -64,7 +65,7 @@ fn accept_json() -> HeaderMap {
     HeaderMap::from_iter([(ACCEPT, "application/json".parse().unwrap())])
 }
 
-impl BaseChrisClient<AnonPluginResponse> for AnonChrisClient {
+impl BaseChrisClient<RoAccess> for AnonChrisClient {
     fn filebrowser(&self) -> FileBrowser {
         FileBrowser::new(self.client.clone(), &self.links.filebrowser)
     }
@@ -73,7 +74,7 @@ impl BaseChrisClient<AnonPluginResponse> for AnonChrisClient {
         &self.url
     }
 
-    fn plugin(&self) -> PluginSearchBuilder<AnonPluginResponse> {
+    fn plugin(&self) -> PluginSearchBuilder<RoAccess> {
         PluginSearchBuilder::new(&self.client, &self.links.plugins)
     }
 }

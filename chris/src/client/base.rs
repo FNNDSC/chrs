@@ -1,10 +1,10 @@
 use super::filebrowser::FileBrowser;
-use crate::client::searches::PluginSearchBuilder;
+use super::searches::{FeedSearchBuilder, PluginSearchBuilder};
+use super::variant::Access;
 use crate::types::CubeUrl;
-use serde::de::DeserializeOwned;
 
 /// APIs you can interact with without having to log in.
-pub trait BaseChrisClient<P: DeserializeOwned> {
+pub trait BaseChrisClient<V: Access> {
     /// Get a filebrowser API client.
     fn filebrowser(&self) -> FileBrowser;
 
@@ -12,5 +12,8 @@ pub trait BaseChrisClient<P: DeserializeOwned> {
     fn url(&self) -> &CubeUrl;
 
     /// Search for ChRIS plugins.
-    fn plugin(&self) -> PluginSearchBuilder<P>;
+    fn plugin(&self) -> PluginSearchBuilder<V>;
+
+    // /// Search for public feeds.
+    // fn publicfeeds(&self) -> FeedSearchBuilder<V>;
 }

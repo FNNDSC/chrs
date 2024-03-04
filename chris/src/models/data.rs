@@ -59,46 +59,7 @@ pub struct PipelineResponse {
 }
 
 #[derive(Debug, Deserialize)]
-pub struct AuthedPluginResponse {
-    pub url: PluginUrl,
-    pub id: PluginId,
-    pub creation_date: String,
-    pub name: PluginName,
-    pub version: PluginVersion,
-    pub dock_image: DockImage,
-    pub public_repo: PluginRepo,
-    pub icon: String,
-    #[serde(rename = "type")]
-    pub plugin_type: PluginType,
-    pub stars: u32,
-    pub authors: String,
-    pub title: String,
-    pub category: String,
-    pub description: String,
-    pub documentation: String,
-    pub license: String,
-    pub execshell: String,
-    pub selfpath: String,
-    pub selfexec: String,
-    pub min_number_of_workers: u32,
-    pub max_number_of_workers: u32,
-    pub min_cpu_limit: u32,
-    pub max_cpu_limit: u32,
-    pub min_memory_limit: u32,
-    pub max_memory_limit: u32,
-    pub min_gpu_limit: u32,
-    pub max_gpu_limit: u32,
-    pub meta: ItemUrl,
-    pub parameters: CollectionUrl,
-    pub instances: CollectionUrl,
-    pub compute_resources: CollectionUrl,
-}
-
-// Same as AuthedPluginResponse, but must be duplicated for the sake of
-// being able to define Plugin and PublicPlugin as two different types
-// in plugin.rs
-#[derive(Debug, Deserialize)]
-pub struct AnonPluginResponse {
+pub struct PluginResponse {
     pub url: PluginUrl,
     pub id: PluginId,
     pub creation_date: String,

@@ -1,18 +1,15 @@
+use crate::client::variant::{RoAccess, RwAccess};
 use crate::errors::{check, CubeError};
-use crate::models::data::{AuthedPluginResponse, PluginInstanceResponse, PluginParameter};
+use crate::models::data::{PluginInstanceResponse, PluginParameter, PluginResponse};
 use crate::models::linked::LinkedModel;
-use crate::models::AnonPluginResponse;
 use crate::Search;
 use serde::Serialize;
 
-/// ChRIS plugin
-pub trait ChrisPlugin {
-    /// Get plugin parameters
-    fn get_parameters(&self) -> Search<PluginParameter, ()>;
-}
-
 /// A [ChrisPlugin]. Call [Plugin::create_instance] to "run" this plugin.
-pub type Plugin = LinkedModel<AuthedPluginResponse>;
+pub type Plugin = LinkedModel<PluginResponse, RwAccess>;
+
+/// A [ChrisPlugin]. You cannot create plugin instances of a [PublicPlugin].
+pub type PublicPlugin = LinkedModel<PluginResponse, RoAccess>;
 
 impl Plugin {
     /// Create a plugin instance (i.e. "run" a plugin)
@@ -31,17 +28,20 @@ impl Plugin {
     }
 }
 
+/// ChRIS plugin
+pub trait ChrisPlugin {
+    /// Get plugin parameters
+    fn get_parameters(&self) -> Search<PluginParameter, RoAccess, ()>;
+}
+
 impl ChrisPlugin for Plugin {
-    fn get_parameters(&self) -> Search<PluginParameter, ()> {
+    fn get_parameters(&self) -> Search<PluginParameter, RoAccess, ()> {
         Search::basic(&self.client, &self.object.parameters)
     }
 }
 
-/// A [ChrisPlugin]. You cannot create plugin instances of a [PublicPlugin].
-pub type PublicPlugin = LinkedModel<AnonPluginResponse>;
-
 impl ChrisPlugin for PublicPlugin {
-    fn get_parameters(&self) -> Search<PluginParameter, ()> {
+    fn get_parameters(&self) -> Search<PluginParameter, RoAccess, ()> {
         Search::basic(&self.client, &self.object.parameters)
     }
 }

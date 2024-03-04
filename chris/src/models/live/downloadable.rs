@@ -1,3 +1,4 @@
+use crate::client::variant::Access;
 use crate::errors::{check, CubeError, FileIOError};
 use crate::models::linked::*;
 use crate::types::*;
@@ -14,7 +15,7 @@ pub trait Downloadable {
     fn fsize(&self) -> u64;
 }
 
-impl<D: Downloadable + DeserializeOwned> LinkedModel<D> {
+impl<D: Downloadable + DeserializeOwned, A: Access> LinkedModel<D, A> {
     /// Stream the bytes data of a file from _ChRIS_.
     /// Returns the bytestream and content-length.
     pub async fn stream(
