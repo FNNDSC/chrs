@@ -1,7 +1,7 @@
 use crate::login::store::{Backend, CubeState, SavedCubeState};
 use chris::types::{CubeUrl, PluginInstanceId, Username};
 use color_eyre::eyre::{Result, WrapErr};
-use owo_colors::OwoColorize;
+use color_eyre::owo_colors::OwoColorize;
 use serde::{Deserialize, Serialize};
 
 const SERVICE: &str = "org.chrisproject.chrs";
@@ -22,10 +22,8 @@ impl ChrsSessions {
         &self,
         cube: Option<&CubeUrl>,
         username: Option<&Username>,
-        args: impl IntoIterator<Item = &'a str>,
     ) -> Result<Option<CubeState>> {
-        let cube_url = cube.cloned().or_else(|| first_cube_urllike(args));
-        match self.get_cube(cube_url.as_ref(), username) {
+        match self.get_cube(cube, username) {
             None => Ok(None),
             Some(cube) => Ok(Some(cube.to_owned().into_login(SERVICE)?)),
         }
@@ -136,16 +134,6 @@ impl ChrsSessions {
     }
 }
 
-fn first_cube_urllike<'a>(args: impl IntoIterator<Item = &'a str>) -> Option<CubeUrl> {
-    args.into_iter().filter_map(parse_cube_url_from).next()
-}
-
-fn parse_cube_url_from(arg: &str) -> Option<CubeUrl> {
-    arg.split_once("/api/v1/")
-        .map(|(url, _path)| format!("{url}/api/v1/"))
-        .and_then(|url| CubeUrl::new(url).ok())
-}
-
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -199,39 +187,17 @@ mod tests {
     }
 
     #[rstest]
-    #[case([], None)]
-    #[case(["hello"], None)]
-    #[case(["https://example.org/api/v1/"], Some("https://example.org/api/v1/"))]
-    #[case(["hello", "https://example.org/api/v1/"], Some("https://example.org/api/v1/"))]
-    #[case(["https://example.org/api/v1/files/113/"], Some("https://example.org/api/v1/"))]
-    #[case(["https://example.org/api/v1/plugins/4/"], Some("https://example.org/api/v1/"))]
-    fn test_first_cube_urllike<'a>(
-        #[case] args: impl IntoIterator<Item = &'a str>,
-        #[case] expected: Option<&'static str>,
-    ) {
-        assert_eq!(
-            first_cube_urllike(args),
-            expected.map(|s| CubeUrl::from_static(s))
-        );
-    }
-
-    #[rstest]
     fn test_empty_config(example_cube_url: CubeUrl, example_username: Username) -> Result<()> {
         let empty_config = ChrsSessions::default();
-        let args: [&str; 0] = [];
-        assert!(empty_config.get_login(None, None, args.clone())?.is_none());
+        assert!(empty_config.get_login(None, None)?.is_none());
         assert!(empty_config
-            .get_login(Some(&example_cube_url), None, args.clone())?
+            .get_login(Some(&example_cube_url), None)?
             .is_none());
         assert!(empty_config
-            .get_login(None, Some(&example_username), args.clone())?
+            .get_login(None, Some(&example_username))?
             .is_none());
         assert!(empty_config
-            .get_login(
-                Some(&example_cube_url),
-                Some(&example_username),
-                args.clone()
-            )?
+            .get_login(Some(&example_cube_url), Some(&example_username),)?
             .is_none());
         Ok(())
     }
@@ -244,8 +210,7 @@ mod tests {
             token: Some("token-b2".to_string()),
             current_plugin_instance_id: Some(PluginInstanceId(43)),
         };
-        let args: [&str; 0] = [];
-        assert_eq!(Some(expected), chrs_sessions.get_login(None, None, args)?);
+        assert_eq!(Some(expected), chrs_sessions.get_login(None, None)?);
         Ok(())
     }
 
@@ -282,23 +247,20 @@ mod tests {
             token: Some("token-b2".to_string()),
             current_plugin_instance_id: Some(PluginInstanceId(43)),
         };
-        let args: [&str; 0] = [];
         assert_eq!(
             Some(&expected1),
-            chrs_sessions
-                .get_login(Some(&cube_url), None, args.clone())?
-                .as_ref()
+            chrs_sessions.get_login(Some(&cube_url), None)?.as_ref()
         );
         assert_eq!(
             Some(&expected1),
             chrs_sessions
-                .get_login(Some(&cube_url), Some(&expected1.username), args.clone())?
+                .get_login(Some(&cube_url), Some(&expected1.username))?
                 .as_ref()
         );
         assert_eq!(
             Some(&expected2),
             chrs_sessions
-                .get_login(Some(&cube_url), Some(&expected2.username), args.clone())?
+                .get_login(Some(&cube_url), Some(&expected2.username))?
                 .as_ref()
         );
         Ok(())
@@ -310,7 +272,7 @@ mod tests {
         assert_eq!(0, config.sessions.len());
         config.add(
             CubeState {
-                cube: CubeUrl::from_static(("https://example.com/api/v1/")),
+                cube: CubeUrl::from_static("https://example.com/api/v1/"),
                 username: Username::from_str("apple").unwrap(),
                 token: Some("red-delicious".to_string()),
                 current_plugin_instance_id: None,
@@ -356,7 +318,7 @@ mod tests {
 
         config.add(
             CubeState {
-                cube: CubeUrl::from_static(("https://example.com/api/v1/")),
+                cube: CubeUrl::from_static("https://example.com/api/v1/"),
                 username: Username::from_str("pear").unwrap(),
                 token: Some("yapearisachinesepear".to_string()),
                 current_plugin_instance_id: None,
@@ -371,7 +333,7 @@ mod tests {
 
         config.add(
             CubeState {
-                cube: CubeUrl::from_static(("https://another.example.com/api/v1/")),
+                cube: CubeUrl::from_static("https://another.example.com/api/v1/"),
                 username: Username::from_str("pear").unwrap(),
                 token: Some("yapearisachinesepear".to_string()),
                 current_plugin_instance_id: None,
@@ -391,7 +353,7 @@ mod tests {
         let mut config = ChrsSessions::default();
         config.add(
             CubeState {
-                cube: CubeUrl::from_static(("https://one.example.com/api/v1/")),
+                cube: CubeUrl::from_static("https://one.example.com/api/v1/"),
                 username: Username::from_str("apple").unwrap(),
                 token: Some("red-delicious".to_string()),
                 current_plugin_instance_id: None,

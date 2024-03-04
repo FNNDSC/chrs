@@ -1,18 +1,21 @@
 use super::prompt::{prompt_if_missing, prompt_if_missing_password};
 use super::state::ChrsSessions;
 use super::store;
+use crate::get_client::Credentials;
 use chris::{
     types::{CubeUrl, Username},
     Account, AnonChrisClient, ChrisClient,
 };
 use color_eyre::eyre::{bail, Context, Result};
-use owo_colors::OwoColorize;
+use color_eyre::owo_colors::OwoColorize;
 
 pub async fn login(
-    cube_url: Option<CubeUrl>,
-    username: Option<Username>,
-    password: Option<String>,
-    token: Option<String>,
+    Credentials {
+        cube_url,
+        username,
+        password,
+        token,
+    }: Credentials,
     backend: store::Backend,
     password_from_stdin: bool,
 ) -> Result<()> {
@@ -84,7 +87,11 @@ async fn login_with_token(
     Ok(Some(token.to_string()))
 }
 
-pub fn logout(cube_url: Option<CubeUrl>, username: Option<Username>) -> Result<()> {
+pub fn logout(
+    Credentials {
+        cube_url, username, ..
+    }: Credentials,
+) -> Result<()> {
     let mut config = ChrsSessions::load()?;
     if let Some(url) = cube_url {
         let removed = match username {

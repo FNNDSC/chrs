@@ -4,7 +4,9 @@
 // mod files;
 // mod get;
 // mod io_helper;
+mod get_client;
 mod login;
+mod ls;
 mod whoami;
 // mod pipeline_add;
 // mod plugin;
@@ -22,9 +24,11 @@ use clap::{Parser, Subcommand};
 // use crate::plugin::{describe_plugin, run_latest};
 // use crate::upload::upload;
 // use crate::whoami::cube_info;
+use crate::get_client::Credentials;
 use crate::login::cmd::{login, logout};
 use crate::login::store::Backend;
 use crate::login::switch::switch_login;
+use crate::ls::{ls, LsConfig};
 use crate::whoami::whoami;
 use chris::types::{CubeUrl, Username};
 // use chris::models::data::{ComputeResourceName, PluginInstanceId, PluginName};
@@ -53,6 +57,10 @@ struct Cli {
     /// authorization token
     #[clap(long, global = true)]
     token: Option<String>,
+
+    /// Number of times to retry HTTP requests
+    #[clap(long)]
+    retries: Option<u32>,
 
     #[clap(subcommand)]
     command: Commands,
@@ -140,28 +148,28 @@ enum Commands {
     //         dst: Option<PathBuf>,
     //     },
     //
-    //     /// Browse files in ChRIS
-    //     Ls {
-    //         /// tree-like output
-    //         #[clap(short, long)]
-    //         tree: bool,
-    //
-    //         /// Maximum subdirectory depth
-    //         #[clap(short = 'L', long, default_value_t = 2)]
-    //         level: u16,
-    //
-    //         /// Show full paths, which may be convenient for copy-paste
-    //         #[clap(short, long)]
-    //         full: bool,
-    //
-    //         /// Do not rename folders with feed names and plugin instance titles
-    //         #[clap(short, long)]
-    //         raw: bool,
-    //
-    //         /// (Swift) data path
-    //         #[clap(default_value = "")]
-    //         path: String,
-    //     },
+    /// List files
+    Ls {
+        /// tree-like output
+        #[clap(short, long)]
+        tree: bool,
+
+        /// Maximum subdirectory depth
+        #[clap(short = 'L', long)]
+        level: Option<u16>,
+
+        /// Show full paths, which may be convenient for copy-paste
+        #[clap(short, long)]
+        full: bool,
+
+        /// Do not rename folders with feed names and plugin instance titles
+        #[clap(short, long)]
+        raw: bool,
+
+        /// directory path
+        #[clap()]
+        path: Option<String>,
+    },
     //
     //     //
     //     // /// Search for plugins and pipelines
@@ -248,6 +256,12 @@ async fn main() -> color_eyre::eyre::Result<()> {
     color_eyre::install()?;
 
     let args: Cli = Cli::parse();
+    let credentials = Credentials {
+        cube_url: args.cube,
+        username: args.username,
+        password: args.password,
+        token: args.token,
+    };
 
     match args.command {
         Commands::Login {
@@ -259,18 +273,21 @@ async fn main() -> color_eyre::eyre::Result<()> {
             } else {
                 Backend::Keyring
             };
-            login(
-                args.cube,
-                args.username,
-                args.password,
-                args.token,
-                backend,
-                password_stdin,
-            )
-            .await
+            login(credentials, backend, password_stdin).await
         }
-        Commands::Switch {} => switch_login(args.cube, args.username),
-        Commands::Whoami {} => whoami(args.cube, args.username),
-        Commands::Logout {} => logout(args.cube, args.username),
+        Commands::Switch {} => switch_login(credentials),
+        Commands::Whoami {} => whoami(credentials),
+        Commands::Logout {} => logout(credentials),
+
+        Commands::Ls {
+            tree,
+            level,
+            full,
+            raw,
+            path,
+        } => {
+            let config = LsConfig { tree, full, raw };
+            ls(credentials, level, path, args.retries, config).await
+        }
     }
 }

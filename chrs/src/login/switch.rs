@@ -1,16 +1,21 @@
 use super::state::ChrsSessions;
+use crate::get_client::Credentials;
 use chris::types::{CubeUrl, Username};
 use color_eyre::eyre::{Error, Result};
+use color_eyre::owo_colors::OwoColorize;
 use dialoguer::console::Term;
 use dialoguer::{theme::ColorfulTheme, Select};
-use owo_colors::OwoColorize;
 
 /// Switch the preferred login. If any of `username`, `password`
 /// are specified, then the process is non-interactive, and
 /// selects any saved login which fits the criteria.
 /// Otherwise, an interactive menu is shown where the user
 /// presses arrow keys to make a selection.
-pub(crate) fn switch_login(cube_url: Option<CubeUrl>, username: Option<Username>) -> Result<()> {
+pub(crate) fn switch_login(
+    Credentials {
+        cube_url, username, ..
+    }: Credentials,
+) -> Result<()> {
     let mut logins = ChrsSessions::load()?;
 
     if logins.sessions.len() == 1 {

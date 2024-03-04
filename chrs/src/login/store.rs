@@ -4,7 +4,7 @@
 
 use chris::types::{CubeUrl, PluginInstanceId, Username};
 use color_eyre::eyre::{Result, WrapErr};
-use owo_colors::OwoColorize;
+use color_eyre::owo_colors::OwoColorize;
 use serde::{Deserialize, Serialize};
 
 /// Supported mechanisms for storing secrets.
