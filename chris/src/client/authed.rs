@@ -1,10 +1,10 @@
 use crate::client::search::LIMIT_ZERO;
 use crate::client::searches::{FeedSearchBuilder, PluginSearchBuilder, SearchBuilder};
-use crate::client::variant::{RoAccess, RwAccess};
+use crate::client::variant::RoAccess;
 use crate::errors::{check, CubeError, FileIOError};
 use crate::models::{BaseResponse, CubeLinks, FileUploadResponse};
 use crate::types::*;
-use crate::{BaseChrisClient, FileBrowser};
+use crate::{Access, BaseChrisClient, FileBrowser, RwAccess};
 use bytes::Bytes;
 use camino::Utf8Path;
 use fs_err::tokio::File;
@@ -13,15 +13,20 @@ use reqwest::header::{HeaderMap, HeaderValue, ACCEPT, AUTHORIZATION};
 use reqwest::multipart::{Form, Part};
 use reqwest::Body;
 use std::borrow::Cow;
+use std::marker::PhantomData;
 use tokio_util::codec::{BytesCodec, FramedRead};
 
-/// _ChRIS_ client with login.
+/// _ChRIS_ user client with read-write API access.
+pub type ChrisClient = AuthedChrisClient<RwAccess>;
+
+/// Authenticated _ChRIS_ user client.
 #[derive(Debug)]
-pub struct ChrisClient {
+pub struct AuthedChrisClient<A: Access> {
     client: reqwest_middleware::ClientWithMiddleware,
     url: CubeUrl,
     username: Username,
     links: CubeLinks,
+    phantom: PhantomData<A>,
 }
 
 pub struct ChrisClientBuilder {
@@ -70,11 +75,12 @@ impl ChrisClientBuilder {
             username: self.username,
             url: self.url,
             links: base_response.collection_links,
+            phantom: Default::default(),
         })
     }
 }
 
-impl ChrisClient {
+impl<A: Access> AuthedChrisClient<A> {
     /// Create a client builder.
     pub fn build(
         url: CubeUrl,
@@ -162,7 +168,7 @@ fn token2header(token: &str) -> HeaderMap {
     headers
 }
 
-impl BaseChrisClient<RwAccess> for ChrisClient {
+impl<A: Access> BaseChrisClient<A> for AuthedChrisClient<A> {
     fn filebrowser(&self) -> FileBrowser {
         FileBrowser::new(self.client.clone(), &self.links.filebrowser)
     }
@@ -171,11 +177,24 @@ impl BaseChrisClient<RwAccess> for ChrisClient {
         &self.url
     }
 
-    fn plugin(&self) -> PluginSearchBuilder<RwAccess> {
+    fn plugin(&self) -> PluginSearchBuilder<A> {
         SearchBuilder::new(&self.client, &self.links.plugins)
     }
 
     fn public_feeds(&self) -> FeedSearchBuilder<RoAccess> {
         FeedSearchBuilder::new(&self.client, &self.links.public_feeds)
+    }
+}
+
+impl ChrisClient {
+    /// Convert to a [RoAccess] client.
+    pub fn into_ro(self) -> AuthedChrisClient<RoAccess> {
+        AuthedChrisClient::<RoAccess> {
+            client: self.client,
+            url: self.url,
+            username: self.username,
+            links: self.links,
+            phantom: Default::default(),
+        }
     }
 }

@@ -2,7 +2,6 @@
 //! About anyhow: see https://github.com/TrueLayer/reqwest-middleware/issues/119
 
 use reqwest::StatusCode;
-use reqwest_middleware::Error;
 
 #[derive(thiserror::Error, Debug)]
 pub enum InvalidCubeUrl {
@@ -101,8 +100,8 @@ impl From<std::io::Error> for FileIOError {
 impl From<reqwest_middleware::Error> for CubeError {
     fn from(error: reqwest_middleware::Error) -> Self {
         match error {
-            Error::Middleware(e) => CubeError::Middleware(e),
-            Error::Reqwest(e) => CubeError::Raw(e),
+            reqwest_middleware::Error::Middleware(e) => CubeError::Middleware(e),
+            reqwest_middleware::Error::Reqwest(e) => CubeError::Raw(e),
         }
     }
 }
