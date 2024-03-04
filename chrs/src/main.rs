@@ -24,6 +24,7 @@ use clap::{Parser, Subcommand};
 // use crate::whoami::cube_info;
 use crate::login::cmd::{login, logout};
 use crate::login::store::Backend;
+use crate::login::switch::switch_login;
 use crate::whoami::whoami;
 use chris::types::{CubeUrl, Username};
 // use chris::models::data::{ComputeResourceName, PluginInstanceId, PluginName};
@@ -74,9 +75,8 @@ enum Commands {
     //
     /// Remove a user session
     Logout {},
-    //
-    // /// Switch user
-    // Switch {},
+    /// Switch user
+    Switch {},
     /// Show login information
     Whoami {},
     //
@@ -269,6 +269,7 @@ async fn main() -> color_eyre::eyre::Result<()> {
             )
             .await
         }
+        Commands::Switch {} => switch_login(args.cube, args.username),
         Commands::Whoami {} => whoami(args.cube, args.username),
         Commands::Logout {} => logout(args.cube, args.username),
     }

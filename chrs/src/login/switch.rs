@@ -1,86 +1,101 @@
-use crate::login::saved::SavedLogins;
-use chris::common_types::{CUBEApiUrl, Username};
-use console::Term;
+use super::state::ChrsSessions;
+use chris::types::{CubeUrl, Username};
+use color_eyre::eyre::{Error, Result};
+use dialoguer::console::Term;
 use dialoguer::{theme::ColorfulTheme, Select};
+use owo_colors::OwoColorize;
 
 /// Switch the preferred login. If any of `username`, `password`
 /// are specified, then the process is non-interactive, and
 /// selects any saved login which fits the criteria.
 /// Otherwise, an interactive menu is shown where the user
 /// presses arrow keys to make a selection.
-pub(crate) fn switch_login(
-    address: Option<CUBEApiUrl>,
-    username: Option<Username>,
-) -> anyhow::Result<()> {
-    let mut logins = SavedLogins::load()?;
+pub(crate) fn switch_login(cube_url: Option<CubeUrl>, username: Option<Username>) -> Result<()> {
+    let mut logins = ChrsSessions::load()?;
+
+    if logins.sessions.len() == 1 {
+        let login = &logins.sessions[0];
+        println!(
+            "Only one login found. Logged into ChRIS {} as user \"{}\"",
+            login.cube, login.username
+        );
+        return Ok(());
+    }
+
     let max_username_len: usize = logins
-        .cubes
+        .sessions
         .iter()
         .map(|logins| logins.username.as_str().len())
         .max()
-        .ok_or_else(|| anyhow::Error::msg("You are not logged in."))?;
-    let selection = if let Some(selection) = noninteractive(&logins, address, username)? {
+        .ok_or_else(|| Error::msg("You are not logged in."))?;
+    let selection = if let Some(selection) = noninteractive(&logins, cube_url, username)? {
         Some(selection)
     } else {
         interactive(&logins, max_username_len)?
     };
     if let Some(selected) = selection {
         logins.set_last(selected);
-        logins.store()?;
+        logins.save()?;
     }
     Ok(())
 }
 
 fn noninteractive(
-    logins: &SavedLogins,
-    address: Option<CUBEApiUrl>,
+    logins: &ChrsSessions,
+    cube_url: Option<CubeUrl>,
     username: Option<Username>,
-) -> anyhow::Result<Option<usize>> {
-    if address.is_none() && username.is_none() {
+) -> Result<Option<usize>> {
+    if cube_url.is_none() && username.is_none() {
         return Ok(None);
     }
-    if address.is_none() {
+    if cube_url.is_none() {
         return if username.is_none() {
             Ok(None)
         } else {
-            Err(anyhow::Error::msg("--address is required"))
+            Err(Error::msg("--cube is required"))
         };
     }
-    let index = get_index_of(logins, &address, &username).ok_or_else(|| {
-        anyhow::Error::msg(format!(
-            "No login found for username={:?} address={:?}",
-            username, address
+    let index = get_index_of(logins, &cube_url, &username).ok_or_else(|| {
+        Error::msg(format!(
+            "No login found for username={:?} cube={:?}",
+            username.green(),
+            cube_url.cyan()
         ))
     })?;
     Ok(Some(index))
 }
 
 fn get_index_of(
-    logins: &SavedLogins,
-    address: &Option<CUBEApiUrl>,
+    logins: &ChrsSessions,
+    address: &Option<CubeUrl>,
     username: &Option<Username>,
 ) -> Option<usize> {
     logins
         .get_cube(address.as_ref(), username.as_ref())
-        .and_then(|login| logins.cubes.iter().position(|l| l == login))
+        .and_then(|login| logins.sessions.iter().position(|l| l == login))
 }
 
-fn interactive(logins: &SavedLogins, max_username_len: usize) -> anyhow::Result<Option<usize>> {
+fn interactive(logins: &ChrsSessions, max_username_len: usize) -> Result<Option<usize>> {
+    let max_username_len = std::cmp::max(max_username_len, "(anonymous)".len());
     let items: Vec<String> = logins
-        .cubes
+        .sessions
         .iter()
         .map(|login| {
             format!(
                 "{:<p$}{}",
-                &login.username,
-                &login.address,
+                if login.username.as_str().is_empty() {
+                    "(anonymous)"
+                } else {
+                    &login.username.as_str()
+                },
+                &login.cube,
                 p = (max_username_len + 2)
             )
         })
         .collect();
     let selection = Select::with_theme(&ColorfulTheme::default())
         .items(&items)
-        .default(logins.cubes.len() - 1)
+        .default(logins.sessions.len() - 1)
         .interact_on_opt(&Term::stderr())?;
     Ok(selection)
 }
