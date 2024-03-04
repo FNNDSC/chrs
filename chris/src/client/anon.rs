@@ -4,7 +4,7 @@ use crate::client::search::LIMIT_ZERO;
 use crate::client::searches::{FeedSearchBuilder, PluginSearchBuilder};
 use crate::client::variant::RoAccess;
 use crate::errors::{check, CubeError};
-use crate::models::{BaseResponse, CubeLinks, PluginResponse};
+use crate::models::{BaseResponse, CubeLinks};
 use crate::types::*;
 use reqwest::header::{HeaderMap, ACCEPT};
 

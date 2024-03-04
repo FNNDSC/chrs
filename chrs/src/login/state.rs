@@ -151,9 +151,7 @@ mod tests {
     use super::*;
     use crate::login::store::StoredToken;
     use rstest::*;
-    use std::env::args;
     use std::str::FromStr;
-    use url::quirks::username;
 
     #[fixture]
     fn sessions() -> Vec<SavedCubeState> {
@@ -333,7 +331,7 @@ mod tests {
 
         config.add(
             CubeState {
-                cube: CubeUrl::from_static(("https://example.com/api/v1/")),
+                cube: CubeUrl::from_static("https://example.com/api/v1/"),
                 username: Username::from_str("apple").unwrap(),
                 token: Some("golden-delicious".to_string()),
                 current_plugin_instance_id: None,

@@ -2,7 +2,7 @@ use crate::client::search::LIMIT_ZERO;
 use crate::client::searches::{FeedSearchBuilder, PluginSearchBuilder};
 use crate::client::variant::{RoAccess, RwAccess};
 use crate::errors::{check, CubeError, FileIOError};
-use crate::models::{BaseResponse, CubeLinks, FileUploadResponse, PluginResponse};
+use crate::models::{BaseResponse, CubeLinks, FileUploadResponse};
 use crate::types::*;
 use crate::{BaseChrisClient, FileBrowser};
 use bytes::Bytes;

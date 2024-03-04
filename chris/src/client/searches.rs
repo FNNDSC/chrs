@@ -1,7 +1,6 @@
 use super::variant::Access;
 use crate::types::CollectionUrl;
 use crate::{FeedResponse, PluginResponse, Search};
-use serde::de::DeserializeOwned;
 use std::collections::HashMap;
 use std::marker::PhantomData;
 
