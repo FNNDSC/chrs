@@ -1,5 +1,5 @@
 use crate::arg::GivenPluginInstance;
-use crate::get_client::{Client, Credentials, RoClient};
+use crate::client::{Client, Credentials, RoClient};
 use crate::login::UiUrl;
 use crate::unicode;
 use chris::types::{FeedId, PluginInstanceId};

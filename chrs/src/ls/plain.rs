@@ -1,5 +1,5 @@
 use super::coder_channel::DecodeChannel;
-use crate::get_client::RoClient;
+use crate::client::RoClient;
 use crate::ls::options::WhatToPrint;
 use async_recursion::async_recursion;
 use chris::types::{FileBrowserPath, FileResourceFname};

@@ -1,5 +1,5 @@
 use super::state::ChrsSessions;
-use crate::get_client::Credentials;
+use crate::client::Credentials;
 use chris::types::{CubeUrl, Username};
 use color_eyre::eyre::{Error, Result};
 use color_eyre::owo_colors::OwoColorize;

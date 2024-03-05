@@ -1,7 +1,7 @@
 use super::prompt::{prompt_if_missing, prompt_if_missing_password};
 use super::state::ChrsSessions;
 use super::store;
-use crate::get_client::Credentials;
+use crate::client::Credentials;
 use chris::{
     types::{CubeUrl, Username},
     Account, AnonChrisClient, ChrisClient,

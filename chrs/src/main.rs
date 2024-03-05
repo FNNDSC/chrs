@@ -1,7 +1,7 @@
 mod arg;
 mod cd;
+mod client;
 mod files;
-mod get_client;
 mod login;
 mod ls;
 mod status;
@@ -11,7 +11,7 @@ mod whoami;
 use clap::{builder::NonEmptyStringValueParser, Parser, Subcommand};
 
 use crate::cd::cd;
-use crate::get_client::Credentials;
+use crate::client::Credentials;
 use crate::login::cmd::{login, logout};
 use crate::login::store::Backend;
 use crate::login::switch::switch_login;

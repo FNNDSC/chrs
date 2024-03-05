@@ -1,6 +1,6 @@
 use aliri_braid::braid;
-use std::borrow::Cow;
 use chris::FeedResponse;
+use std::borrow::Cow;
 
 #[derive(Debug, thiserror::Error, PartialEq, Eq)]
 #[error("Invalid ChRIS_ui URL")]
@@ -14,6 +14,8 @@ pub struct UiUrl;
 
 impl UiUrl {
     pub fn feed_url_of(&self, feed: &FeedResponse) -> String {
+        // required to specify feed as public or private.
+        // https://github.com/FNNDSC/ChRIS_ui/issues/1072
         let t = if feed.public { "public" } else { "private" };
         format!("{}/feeds/{}?type={}", &self.as_str(), feed.id.0, t)
     }

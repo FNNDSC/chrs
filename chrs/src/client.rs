@@ -74,8 +74,17 @@ impl Client {
                 query.search().stream().try_collect().await
             }
             Self::LoggedIn(c) => {
-                let query = c.feeds().name(name).page_limit(10).max_items(10);
-                query.search().stream().try_collect().await
+                // need to get both public feeds and private feeds
+                // https://github.com/FNNDSC/ChRIS_ultron_backEnd/issues/530
+                let private_query = c.feeds().name(name).page_limit(10).max_items(10);
+                let private_feeds: Vec<_> = private_query.search().stream().try_collect().await?;
+                if private_feeds.is_empty() {
+                    let public_feeds_query =
+                        c.public_feeds().name(name).page_limit(10).max_items(10);
+                    public_feeds_query.search().stream().try_collect().await
+                } else {
+                    Ok(private_feeds)
+                }
             }
         }?;
         if feeds.len() > 1 {

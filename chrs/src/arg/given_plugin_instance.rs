@@ -1,4 +1,4 @@
-use crate::get_client::Client;
+use crate::client::Client;
 use chris::types::PluginInstanceId;
 use chris::{BaseChrisClient, ChrisClient, PluginInstanceResponse};
 use color_eyre::eyre;

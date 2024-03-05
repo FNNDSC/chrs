@@ -18,7 +18,7 @@
 #![allow(dead_code)]
 #![allow(unused_variables)]
 
-use crate::get_client::RoClient;
+use crate::client::RoClient;
 use async_stream::stream;
 use chris::errors::CubeError;
 use chris::reqwest;
@@ -553,7 +553,7 @@ enum PluginInstanceTitleError<'a> {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::get_client::Client;
+    use crate::client::Client;
     use chris::types::FileResourceFname;
     use chris::AnonChrisClient;
     use rstest::*;

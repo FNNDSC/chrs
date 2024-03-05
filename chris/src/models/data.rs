@@ -116,7 +116,7 @@ pub struct FeedResponse {
     pub tags: CollectionUrl,
     pub comments: CollectionUrl,
     pub files: CollectionUrl,
-    pub plugin_instances: CollectionUrl
+    pub plugin_instances: CollectionUrl,
 }
 
 impl FeedResponse {

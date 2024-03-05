@@ -1,5 +1,5 @@
 use crate::arg::GivenPluginInstance;
-use crate::get_client::Credentials;
+use crate::client::Credentials;
 use crate::login::state::ChrsSessions;
 use color_eyre::eyre::Result;
 
