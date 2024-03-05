@@ -2,6 +2,7 @@
 //! When saved to keyring, the token is identified by a string in the form
 //! "<CUBEUsername>@<CUBEAddress>"
 
+use crate::login::ui::UiUrl;
 use chris::types::{CubeUrl, PluginInstanceId, Username};
 use color_eyre::eyre::{Result, WrapErr};
 use color_eyre::owo_colors::OwoColorize;
@@ -31,6 +32,7 @@ pub struct SavedCubeState {
     pub username: Username,
     pub store: StoredToken,
     pub current_plugin_instance_id: Option<PluginInstanceId>,
+    pub ui: Option<UiUrl>,
 }
 
 impl SavedCubeState {
@@ -51,6 +53,7 @@ impl SavedCubeState {
             username: self.username,
             token,
             current_plugin_instance_id: self.current_plugin_instance_id,
+            ui: self.ui,
         })
     }
 
@@ -67,6 +70,7 @@ pub struct CubeState {
     pub username: Username,
     pub token: Option<String>,
     pub current_plugin_instance_id: Option<PluginInstanceId>,
+    pub ui: Option<UiUrl>,
 }
 
 impl CubeState {
@@ -99,6 +103,7 @@ impl CubeState {
             cube: self.cube,
             store: token,
             current_plugin_instance_id: self.current_plugin_instance_id,
+            ui: None,
         };
         Ok(saved)
     }
@@ -150,12 +155,14 @@ mod tests {
             username: username.clone(),
             store: stored_token,
             current_plugin_instance_id: None,
+            ui: None,
         };
         let login = CubeState {
             cube: cube_url.clone(),
             username: username.clone(),
             token: Some(actual_token.to_string()),
             current_plugin_instance_id: None,
+            ui: None,
         };
         Ok((login, cube.into_login(TEST_SERVICE)?))
     }
@@ -184,6 +191,7 @@ mod tests {
             username: username.to_owned(),
             token: Some(token.to_string()),
             current_plugin_instance_id: None,
+            ui: None,
         };
         login.into_saved(Backend::Keyring, TEST_SERVICE)?;
 

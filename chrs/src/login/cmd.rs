@@ -15,6 +15,7 @@ pub async fn login(
         username,
         password,
         token,
+        ui,
         ..
     }: Credentials,
     backend: store::Backend,
@@ -46,6 +47,7 @@ pub async fn login(
         token,
         username,
         current_plugin_instance_id: None,
+        ui,
     };
 
     config.add(login, backend)?;

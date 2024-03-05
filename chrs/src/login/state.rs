@@ -150,24 +150,28 @@ mod tests {
                 username: Username::from_str("aaaaa").unwrap(),
                 store: StoredToken::Text("token-a".to_string()),
                 current_plugin_instance_id: None,
+                ui: None
             },
             SavedCubeState {
                 cube: CubeUrl::from_static("https://b.example.com/api/v1/"),
                 username: Username::from_str("b-first").unwrap(),
                 store: StoredToken::Text("token-b1".to_string()),
                 current_plugin_instance_id: None,
+                ui: None
             },
             SavedCubeState {
                 cube: CubeUrl::from_static("https://c.example.com/api/v1/"),
                 username: Username::from_str("ccccc").unwrap(),
                 store: StoredToken::Keyring,
                 current_plugin_instance_id: None,
+                ui: None
             },
             SavedCubeState {
                 cube: CubeUrl::from_static("https://b.example.com/api/v1/"),
                 username: Username::from_str("b-second").unwrap(),
                 store: StoredToken::Text("token-b2".to_string()),
                 current_plugin_instance_id: Some(PluginInstanceId(43)),
+                ui: None
             },
         ]
     }
@@ -210,6 +214,7 @@ mod tests {
             username: Username::from_static("b-second"),
             token: Some("token-b2".to_string()),
             current_plugin_instance_id: Some(PluginInstanceId(43)),
+            ui: None
         };
         assert_eq!(Some(expected), chrs_sessions.get_login(None, None)?);
         Ok(())
@@ -241,12 +246,14 @@ mod tests {
             username: Username::from_static("b-first"),
             token: Some("token-b1".to_string()),
             current_plugin_instance_id: None,
+            ui: None
         };
         let expected2 = CubeState {
             cube: cube_url.clone(),
             username: Username::from_static("b-second"),
             token: Some("token-b2".to_string()),
             current_plugin_instance_id: Some(PluginInstanceId(43)),
+            ui: None
         };
         assert_eq!(
             Some(&expected1),
@@ -277,6 +284,7 @@ mod tests {
                 username: Username::from_str("apple").unwrap(),
                 token: Some("red-delicious".to_string()),
                 current_plugin_instance_id: None,
+                ui: None
             },
             Backend::ClearText,
         )?;
@@ -298,6 +306,7 @@ mod tests {
                 username: Username::from_str("apple").unwrap(),
                 token: Some("golden-delicious".to_string()),
                 current_plugin_instance_id: None,
+                ui: None
             },
             Backend::ClearText,
         )?;
@@ -323,6 +332,7 @@ mod tests {
                 username: Username::from_str("pear").unwrap(),
                 token: Some("yapearisachinesepear".to_string()),
                 current_plugin_instance_id: None,
+                ui: None
             },
             Backend::ClearText,
         )?;
@@ -338,6 +348,7 @@ mod tests {
                 username: Username::from_str("pear").unwrap(),
                 token: Some("yapearisachinesepear".to_string()),
                 current_plugin_instance_id: None,
+                ui: None
             },
             Backend::ClearText,
         )?;
@@ -358,6 +369,7 @@ mod tests {
                 username: Username::from_str("apple").unwrap(),
                 token: Some("red-delicious".to_string()),
                 current_plugin_instance_id: None,
+                ui: None
             },
             Backend::ClearText,
         )?;
@@ -367,6 +379,7 @@ mod tests {
                 username: Username::from_str("pear").unwrap(),
                 token: Some("yapearisachinesepear".to_string()),
                 current_plugin_instance_id: None,
+                ui: None
             },
             Backend::ClearText,
         )?;
@@ -411,16 +424,16 @@ mod tests {
         Ok(())
     }
 
-    // #[rstest]
-    // fn test_set_plugin_instance(mut chrs_sessions: ChrsSessions) -> Result<()> {
-    //     let cube_url = CubeUrl::from_static("https://c.example.com/api/v1/");
-    //     let username = Username::from_static("ccccc");
-    //     let plinst = PluginInstanceId(108);
-    //     chrs_sessions.set_plugin_instance(&cube_url, &username, plinst);
-    //     let actual = chrs_sessions
-    //         .get_cube(Some(&cube_url), Some(&username))
-    //         .unwrap();
-    //     assert_eq!(actual.current_plugin_instance_id, Some(plinst));
-    //     Ok(())
-    // }
+    #[rstest]
+    fn test_set_plugin_instance(mut chrs_sessions: ChrsSessions) -> Result<()> {
+        let cube_url = CubeUrl::from_static("https://c.example.com/api/v1/");
+        let username = Username::from_static("ccccc");
+        let plinst = PluginInstanceId(108);
+        chrs_sessions.set_plugin_instance(&cube_url, &username, plinst);
+        let actual = chrs_sessions
+            .get_cube(Some(&cube_url), Some(&username))
+            .unwrap();
+        assert_eq!(actual.current_plugin_instance_id, Some(plinst));
+        Ok(())
+    }
 }

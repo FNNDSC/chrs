@@ -1,4 +1,5 @@
 use crate::login::state::ChrsSessions;
+use crate::login::UiUrl;
 use chris::errors::CubeError;
 use chris::reqwest::Response;
 use chris::types::{CubeUrl, FeedId, PluginInstanceId, Username};
@@ -100,6 +101,7 @@ pub struct Credentials {
     pub password: Option<String>,
     pub token: Option<String>,
     pub retries: Option<u32>,
+    pub ui: Option<UiUrl>,
 }
 
 impl Credentials {
@@ -111,13 +113,14 @@ impl Credentials {
     pub async fn get_client(
         self,
         args: impl IntoIterator<Item = impl AsRef<str>>,
-    ) -> color_eyre::Result<(Client, Option<PluginInstanceId>)> {
+    ) -> color_eyre::Result<(Client, Option<PluginInstanceId>, Option<UiUrl>)> {
         let Credentials {
             cube_url,
             username,
             password,
             token,
             retries,
+            ui,
         } = self;
         if token.is_some() {
             eprintln!("{}", "warning: --token was ignored".dimmed());
@@ -127,9 +130,9 @@ impl Credentials {
             get_client_with_password(cube_url, username, password, args, retry_middleware)
                 .await
                 .map(Client::LoggedIn)
-                .map(|c| (c, None))
+                .map(|c| (c, None, ui))
         } else {
-            get_client_from_state(cube_url, username, args, retry_middleware).await
+            get_client_from_state(cube_url, username, ui, args, retry_middleware).await
         }
     }
 }
@@ -171,9 +174,10 @@ async fn get_client_with_password(
 async fn get_client_from_state(
     cube_url: Option<CubeUrl>,
     username: Option<Username>,
+    ui: Option<UiUrl>,
     args: impl IntoIterator<Item = impl AsRef<str>>,
     retry_middleware: Option<impl Middleware>,
-) -> std::result::Result<(Client, Option<PluginInstanceId>), Error> {
+) -> Result<(Client, Option<PluginInstanceId>, Option<UiUrl>), Error> {
     let url = cube_url.or_else(|| first_cube_urllike(args));
     let login = ChrsSessions::load()?
         .get_login(url.as_ref(), username.as_ref())?
@@ -189,7 +193,7 @@ async fn get_client_from_state(
     } else {
         get_authed_client(login.cube, login.username, login.token, retry_middleware).await
     }?;
-    Ok((client, login.current_plugin_instance_id))
+    Ok((client, login.current_plugin_instance_id, ui.or(login.ui)))
 }
 
 async fn get_anon_client(

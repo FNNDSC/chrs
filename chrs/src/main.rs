@@ -15,6 +15,7 @@ use crate::get_client::Credentials;
 use crate::login::cmd::{login, logout};
 use crate::login::store::Backend;
 use crate::login::switch::switch_login;
+use crate::login::UiUrl;
 use crate::ls::{ls, LsArgs};
 use crate::status::cmd::status;
 use crate::whoami::whoami;
@@ -31,6 +32,10 @@ struct Cli {
     /// ChRIS backend API URL
     #[clap(long, global = true)]
     cube: Option<CubeUrl>,
+
+    /// ChRIS_ui URL
+    #[clap(long, global = true)]
+    ui: Option<UiUrl>,
 
     /// account username
     #[clap(long, global = true)]
@@ -256,6 +261,7 @@ async fn main() -> color_eyre::eyre::Result<()> {
         password: args.password,
         token: args.token,
         retries: args.retries,
+        ui: args.ui,
     };
 
     match args.command {

@@ -47,7 +47,7 @@ pub async fn ls(
         path,
     }: LsArgs,
 ) -> Result<()> {
-    let (client, pid) = credentials.get_client(path.as_slice()).await?;
+    let (client, pid, _) = credentials.get_client(path.as_slice()).await?;
     let ro_client = client.into_ro();
 
     let level = level.unwrap_or(if tree { 4 } else { 1 });

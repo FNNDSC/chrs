@@ -1,8 +1,9 @@
 use crate::arg::GivenPluginInstance;
 use crate::get_client::{Client, Credentials, RoClient};
+use crate::login::UiUrl;
 use crate::unicode;
 use chris::types::{FeedId, PluginInstanceId};
-use chris::{BaseChrisClient, FeedResponse, PluginInstanceResponse};
+use chris::{FeedResponse, PluginInstanceResponse};
 use color_eyre::eyre::{Error, OptionExt, Result};
 use color_eyre::owo_colors::OwoColorize;
 use std::fmt::Display;
@@ -11,7 +12,7 @@ pub async fn status(
     credentials: Credentials,
     feed_or_plugin_instance: Option<String>,
 ) -> Result<()> {
-    let (client, current_plinst) = credentials
+    let (client, current_plinst, ui) = credentials
         .get_client(feed_or_plugin_instance.as_ref().as_slice())
         .await?;
     let fopi = feed_or_plugin_instance
@@ -23,7 +24,7 @@ pub async fn status(
         .ok_or_eyre("missing operand")?;
     let given = GivenFeedOrPluginInstance::from(fopi);
     let (feed, plinst) = given.resolve_using(&client, current_plinst).await?;
-    print_status(client.into_ro(), feed, plinst, None).await
+    print_status(client.into_ro(), feed, plinst, ui).await
 }
 
 enum GivenFeedOrPluginInstance {
@@ -115,7 +116,7 @@ async fn print_status(
     client: RoClient,
     feed: Option<FeedResponse>,
     plinst: Option<PluginInstanceResponse>,
-    ui_url: Option<&str>,
+    ui_url: Option<UiUrl>,
 ) -> Result<()> {
     if let Some(plugin_instance) = plinst {
         if let Some(feed) = feed {
@@ -131,9 +132,9 @@ async fn print_status(
     }
 }
 
-async fn only_print_feed_status(feed: FeedResponse, ui_url: Option<&str>) -> Result<()> {
+async fn only_print_feed_status(feed: FeedResponse, ui_url: Option<UiUrl>) -> Result<()> {
     let symbol = feed_symbol_for(&feed);
-    let name = if feed.name.as_str().is_empty() {
+    let name = if feed.name.is_empty() {
         ""
     } else {
         feed.name.as_str()
@@ -146,15 +147,34 @@ async fn only_print_feed_status(feed: FeedResponse, ui_url: Option<&str>) -> Res
     };
 
     println!("{} {}", symbol, styled_name);
-    if let Some(url) = ui_url {
-        println!("  {}", ui_feed_url(url, &feed))
+    if let Some(ui) = ui_url {
+        println!("  {}", ui.feed_url_of(&feed).underline())
     }
     let bar = "  |".dimmed();
     println!("{}", &bar);
-    println!("{}   {}", &bar, format!("{}: {}", " created", feed.creation_date.italic()).dimmed());
-    println!("{}   {}", &bar, format!("{}: {}", "modified", feed.modification_date.italic()).dimmed());
+    println!(
+        "{}   {}",
+        &bar,
+        format!("{}: {}", " created", feed.creation_date.italic()).dimmed()
+    );
+    println!(
+        "{}   {}",
+        &bar,
+        format!("{}: {}", "modified", feed.modification_date.italic()).dimmed()
+    );
     println!("{}", &bar);
-    println!("{}   {}", &bar, format!("finished: {}  pending: {}  running: {}  errors: {}", feed.finished_jobs, feed.pending_jobs(), feed.running_jobs(), feed.errored_jobs).dimmed());
+    println!(
+        "{}   {}",
+        &bar,
+        format!(
+            "finished: {}  pending: {}  running: {}  errors: {}",
+            feed.finished_jobs,
+            feed.pending_jobs(),
+            feed.running_jobs(),
+            feed.errored_jobs
+        )
+        .dimmed()
+    );
 
     // TODO get note
 
@@ -180,16 +200,13 @@ fn feed_symbol_for(feed: &FeedResponse) -> impl Display {
     }
 }
 
-fn ui_feed_url(url: &str, feed: &FeedResponse) -> String {
-    let t = if feed.public { "public" } else { "private" };
-    format!("{}/feeds/{}?type={}", url, feed.id.0, t)
-}
-
 async fn print_branch_status(
     client: &RoClient,
     feed: FeedResponse,
     plinst: PluginInstanceResponse,
-    ui_url: Option<&str>,
+    ui_url: Option<UiUrl>,
 ) -> Result<()> {
-    todo!()
+    only_print_feed_status(feed, ui_url).await?;
+    println!("PRINTING THE PLUGIN INSTANCE BRANCH IS NOT YET IMPLEMENTED");
+    Ok(())
 }
