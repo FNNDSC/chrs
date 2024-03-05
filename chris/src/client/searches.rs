@@ -40,12 +40,17 @@ impl<'a, A: Access, T: DeserializeOwned> SearchBuilder<'a, A, T> {
         Search::new(self.client, self.url, &self.query)
     }
 
+    /// Set maximum number of items to return per page. The only reason to set this would
+    /// be for performance reasons. Generally you don't need to set it.
+    pub fn limit(self, limit: u32) -> Self {
+        self.add_u32("limit", limit)
+    }
+
     pub(crate) fn add_string(mut self, key: &'static str, value: impl Into<String>) -> Self {
         self.query.insert(key, QueryValue::String(value.into()));
         self
     }
 
-    #[allow(unused)]
     pub(crate) fn add_u32(mut self, key: &'static str, value: u32) -> Self {
         self.query.insert(key, QueryValue::U32(value));
         self
