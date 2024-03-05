@@ -211,6 +211,9 @@ impl ChrisPathHumanCoder<'_> {
                     yield folder.to_string();
                     break;
                 }
+                if folder.is_empty() {  // trailing slash causes last element to be empty
+                    break;
+                }
                 let title = self.get_title_for(folder).await;
                 yield title;
             }
@@ -317,13 +320,13 @@ impl ChrisPathHumanCoder<'_> {
     }
 
     /// Convert plugin instance titles to plugin instance folder names.
-    ///
-    /// TODO: the searches can be made more strict using information about `previous_id`
-    /// and `feed_id`, which we know from the full given path.
     async fn plinst_titles2folders(
         &self,
         titles: &[&str],
     ) -> Result<Vec<String>, TranslationError> {
+        // Future work:
+        // The searches can be made more strict using information about `previous_id`
+        // and `feed_id`, which we know from the full given path.
         futures::stream::iter(titles)
             .map(|title| self.plinst_title2folder(title))
             .buffered(10)
@@ -599,6 +602,7 @@ mod tests {
     #[case("pl-simpledsapp_45", Some(45))]
     #[case("noprefix_789", Some(789))]
     #[case("what", None)]
+    #[case("pl-trailing-slash_130/", Some(130))]
     fn test_parse_plinst_id(#[case] folder: &str, #[case] expected: Option<u32>) {
         assert_eq!(parse_plinst_id(folder).ok(), expected.map(PluginInstanceId))
     }
