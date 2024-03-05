@@ -29,40 +29,45 @@ impl Client {
     }
 }
 
+/// Command-line options of `chrs` which are relevant to identifying the user session
+/// and obtaining a client object.
 pub struct Credentials {
     pub cube_url: Option<CubeUrl>,
     pub username: Option<Username>,
     pub password: Option<String>,
     pub token: Option<String>,
-    pub retries: Option<u32>
+    pub retries: Option<u32>,
 }
 
-/// If `--cube` is given, use it. Else, if a CUBE address appears
-/// in any of `args`, use it. Else, try to get address from the saved login.
-///
-/// If `--password` is given, use password to get client.
-/// Else, try to get saved login information from configuration file.
-pub async fn get_client(
-    Credentials {
-        cube_url,
-        username,
-        password,
-        token,
-        retries
-    }: Credentials,
-    args: impl IntoIterator<Item = impl AsRef<str>>,
-) -> Result<(Client, Option<PluginInstanceId>)> {
-    if token.is_some() {
-        eprintln!("{}", "warning: --token was ignored".dimmed());
-    }
-    let retry_middleware = retries.map(retry_strategy);
-    if let Some(password) = password {
-        get_client_with_password(cube_url, username, password, args, retry_middleware)
-            .await
-            .map(Client::LoggedIn)
-            .map(|c| (c, None))
-    } else {
-        get_client_from_state(cube_url, username, args, retry_middleware).await
+impl Credentials {
+    /// If `--cube` is given, use it. Else, if a CUBE address appears
+    /// in any of `args`, use it. Else, try to get address from the saved login.
+    ///
+    /// If `--password` is given, use password to get client.
+    /// Else, try to get saved login information from configuration file.
+    pub async fn get_client(
+        self,
+        args: impl IntoIterator<Item = impl AsRef<str>>,
+    ) -> Result<(Client, Option<PluginInstanceId>)> {
+        let Credentials {
+            cube_url,
+            username,
+            password,
+            token,
+            retries,
+        } = self;
+        if token.is_some() {
+            eprintln!("{}", "warning: --token was ignored".dimmed());
+        }
+        let retry_middleware = retries.map(retry_strategy);
+        if let Some(password) = password {
+            get_client_with_password(cube_url, username, password, args, retry_middleware)
+                .await
+                .map(Client::LoggedIn)
+                .map(|c| (c, None))
+        } else {
+            get_client_from_state(cube_url, username, args, retry_middleware).await
+        }
     }
 }
 

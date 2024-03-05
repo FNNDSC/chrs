@@ -1,9 +1,9 @@
-use clap::Parser;
 use super::coder_channel::{loop_decoder, DecodeChannel};
 use super::plain::ls_plain;
+use clap::Parser;
 // use super::tree::ls_tree;
 use crate::files::decoder::MaybeChrisPathHumanCoder;
-use crate::get_client::{get_client, Credentials};
+use crate::get_client::Credentials;
 use crate::ls::options::WhatToPrint;
 use color_eyre::eyre::Result;
 use tokio::join;
@@ -38,9 +38,16 @@ pub struct LsArgs {
 
 pub async fn ls(
     credentials: Credentials,
-    LsArgs { tree, level, full, raw, show, path }: LsArgs
+    LsArgs {
+        tree,
+        level,
+        full,
+        raw,
+        show,
+        path,
+    }: LsArgs,
 ) -> Result<()> {
-    let (client, pid) = get_client(credentials, path.as_slice()).await?;
+    let (client, pid) = credentials.get_client(path.as_slice()).await?;
     let ro_client = client.into_ro();
 
     let level = level.unwrap_or(if tree { 4 } else { 1 });
@@ -67,14 +74,7 @@ pub async fn ls(
         // )
     } else {
         join!(
-            ls_plain(
-                &ro_client,
-                &path,
-                level,
-                full,
-                decode_channel,
-                show
-            ),
+            ls_plain(&ro_client, &path, level, full, decode_channel, show),
             decoder_loop
         )
     };

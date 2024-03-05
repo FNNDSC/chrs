@@ -221,7 +221,7 @@ async fn main() -> color_eyre::eyre::Result<()> {
         username: args.username,
         password: args.password,
         token: args.token,
-        retries: args.retries
+        retries: args.retries,
     };
 
     match args.command {
@@ -240,8 +240,6 @@ async fn main() -> color_eyre::eyre::Result<()> {
         Commands::Whoami {} => whoami(credentials),
         Commands::Logout {} => logout(credentials),
 
-        Commands::Ls(args) => {
-            ls(credentials, args).await
-        }
+        Commands::Ls(args) => ls(credentials, args).await,
     }
 }
