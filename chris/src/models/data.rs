@@ -13,7 +13,7 @@ pub(crate) struct BaseResponse {
     // pub previous: Option<CollectionUrl>,
 }
 
-#[derive(Debug, Deserialize, PartialEq)]
+#[derive(Debug, Deserialize, PartialEq, Clone)]
 pub(crate) struct CubeLinks {
     pub chrisinstance: ItemUrl,
     pub public_feeds: CollectionUrl,
@@ -132,7 +132,9 @@ pub struct PluginInstanceResponse {
     pub size: u64,
     pub error_code: String,
     pub previous: Option<ItemUrl>,
+    pub previous_id: Option<PluginInstanceId>,
     pub feed: ItemUrl,
+    pub feed_id: FeedId,
     pub descendants: CollectionUrl,
     pub files: CollectionUrl,
     pub parameters: CollectionUrl,

@@ -1,6 +1,8 @@
 use super::base::fetch_id;
 use super::search::LIMIT_ZERO;
-use super::searches::{FeedSearchBuilder, PluginSearchBuilder, SearchBuilder};
+use super::searches::{
+    FeedSearchBuilder, PluginInstanceSearchBuilder, PluginSearchBuilder, SearchBuilder,
+};
 use super::variant::RoAccess;
 use crate::errors::{check, CubeError, FileIOError};
 use crate::models::{BaseResponse, CubeLinks, FileUploadResponse};
@@ -213,5 +215,11 @@ impl ChrisClient {
             links: self.links,
             phantom: Default::default(),
         }
+    }
+}
+
+impl<A: Access> AuthedChrisClient<A> {
+    pub fn plugin_instances(&self) -> PluginInstanceSearchBuilder<A> {
+        PluginInstanceSearchBuilder::new(&self.client, &self.links.plugin_instances)
     }
 }

@@ -23,7 +23,7 @@ tokio-util = { version = "0.7.1", features = [ "io" ] }
 futures = "0.3.21"
 async-stream = "0.3.3"
 async-recursion = "1.0.0"
-confy = "0.5.1"
+confy = { version = "0.6.1", features = ["ron_conf"], default-features = false }
 dialoguer = "0.10.0"
 indicatif = "0.17.3"
 serde = "1.0.136"

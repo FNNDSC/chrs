@@ -1,11 +1,14 @@
+mod arg;
+mod cd;
 mod files;
 mod get_client;
 mod login;
 mod ls;
 mod whoami;
 
-use clap::{Parser, Subcommand};
+use clap::{builder::NonEmptyStringValueParser, Parser, Subcommand};
 
+use crate::cd::cd;
 use crate::get_client::Credentials;
 use crate::login::cmd::{login, logout};
 use crate::login::store::Backend;
@@ -67,6 +70,35 @@ enum Commands {
     Switch {},
     /// Show login information
     Whoami {},
+
+    /// Change plugin instance context
+    Cd {
+        /// Plugin instance to switch to.
+        ///
+        /// The value can be a plugin instance ID or title. For a title,
+        /// the title must be unique within the search space. The current
+        /// feed will be searched before searching across all feeds.
+        #[clap(value_parser = NonEmptyStringValueParser::new())]
+        plugin_instance: String,
+    },
+    //
+    // /// Get detailed information about a ChRIS object
+    // ///
+    // /// An object may be a plugin, plugin instance, pipeline, feed, or file.
+    // // Future work: also support PACS files
+    // Describe(String),
+    //
+    // /// Show status of a plugin instance and its feed
+    // Status(String),
+    //
+    // /// Run a plugin or pipeline
+    // // TODO: can also create feed and upload files
+    // Run { },
+
+    // Future work
+    // /// Set name or title of a feed or plugin instance
+    // Set {},
+
     //
     //     /// List or search feeds
     //     Feeds {
@@ -135,12 +167,6 @@ enum Commands {
     //     // /// Search for plugins and pipelines
     //     // Search {},
     //     //
-    //     /// Get the parameters of a ChRIS plugin.
-    //     PluginHelp {
-    //         /// Name of a ChRIS plugin
-    //         #[clap(required = true)]
-    //         plugin_name: PluginName,
-    //     },
     //     //
     //     /// Create a plugin instance by name.
     //     #[command(group(
@@ -241,5 +267,6 @@ async fn main() -> color_eyre::eyre::Result<()> {
         Commands::Logout {} => logout(credentials),
 
         Commands::Ls(args) => ls(credentials, args).await,
+        Commands::Cd { plugin_instance } => cd(credentials, plugin_instance).await,
     }
 }

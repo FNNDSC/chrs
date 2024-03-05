@@ -1,5 +1,5 @@
 use crate::login::store::{Backend, CubeState, SavedCubeState};
-use chris::types::{CubeUrl, Username};
+use chris::types::{CubeUrl, PluginInstanceId, Username};
 use color_eyre::eyre::{Result, WrapErr};
 use color_eyre::owo_colors::OwoColorize;
 use serde::{Deserialize, Serialize};
@@ -117,21 +117,21 @@ impl ChrsSessions {
         confy::store(APP_NAME, None, self).wrap_err("Couldn't write config file")
     }
 
-    // /// Set the plugin instance of a session.
-    // pub fn set_plugin_instance(
-    //     &mut self,
-    //     cube_url: &CubeUrl,
-    //     username: &Username,
-    //     plinst: PluginInstanceId,
-    // ) -> bool {
-    //     for session in &mut self.sessions {
-    //         if &session.cube == cube_url && &session.username == username {
-    //             session.current_plugin_instance_id = Some(plinst);
-    //             return true;
-    //         }
-    //     }
-    //     false
-    // }
+    /// Set the plugin instance of a session.
+    pub fn set_plugin_instance(
+        &mut self,
+        cube_url: &CubeUrl,
+        username: &Username,
+        plinst: PluginInstanceId,
+    ) -> bool {
+        for session in &mut self.sessions {
+            if &session.cube == cube_url && &session.username == username {
+                session.current_plugin_instance_id = Some(plinst);
+                return true;
+            }
+        }
+        false
+    }
 }
 
 #[cfg(test)]

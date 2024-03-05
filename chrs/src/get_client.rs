@@ -27,10 +27,25 @@ impl Client {
             Client::LoggedIn(c) => Box::new(c.into_ro()),
         }
     }
+
+    pub fn url(&self) -> &CubeUrl {
+        match self {
+            Client::Anon(c) => c.url(),
+            Client::LoggedIn(c) => c.url(),
+        }
+    }
+
+    pub fn username(&self) -> Username {
+        match self {
+            Client::Anon(_) => Username::from_static(""),
+            Client::LoggedIn(c) => c.username().clone(),
+        }
+    }
 }
 
 /// Command-line options of `chrs` which are relevant to identifying the user session
 /// and obtaining a client object.
+#[derive(Debug, Clone)]
 pub struct Credentials {
     pub cube_url: Option<CubeUrl>,
     pub username: Option<Username>,
