@@ -1,22 +1,46 @@
+use clap::Parser;
 use super::coder_channel::{loop_decoder, DecodeChannel};
 use super::plain::ls_plain;
 // use super::tree::ls_tree;
 use crate::files::decoder::MaybeChrisPathHumanCoder;
 use crate::get_client::{get_client, Credentials};
+use crate::ls::options::WhatToPrint;
 use color_eyre::eyre::Result;
 use tokio::join;
 use tokio::sync::mpsc::unbounded_channel;
 
+#[derive(Parser)]
+pub struct LsArgs {
+    /// tree-like output
+    #[clap(short, long)]
+    pub tree: bool,
+
+    /// Maximum subdirectory depth
+    #[clap(short = 'L', long)]
+    pub level: Option<u16>,
+
+    /// Show full paths, which may be convenient for copy-paste
+    #[clap(short, long)]
+    pub full: bool,
+
+    /// Do not rename folders with feed names and plugin instance titles
+    #[clap(short, long)]
+    pub raw: bool,
+
+    /// What to print
+    #[clap(short, long, default_value_t, value_enum)]
+    pub show: WhatToPrint,
+
+    /// directory path
+    #[clap()]
+    pub path: Option<String>,
+}
+
 pub async fn ls(
     credentials: Credentials,
-    level: Option<u16>,
-    path: Option<String>,
-    retries: Option<u32>,
-    tree: bool,
-    full: bool,
-    raw: bool,
+    LsArgs { tree, level, full, raw, show, path }: LsArgs
 ) -> Result<()> {
-    let (client, pid) = get_client(credentials, path.as_slice(), retries).await?;
+    let (client, pid) = get_client(credentials, path.as_slice()).await?;
     let ro_client = client.into_ro();
 
     let level = level.unwrap_or(if tree { 4 } else { 1 });
@@ -43,7 +67,14 @@ pub async fn ls(
         // )
     } else {
         join!(
-            ls_plain(&ro_client, &path, level, full, decode_channel),
+            ls_plain(
+                &ro_client,
+                &path,
+                level,
+                full,
+                decode_channel,
+                show
+            ),
             decoder_loop
         )
     };

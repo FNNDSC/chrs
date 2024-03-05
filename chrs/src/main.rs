@@ -10,7 +10,7 @@ use crate::get_client::Credentials;
 use crate::login::cmd::{login, logout};
 use crate::login::store::Backend;
 use crate::login::switch::switch_login;
-use crate::ls::ls;
+use crate::ls::{ls, LsArgs};
 use crate::whoami::whoami;
 use chris::types::{CubeUrl, Username};
 
@@ -129,27 +129,7 @@ enum Commands {
     //     },
     //
     /// List files
-    Ls {
-        /// tree-like output
-        #[clap(short, long)]
-        tree: bool,
-
-        /// Maximum subdirectory depth
-        #[clap(short = 'L', long)]
-        level: Option<u16>,
-
-        /// Show full paths, which may be convenient for copy-paste
-        #[clap(short, long)]
-        full: bool,
-
-        /// Do not rename folders with feed names and plugin instance titles
-        #[clap(short, long)]
-        raw: bool,
-
-        /// directory path
-        #[clap()]
-        path: Option<String>,
-    },
+    Ls(LsArgs),
     //
     //     //
     //     // /// Search for plugins and pipelines
@@ -241,6 +221,7 @@ async fn main() -> color_eyre::eyre::Result<()> {
         username: args.username,
         password: args.password,
         token: args.token,
+        retries: args.retries
     };
 
     match args.command {
@@ -259,12 +240,8 @@ async fn main() -> color_eyre::eyre::Result<()> {
         Commands::Whoami {} => whoami(credentials),
         Commands::Logout {} => logout(credentials),
 
-        Commands::Ls {
-            tree,
-            level,
-            full,
-            raw,
-            path,
-        } => ls(credentials, level, path, args.retries, tree, full, raw).await,
+        Commands::Ls(args) => {
+            ls(credentials, args).await
+        }
     }
 }

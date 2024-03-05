@@ -138,9 +138,9 @@ impl ChrsSessions {
 mod tests {
     use super::*;
     use crate::login::store::StoredToken;
+    use chris::types::PluginInstanceId;
     use rstest::*;
     use std::str::FromStr;
-    use chris::types::PluginInstanceId;
 
     #[fixture]
     fn sessions() -> Vec<SavedCubeState> {

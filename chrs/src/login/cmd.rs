@@ -15,6 +15,7 @@ pub async fn login(
         username,
         password,
         token,
+        ..
     }: Credentials,
     backend: store::Backend,
     password_from_stdin: bool,

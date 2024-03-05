@@ -34,6 +34,7 @@ pub struct Credentials {
     pub username: Option<Username>,
     pub password: Option<String>,
     pub token: Option<String>,
+    pub retries: Option<u32>
 }
 
 /// If `--cube` is given, use it. Else, if a CUBE address appears
@@ -47,9 +48,9 @@ pub async fn get_client(
         username,
         password,
         token,
+        retries
     }: Credentials,
     args: impl IntoIterator<Item = impl AsRef<str>>,
-    retries: Option<u32>,
 ) -> Result<(Client, Option<PluginInstanceId>)> {
     if token.is_some() {
         eprintln!("{}", "warning: --token was ignored".dimmed());

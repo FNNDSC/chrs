@@ -552,9 +552,9 @@ enum PluginInstanceTitleError<'a> {
 mod tests {
     use super::*;
     use crate::get_client::Client;
+    use chris::types::FileResourceFname;
     use chris::AnonChrisClient;
     use rstest::*;
-    use chris::types::FileResourceFname;
 
     #[rstest]
     #[case(
