@@ -19,7 +19,7 @@ pub struct SearchBuilder<'a, A: Access, T: DeserializeOwned> {
     pub(crate) url: &'a CollectionUrl,
     query: HashMap<&'static str, QueryValue>,
     phantom: PhantomData<(A, T)>,
-    max_items: Option<usize>
+    max_items: Option<usize>,
 }
 
 impl<'a, A: Access, T: DeserializeOwned> SearchBuilder<'a, A, T> {

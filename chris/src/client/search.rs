@@ -145,7 +145,7 @@ impl<R: DeserializeOwned, A: Access> Search<R, A, ()> {
             query: (),
             phantom: Default::default(),
             basic: true,
-            max_items: None
+            max_items: None,
         };
         Self::Search(s)
     }
@@ -157,7 +157,7 @@ impl<R: DeserializeOwned, A: Access, Q: Serialize + Sized> Search<R, A, Q> {
         client: &reqwest_middleware::ClientWithMiddleware,
         base_url: impl ToString,
         query: Q,
-        max_items: Option<usize>
+        max_items: Option<usize>,
     ) -> Self {
         let s = ActualSearch {
             client: client.clone(),
@@ -165,7 +165,7 @@ impl<R: DeserializeOwned, A: Access, Q: Serialize + Sized> Search<R, A, Q> {
             query,
             phantom: Default::default(),
             basic: false,
-            max_items
+            max_items,
         };
         Self::Search(s)
     }

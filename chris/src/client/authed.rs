@@ -34,6 +34,7 @@ pub struct AuthedChrisClient<A: Access> {
     username: Username,
     links: CubeLinks,
     phantom: PhantomData<A>,
+    feeds_url: CollectionUrl,
 }
 
 pub struct ChrisClientBuilder {
@@ -77,12 +78,14 @@ impl ChrisClientBuilder {
             .send()
             .await?;
         let base_response: BaseResponse = check(res).await?.json().await?;
+        let feeds_url = CollectionUrl::new(self.url.clone().take());
         Ok(ChrisClient {
             client,
             username: self.username,
             url: self.url,
             links: base_response.collection_links,
             phantom: Default::default(),
+            feeds_url,
         })
     }
 }
@@ -100,6 +103,11 @@ impl<A: Access> AuthedChrisClient<A> {
     /// Get username
     pub fn username(&self) -> &Username {
         &self.username
+    }
+
+    /// Search for feeds
+    pub fn feeds(&self) -> FeedSearchBuilder<A> {
+        FeedSearchBuilder::new(&self.client, &self.feeds_url)
     }
 
     // ==================================================
@@ -214,6 +222,7 @@ impl ChrisClient {
             username: self.username,
             links: self.links,
             phantom: Default::default(),
+            feeds_url: self.feeds_url,
         }
     }
 }
