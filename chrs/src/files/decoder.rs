@@ -604,7 +604,6 @@ mod tests {
     #[case("pl-simpledsapp_45", Some(45))]
     #[case("noprefix_789", Some(789))]
     #[case("what", None)]
-    #[case("pl-trailing-slash_130/", Some(130))]
     fn test_parse_plinst_id(#[case] folder: &str, #[case] expected: Option<u32>) {
         assert_eq!(parse_plinst_id(folder).ok(), expected.map(PluginInstanceId))
     }

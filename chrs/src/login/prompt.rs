@@ -18,7 +18,7 @@ where
             let input: String = dialoguer::Input::new()
                 .with_prompt(prompt)
                 .interact_text()
-                .map_err(ManualInputError::IoError)?;
+                .map_err(ManualInputError::Dialoguer)?;
             Ok(T::from_str(&input).map_err(ManualInputError::ValueError)?)
         }
     }
@@ -42,7 +42,7 @@ where
                 dialoguer::Password::new()
                     .with_prompt(prompt)
                     .interact()
-                    .map_err(ManualInputError::IoError)?
+                    .map_err(ManualInputError::Dialoguer)?
             };
             Ok(T::from_str(&input).map_err(ManualInputError::ValueError)?)
         }
@@ -62,6 +62,8 @@ fn read_line() -> io::Result<String> {
 pub enum ManualInputError<E: Error> {
     #[error(transparent)]
     IoError(io::Error),
+    #[error(transparent)]
+    Dialoguer(dialoguer::Error),
     #[error(transparent)]
     ValueError(E),
 }

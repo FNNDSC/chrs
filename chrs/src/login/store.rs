@@ -39,7 +39,7 @@ impl SavedCubeState {
     pub fn into_login(self, service: &str) -> Result<CubeState> {
         let token = match &self.store {
             StoredToken::Keyring => {
-                let entry = keyring::Entry::new(service, &self.to_keyring_username());
+                let entry = keyring::Entry::new(service, &self.to_keyring_username())?;
                 let token = entry.get_password()?;
                 Ok::<_, keyring::Error>(Some(token))
             }
@@ -77,7 +77,7 @@ impl CubeState {
             match backend {
                 Backend::ClearText => StoredToken::Text(token.to_string()),
                 Backend::Keyring => {
-                    let entry = keyring::Entry::new(service, &self.to_keyring_username());
+                    let entry = keyring::Entry::new(service, &self.to_keyring_username())?;
                     entry.set_password(token).wrap_err_with(|| {
                         format!(
                             "Could not save token to keyring. Please try again with: `{}`",
@@ -164,7 +164,7 @@ mod tests {
     fn test_into_login_from_keyring(username: Username, cube_url: CubeUrl) -> Result<()> {
         let token = "my-secret-secure-token";
         let keyring_username = format!("{}@{}", username.as_str(), cube_url.as_str());
-        let entry = keyring::Entry::new(TEST_SERVICE, &*keyring_username);
+        let entry = keyring::Entry::new(TEST_SERVICE, &*keyring_username)?;
         entry.set_password(&token)?;
 
         let (expected, actual) = login_helper(&cube_url, &username, StoredToken::Keyring, token)?;
@@ -188,7 +188,7 @@ mod tests {
         login.into_saved(Backend::Keyring, TEST_SERVICE)?;
 
         let keyring_username = format!("{}@{}", username.as_str(), address.as_str());
-        let entry = keyring::Entry::new(TEST_SERVICE, &*keyring_username);
+        let entry = keyring::Entry::new(TEST_SERVICE, &*keyring_username)?;
         assert_eq!(token, entry.get_password()?);
         entry.delete_password()?;
         Ok(())

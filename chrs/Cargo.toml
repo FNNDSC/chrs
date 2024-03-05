@@ -16,7 +16,7 @@ categories = ["command-line-utilities", "science"]
 [dependencies]
 chris = { path = "../chris", version = "0.4.0", features = ["rustls"], default-features = false }
 clap = { version = "4.1.1", features = ["derive", "string"] }
-keyring = "1.1.2"
+keyring = "2.3.2"
 thiserror = "1.0.30"
 tokio = { version = "1.17.0", features = ["full"] }
 tokio-util = { version = "0.7.1", features = [ "io" ] }
@@ -24,24 +24,24 @@ futures = "0.3.21"
 async-stream = "0.3.3"
 async-recursion = "1.0.0"
 confy = { version = "0.6.1", features = ["ron_conf"], default-features = false }
-dialoguer = "0.10.0"
+dialoguer = "0.11.0"
 indicatif = "0.17.3"
 serde = "1.0.136"
 serde_json = "1.0.79"
 serde_yaml = "0.9.14"
 fs-err = { version = "2.9.0", features = [ "tokio" ] }
 pathdiff = "0.2.1"
-itertools = "0.10.3"
+itertools = "0.12.1"
 url = "2.2.2"
 termtree = "0.4.0"
-aliri_braid = "0.3.1"
+aliri_braid = "0.4.0"
 color-eyre = "0.6.2"
-reqwest-retry = "0.3.0"
+reqwest-retry = "0.4.0"
 reqwest-middleware = "0.2.4"
 
 [dev-dependencies]
-tempfile = "3.3.0"
-rstest = "0.16.0"
+tempfile = "3.10.1"
+rstest = "0.18.2"
 
 [package.metadata.binstall.overrides.x86_64-pc-windows-gnu]
 pkg-fmt = "zip"
