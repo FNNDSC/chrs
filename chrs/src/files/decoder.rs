@@ -16,80 +16,65 @@
 //!   For instance, `chris/feed_4` is a fname-like (but not a valid fname).
 //!   _fnl_ is a superset of fname.
 
-use aliri_braid::braid;
+// FIXME remove disabled lint rules after done with reimplementation
+#![allow(dead_code)]
+#![allow(unused_variables)]
+
+use crate::get_client::RoClient;
 use async_stream::stream;
-use chris::types::{CubeUrl, CollectionUrl, FeedId, FileResourceFname, PluginInstanceId};
 use chris::errors::CubeError;
-use chris::{ChrisClient, reqwest};
-use futures::{pin_mut, Stream, StreamExt, TryStreamExt};
+use chris::reqwest;
+use chris::types::{CollectionUrl, CubeUrl, FeedId, PluginInstanceId};
+use futures::{StreamExt, TryStreamExt};
 use itertools::Itertools;
 use std::collections::HashMap;
 use url::Url;
 
-const FOLDER_SUBSTR_SUBSTITUTIONS: [(&'static str, &'static str); 1] = [("/", "!SLASH!")];
+const FOLDER_SUBSTR_SUBSTITUTIONS: [(&str, &str); 1] = [("/", "!SLASH!")];
 
-/// User-supplied argument to `chrs download` or `chrs ls`.
-///
-/// One of:
-/// - canonical fname, e.g. "chris/feed_100/pl-dircopy_110/pl-whatever_111/data.txt"
-/// - fname-like\*, e.g. "chris/feed_100"
-/// - named fname-like, e.g. "chris/My analysis on brain images"
-/// - A [chris::models::AnyFilesUrl], e.g. "https://cube.chrisproject.org/api/v1/plugins/instances/111/files"
-#[braid(serde)]
-pub struct UnionFnameLike;
-
-/// A user-supplied [chris::filebrowser::FileBrowserPath]
-/// (opposed to a value coming from the API, meaning `FnameLike` may or may not
-/// have been tested for existence).
-#[braid(serde)]
-pub struct FnameLike;
-
-impl FnameLike {
-    pub fn to_url(&self, base_url: &CubeUrl) {
-        unimplemented!()
-    }
+/// Wrapper around [Option<ChrisPathHumanCoder>].
+#[derive(Default)]
+pub(crate) struct MaybeChrisPathHumanCoder<'a> {
+    namer: Option<ChrisPathHumanCoder<'a>>,
 }
 
-/// Wrapper around [Option<PathNamer>].
-pub(crate) struct MaybeNamer {
-    namer: Option<PathNamer>,
-}
-
-impl MaybeNamer {
-    pub fn new(client: &ChrisClient, rename: bool) -> Self {
+impl<'a> MaybeChrisPathHumanCoder<'a> {
+    pub fn new(client: &'a RoClient, rename: bool) -> Self {
         let namer = if rename {
-            Some(PathNamer::new(client.clone()))
+            Some(ChrisPathHumanCoder::new(client))
         } else {
             None
         };
         Self { namer }
     }
+}
 
-    pub fn canonicalize(&mut self, ufn: UnionFnameLike) -> FnameLike {
-        todo!()
-    }
-
-    /// Calls the wrapped [PathNamer::rename] if Some,
+impl MaybeChrisPathHumanCoder<'_> {
+    /// Calls the wrapped [ChrisPathHumanCoder::decode] if Some,
     /// otherwise returns `fname` as a string.
-    pub async fn rename(&mut self, fname: &FileResourceFname) -> String {
+    pub async fn decode(&mut self, fname: impl AsRef<str>) -> String {
         if let Some(ref mut n) = self.namer {
-            n.rename(fname).await
+            n.decode(fname).await
         } else {
-            fname.to_string()
+            fname.as_ref().to_string()
         }
     }
 
-    /// Calls the wrapped [PathNamer::translate] if Some,
+    // pub fn canonicalize(&mut self, _ufn: UnionFnameLike) -> FnameLike {
+    //     unimplemented!()
+    // }
+
+    /// Calls the wrapped [ChrisPathHumanCoder::encode] if Some,
     /// otherwise returns `given_path` as a string.
     pub async fn translate(&mut self, given_path: &str) -> Result<String, TranslationError> {
         if let Some(ref mut n) = self.namer {
-            n.translate(given_path).await
+            n.encode(given_path).await
         } else {
             Ok(given_path.to_string())
         }
     }
 
-    /// Calls the wrapped [PathNamer::try_get_feed_name] if Some,
+    /// Calls the wrapped [ChrisPathHumanCoder::try_get_feed_name] if Some,
     /// otherwise returns `folder` as a string.
     pub async fn try_get_feed_name(&mut self, folder: &str) -> String {
         if let Some(ref mut n) = self.namer {
@@ -99,7 +84,7 @@ impl MaybeNamer {
         }
     }
 
-    /// Calls the wrapped [PathNamer::get_title_for] if Some,
+    /// Calls the wrapped [ChrisPathHumanCoder::get_title_for] if Some,
     /// otherwise returns `folder` as a string.
     pub async fn get_title_for(&mut self, folder: &str) -> String {
         if let Some(ref mut n) = self.namer {
@@ -125,17 +110,11 @@ impl MaybeNamer {
     }
 }
 
-impl Default for MaybeNamer {
-    fn default() -> Self {
-        MaybeNamer { namer: None }
-    }
-}
-
-/// [PathNamer] is a struct which provides methods for renaming CUBE "swift" file paths
-/// to human-readable file paths by replacing feed and plugin instance folder names with
-/// feed names and plugin instance titles.
-pub(crate) struct PathNamer {
-    chris: ChrisClient,
+/// [ChrisPathHumanCoder] provides methods for renaming CUBE file paths to more-easily
+/// human-readable file paths by replacing feed and plugin instance folder names with
+/// feed names and plugin instance titles respectively.
+pub(crate) struct ChrisPathHumanCoder<'a> {
+    chris: &'a RoClient,
 
     /// cache of plugin instance titles
     plinst_memo: HashMap<String, String>,
@@ -143,13 +122,13 @@ pub(crate) struct PathNamer {
     /// cache of feed names
     feed_memo: HashMap<String, String>,
 
-    /// When this [PathNamer] encounters an error from CUBE (except from 404 errors)
+    /// When this [ChrisPathHumanCoder] encounters an error from CUBE (except from 404 errors)
     /// `cube_error` is set to `true` so that it won't try to contact CUBE again.
     cube_error: bool,
 }
 
-impl PathNamer {
-    fn new(chris: ChrisClient) -> Self {
+impl<'a> ChrisPathHumanCoder<'a> {
+    fn new(chris: &'a RoClient) -> Self {
         Self {
             chris,
             plinst_memo: Default::default(),
@@ -157,15 +136,17 @@ impl PathNamer {
             cube_error: false,
         }
     }
+}
 
+impl ChrisPathHumanCoder<'_> {
     /// Tries to rename a path components of a feed file output's `fname` so that the folder names
     /// are changed to use the folder's corresponding feed name or plugin instance title.
     ///
     /// The renamed paths are more human-friendly for the purposes of downloading output folders.
-    pub async fn rename(&mut self, fname: &FileResourceFname) -> String {
-        let s: &str = fname.as_str(); // to help CLion with type hinting
-
-        if let Some((username, feed_folder, feed_id, split)) = consume_feed_fname(s.split('/')) {
+    pub async fn decode(&mut self, fname: impl AsRef<str>) -> String {
+        if let Some((username, feed_folder, feed_id, split)) =
+            consume_feed_fname(fname.as_ref().split('/'))
+        {
             let feed_name = self.get_feed_name(feed_id, feed_folder).await;
             let folders = self.rename_plugin_instances(split).await;
             if folders.is_empty() {
@@ -174,7 +155,7 @@ impl PathNamer {
                 format!("{}/{}/{}", username, feed_name, folders)
             }
         } else {
-            s.to_string()
+            fname.as_ref().to_string()
         }
     }
 
@@ -190,7 +171,7 @@ impl PathNamer {
     }
 
     /// Gets (and caches) the feed name for the specified feed ID. If unable to, then
-    /// a given default value is returned, and [PathNamer::cube_error] is set to `true`.
+    /// a given default value is returned, and [ChrisPathHumanCoder::cube_error] is set to `true`.
     async fn get_feed_name(&mut self, id: FeedId, feed_folder: &str) -> String {
         if let Some(name) = self.feed_memo.get(feed_folder) {
             return name.to_string();
@@ -198,7 +179,7 @@ impl PathNamer {
         self.chris
             .get_feed(id)
             .await
-            .map(|feed| feed.name)
+            .map(|feed| feed.object.name)
             .map(substitute_unallowed)
             .map(|name| this_or_that(name, feed_folder))
             .map(|f| self.cache_feed_name(feed_folder, f))
@@ -218,27 +199,14 @@ impl PathNamer {
         feed_name
     }
 
-    /// See [MaybeNamer::rename_plugin_instances]
-    pub(crate) async fn rename_plugin_instances<'a, I>(&'a mut self, split: I) -> String
+    /// See [MaybeChrisPathHumanCoder::rename_plugin_instances]
+    pub(crate) async fn rename_plugin_instances<'b, I>(&'b mut self, mut split: I) -> String
     where
-        I: Iterator<Item = &'a str> + 'a,
+        I: Iterator<Item = &'b str> + 'b,
     {
-        self.stream_plugin_instance_folder_names(split)
-            .collect::<Vec<String>>()
-            .await
-            .join("/")
-    }
-
-    fn stream_plugin_instance_folder_names<'a, I>(
-        &'a mut self,
-        mut split: I,
-    ) -> impl Stream<Item = String> + '_
-    where
-        I: Iterator<Item = &'a str> + 'a,
-    {
-        stream! {
+        let plugin_instance_folder_names = stream! {
             // process up until "data"
-            while let Some(folder) = split.next() {
+            for folder in split.by_ref() {
                 if folder == "data" {
                     yield folder.to_string();
                     break;
@@ -249,10 +217,14 @@ impl PathNamer {
 
             // spit out the rest of the folders, which are
             // outputs created by the plugin instance
-            while let Some(folder) = split.next() {
-                yield folder.to_string();
+            for folder in split.by_ref() {
+                yield folder.to_string()
             }
-        }
+        };
+        plugin_instance_folder_names
+            .collect::<Vec<String>>()
+            .await
+            .join("/")
     }
 
     /// Retrieves plugin instance title from cache if available. Else, make a request to CUBE,
@@ -302,13 +274,13 @@ impl PathNamer {
             .chris
             .get_plugin_instance(id)
             .await
-            .map_err(PluginInstanceTitleError::CUBE)?;
-        Ok(plinst.title)
+            .map_err(PluginInstanceTitleError::Cube)?;
+        Ok(plinst.object.title)
     }
 
-    /// Attempts to reverse operation of [Self:rename]. Untranslatable
+    /// Attempts to reverse operation of [Self::decode]. Untranslatable
     /// path components are left as-is.
-    pub async fn translate(&mut self, path: &str) -> Result<String, TranslationError> {
+    pub async fn encode(&mut self, path: &str) -> Result<String, TranslationError> {
         if let Some((username_folder, feed_name, joined_plinst_titles, data_folder, output_path)) =
             split_renamed_path(path)
         {
@@ -360,53 +332,59 @@ impl PathNamer {
     }
 
     async fn plinst_title2folder(&self, title: &str) -> Result<String, TranslationError> {
-        let query = &[("title", title), ("limit", "1")];
-        let search = self.chris.search_plugin_instances(query);
-        pin_mut!(search);
-        let folder = search
-            .try_next()
-            .await
-            .map_err(TranslationError::RequestError)?
-            .map(|plinst| format!("{}_{}", plinst.plugin_name.as_str(), plinst.id.0))
-            .ok_or_else(|| TranslationError::PluginInstanceNotFound(title.to_string()))
-            .or_else(|e| {
-                // given value is not a plugin instance ID, but looks like a valid folder already
-                parse_plinst_id(title)
-                    .map_err(|_| e)
-                    .map(|_| title.to_string())
-            });
-        if let Some(second) = search.try_next().await? {
-            Err(TranslationError::AmbiguousPluginInstanceTitleError(
-                second.title,
-            ))
-        } else {
-            folder
-        }
+        Err(TranslationError::PluginInstanceNotFound(
+            "Not implemented".to_string(),
+        ))
+        // let query = &[("title", title), ("limit", "1")];
+        // let search = self.chris.search_plugin_instances(query);
+        // pin_mut!(search);
+        // let folder = search
+        //     .try_next()
+        //     .await
+        //     .map_err(TranslationError::RequestError)?
+        //     .map(|plinst| format!("{}_{}", plinst.plugin_name.as_str(), plinst.id.0))
+        //     .ok_or_else(|| TranslationError::PluginInstanceNotFound(title.to_string()))
+        //     .or_else(|e| {
+        //         // given value is not a plugin instance ID, but looks like a valid folder already
+        //         parse_plinst_id(title)
+        //             .map_err(|_| e)
+        //             .map(|_| title.to_string())
+        //     });
+        // if let Some(second) = search.try_next().await? {
+        //     Err(TranslationError::AmbiguousPluginInstanceTitleError(
+        //         second.title,
+        //     ))
+        // } else {
+        //     folder
+        // }
     }
 
     /// Given the name of a feed, search CUBE for its ID *N* and return its folder name in the
     /// format "feed_*N*". If the feed is found, its name will be cached.
     async fn feed_name2folder(&self, feed_name: &str) -> Result<String, TranslationError> {
-        let query = &[("name", feed_name), ("limit", "1")];
-        let search = self.chris.search_feeds(query);
-        pin_mut!(search);
-        let folder = search
-            .try_next()
-            .await
-            .map_err(TranslationError::RequestError)?
-            .map(|feed| format!("feed_{}", feed.id.0))
-            .ok_or_else(|| TranslationError::FeedNotFound(feed_name.to_string()))
-            .or_else(|e| {
-                // given value is not a feed name, but looks like a valid feed folder already
-                parse_feed_folder(feed_name)
-                    .map(|_| feed_name.to_string())
-                    .ok_or(e)
-            });
-        if let Some(second) = search.try_next().await? {
-            Err(TranslationError::AmbiguousFeedNameError(second.name))
-        } else {
-            folder
-        }
+        Err(TranslationError::FeedNotFound(
+            "not implemented".to_string(),
+        ))
+        // let query = &[("name", feed_name), ("limit", "1")];
+        // let search = self.chris.search_feeds(query);
+        // pin_mut!(search);
+        // let folder = search
+        //     .try_next()
+        //     .await
+        //     .map_err(TranslationError::RequestError)?
+        //     .map(|feed| format!("feed_{}", feed.id.0))
+        //     .ok_or_else(|| TranslationError::FeedNotFound(feed_name.to_string()))
+        //     .or_else(|e| {
+        //         // given value is not a feed name, but looks like a valid feed folder already
+        //         parse_feed_folder(feed_name)
+        //             .map(|_| feed_name.to_string())
+        //             .ok_or(e)
+        //     });
+        // if let Some(second) = search.try_next().await? {
+        //     Err(TranslationError::AmbiguousFeedNameError(second.name))
+        // } else {
+        //     folder
+        // }
     }
 }
 
@@ -434,8 +412,8 @@ pub enum TranslationError {
 /// If it's a path, then construct a search URL from it.
 ///
 /// Returns the URL and the length of the given fname, or 0
-/// if not given an fname.
-pub fn parse_src(src: &str, address: &CubeUrl) -> AnyFilesUrl {
+/// if not given a fname.
+pub fn parse_src(src: &str, address: &CubeUrl) -> CollectionUrl {
     if src.starts_with(address.as_str()) {
         return src.into();
     }
@@ -454,7 +432,7 @@ pub fn parse_src(src: &str, address: &CubeUrl) -> AnyFilesUrl {
 }
 
 /// Create a search API URL for the endpoint and fname.
-fn to_search(address: &CubeUrl, endpoint: &str, fname: &str) -> AnyFilesUrl {
+fn to_search(address: &CubeUrl, endpoint: &str, fname: &str) -> CollectionUrl {
     Url::parse_with_params(
         &format!("{}{}/search/", address, endpoint),
         &[("fname", fname)],
@@ -465,7 +443,7 @@ fn to_search(address: &CubeUrl, endpoint: &str, fname: &str) -> AnyFilesUrl {
 }
 
 /// If given `path` looks like a fname-like of a feed output file which was renamed by
-/// [PathNamer::rename], then split it into its components:
+/// [ChrisPathHumanCoder::decode], then split it into its components:
 ///
 /// 1. username, e.g. "chris"
 /// 2. feed name
@@ -479,7 +457,7 @@ fn to_search(address: &CubeUrl, endpoint: &str, fname: &str) -> AnyFilesUrl {
 fn split_renamed_path(path: &str) -> Option<(&str, &str, &str, &str, &str)> {
     path.split_once('/')
         // all top-level folders besides "SERVICES" contain user files
-        .filter(|(root_folder, rest)| *root_folder != "SERVICES")
+        .filter(|(root_folder, _rest)| *root_folder != "SERVICES")
         .map(|(root_folder, rest)| {
             rest.split_once('/')
                 .map(|(feed_folder, rest)| (root_folder, feed_folder, rest))
@@ -564,13 +542,16 @@ enum PluginInstanceTitleError<'a> {
     Malformed(&'a str),
 
     #[error(transparent)]
-    CUBE(#[from] CubeError),
+    Cube(#[from] CubeError),
 }
 
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::get_client::Client;
+    use chris::AnonChrisClient;
     use rstest::*;
+    use chris::types::FileResourceFname;
 
     #[rstest]
     #[case(
@@ -589,8 +570,15 @@ mod tests {
         "cereal/feed_1/pl-dircopy_1",
         "https://example.com/api/v1/files/search/?fname=cereal%2Ffeed_1%2Fpl-dircopy_1"
     )]
-    fn test_parse_src_url(#[case] src: &str, #[case] expected: &str, example_address: &CubeUrl) {
-        assert_eq!(parse_src(src, example_address), AnyFilesUrl::from(expected));
+    fn test_parse_src_url(
+        #[case] src: &str,
+        #[case] expected: &'static str,
+        example_address: &CubeUrl,
+    ) {
+        assert_eq!(
+            parse_src(src, example_address),
+            CollectionUrl::from_static(expected)
+        );
     }
 
     #[rstest]
@@ -661,23 +649,23 @@ mod tests {
         CubeUrl::try_from("https://example.com/api/v1/").unwrap()
     }
 
-    // TODO: use HTTP mocking to test PathNamer::rename
-    // #[rstest]
-    // #[tokio::test]
-    // async fn test_try() -> anyhow::Result<()> {
-    //     let account = CUBEAuth {
-    //         username: Username::new("chris".to_string()),
-    //         password: "chris1234".to_string(),
-    //         url: CubeUrl::try_from("https://cube.chrisproject.org/api/v1/")?,
-    //         client: &reqwest::Client::new(),
-    //     };
-    //     let client = account.into_client().await?;
-    //     let mut namer = PathNamer::new(client);
-    //
-    //     let example = FileResourceFname::from("chris/feed_1859/pl-dircopy_7933/pl-dcm2niix_7934/data/incoming_XR_Posteroanterior_(PA)_view_2021000000_3742127318.json");
-    //     let actual = namer.rename(&example).await;
-    //     dbg!(actual);
-    //
-    //     Ok(())
-    // }
+    #[rstest]
+    #[tokio::test]
+    async fn test_try() {
+        let cube_url = CubeUrl::from_static(
+            "https://cube-for-testing-chrisui.apps.shift.nerc.mghpcc.org/api/v1/",
+        );
+        let anon_client = AnonChrisClient::build(cube_url)
+            .unwrap()
+            .connect()
+            .await
+            .unwrap();
+        let client = Client::Anon(anon_client).into_ro();
+        let mut namer = ChrisPathHumanCoder::new(&client);
+
+        let example = FileResourceFname::from("chrisui/feed_310/pl-dircopy_313/pl-unstack-folders_314/pl-mri-preview_875/data/fetalmri-template-22.txt");
+        let expected = "chrisui/Brain Volume Data/pl-dircopy_313/pl-unstack-folders_314/Measure volume and create center-slice figures/data/fetalmri-template-22.txt";
+        let actual = namer.decode(&example).await;
+        assert_eq!(&actual, expected)
+    }
 }

@@ -1,4 +1,3 @@
-use async_trait::async_trait;
 use super::base::fetch_id;
 use super::base::BaseChrisClient;
 use super::filebrowser::FileBrowser;
@@ -9,6 +8,7 @@ use crate::errors::{check, CubeError};
 use crate::models::{BaseResponse, CubeLinks};
 use crate::types::*;
 use crate::{FeedResponse, LinkedModel, PluginInstanceResponse};
+use async_trait::async_trait;
 use reqwest::header::{HeaderMap, ACCEPT};
 
 /// Anonymous ChRIS client.

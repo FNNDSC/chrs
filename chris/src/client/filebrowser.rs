@@ -12,6 +12,7 @@ use serde_with::json::JsonString;
 use serde_with::serde_as;
 
 /// A client for the _ChRIS_ filebrowser API.
+#[derive(Clone)]
 pub struct FileBrowser {
     client: reqwest_middleware::ClientWithMiddleware,
     search: FileBrowserSearchUrl,
@@ -110,7 +111,7 @@ impl FileBrowserEntry {
     }
 
     /// Get absolute paths of subfolders.
-    pub fn subpaths(&self) -> impl Iterator<Item = FileBrowserPath> + '_ {
+    pub fn absolute_subfolders(&self) -> impl Iterator<Item = FileBrowserPath> + '_ {
         self.subfolders()
             .iter()
             .map(|subfolder| format!("{}/{}", self.path(), subfolder))

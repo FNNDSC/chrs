@@ -2,14 +2,16 @@ use crate::login::state::ChrsSessions;
 use chris::reqwest::Response;
 use chris::types::{CubeUrl, PluginInstanceId, Username};
 use chris::{Account, AnonChrisClient, BaseChrisClient, ChrisClient, RoAccess};
-use color_eyre::eyre::{Context, ContextCompat, Error, Result};
+use color_eyre::eyre::{eyre, Context, Error, Result};
 use color_eyre::owo_colors::OwoColorize;
 use reqwest_middleware::Middleware;
 use reqwest_retry::{
     policies::ExponentialBackoff, RetryTransientMiddleware, Retryable, RetryableStrategy,
 };
 
-pub type PublicClient = Box<dyn BaseChrisClient<RoAccess>>;
+/// A client which accesses read-only APIs only.
+/// It may use authorization, in which case it is able to read private collections.
+pub type RoClient = Box<dyn BaseChrisClient<RoAccess>>;
 
 /// Either an anonymous client or a logged in user.
 pub enum Client {
@@ -19,7 +21,7 @@ pub enum Client {
 
 impl Client {
     /// Use this client for public read-only access only.
-    pub fn into_public(self) -> PublicClient {
+    pub fn into_ro(self) -> RoClient {
         match self {
             Client::Anon(c) => Box::new(c),
             Client::LoggedIn(c) => Box::new(c.into_ro()),
@@ -142,8 +144,8 @@ async fn get_authed_client(
     token: Option<String>,
     retry_middleware: Option<impl Middleware>,
 ) -> Result<Client> {
-    let token = token.wrap_err_with(|| {
-        format!(
+    let token = token.ok_or_else(|| {
+        eyre!(
             "The saved token is invalid, please run `{}`",
             format!(
                 "chrs logout --cube \"{}\" --username \"{}\"",

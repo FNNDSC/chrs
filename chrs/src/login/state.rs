@@ -18,7 +18,7 @@ impl ChrsSessions {
     /// and any additional arguments.
     /// If address is not given, the first set of credentials appearing in
     /// the configuration file is returned.
-    pub fn get_login<'a>(
+    pub fn get_login(
         &self,
         cube: Option<&CubeUrl>,
         username: Option<&Username>,
@@ -117,21 +117,21 @@ impl ChrsSessions {
         confy::store(APP_NAME, None, self).wrap_err("Couldn't write config file")
     }
 
-    /// Set the plugin instance of a session.
-    pub fn set_plugin_instance(
-        &mut self,
-        cube_url: &CubeUrl,
-        username: &Username,
-        plinst: PluginInstanceId,
-    ) -> bool {
-        for session in &mut self.sessions {
-            if &session.cube == cube_url && &session.username == username {
-                session.current_plugin_instance_id = Some(plinst);
-                return true;
-            }
-        }
-        false
-    }
+    // /// Set the plugin instance of a session.
+    // pub fn set_plugin_instance(
+    //     &mut self,
+    //     cube_url: &CubeUrl,
+    //     username: &Username,
+    //     plinst: PluginInstanceId,
+    // ) -> bool {
+    //     for session in &mut self.sessions {
+    //         if &session.cube == cube_url && &session.username == username {
+    //             session.current_plugin_instance_id = Some(plinst);
+    //             return true;
+    //         }
+    //     }
+    //     false
+    // }
 }
 
 #[cfg(test)]
@@ -410,16 +410,16 @@ mod tests {
         Ok(())
     }
 
-    #[rstest]
-    fn test_set_plugin_instance(mut chrs_sessions: ChrsSessions) -> Result<()> {
-        let cube_url = CubeUrl::from_static("https://c.example.com/api/v1/");
-        let username = Username::from_static("ccccc");
-        let plinst = PluginInstanceId(108);
-        chrs_sessions.set_plugin_instance(&cube_url, &username, plinst);
-        let actual = chrs_sessions
-            .get_cube(Some(&cube_url), Some(&username))
-            .unwrap();
-        assert_eq!(actual.current_plugin_instance_id, Some(plinst));
-        Ok(())
-    }
+    // #[rstest]
+    // fn test_set_plugin_instance(mut chrs_sessions: ChrsSessions) -> Result<()> {
+    //     let cube_url = CubeUrl::from_static("https://c.example.com/api/v1/");
+    //     let username = Username::from_static("ccccc");
+    //     let plinst = PluginInstanceId(108);
+    //     chrs_sessions.set_plugin_instance(&cube_url, &username, plinst);
+    //     let actual = chrs_sessions
+    //         .get_cube(Some(&cube_url), Some(&username))
+    //         .unwrap();
+    //     assert_eq!(actual.current_plugin_instance_id, Some(plinst));
+    //     Ok(())
+    // }
 }

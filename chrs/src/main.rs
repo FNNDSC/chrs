@@ -1,3 +1,4 @@
+mod files;
 mod get_client;
 mod login;
 mod ls;
@@ -9,7 +10,7 @@ use crate::get_client::Credentials;
 use crate::login::cmd::{login, logout};
 use crate::login::store::Backend;
 use crate::login::switch::switch_login;
-use crate::ls::{ls, LsConfig};
+use crate::ls::ls;
 use crate::whoami::whoami;
 use chris::types::{CubeUrl, Username};
 
@@ -264,9 +265,6 @@ async fn main() -> color_eyre::eyre::Result<()> {
             full,
             raw,
             path,
-        } => {
-            let config = LsConfig { tree, full, raw };
-            ls(credentials, level, path, args.retries, config).await
-        }
+        } => ls(credentials, level, path, args.retries, tree, full, raw).await,
     }
 }

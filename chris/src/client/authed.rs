@@ -9,6 +9,7 @@ use crate::{
     Access, BaseChrisClient, FeedResponse, FileBrowser, LinkedModel, PluginInstanceResponse,
     RwAccess,
 };
+use async_trait::async_trait;
 use bytes::Bytes;
 use camino::Utf8Path;
 use fs_err::tokio::File;
@@ -18,7 +19,6 @@ use reqwest::multipart::{Form, Part};
 use reqwest::Body;
 use std::borrow::Cow;
 use std::marker::PhantomData;
-use async_trait::async_trait;
 use tokio_util::codec::{BytesCodec, FramedRead};
 
 /// _ChRIS_ user client with read-write API access.
