@@ -1,5 +1,5 @@
 use crate::login::store::{Backend, CubeState, SavedCubeState};
-use chris::types::{CubeUrl, PluginInstanceId, Username};
+use chris::types::{CubeUrl, Username};
 use color_eyre::eyre::{Result, WrapErr};
 use color_eyre::owo_colors::OwoColorize;
 use serde::{Deserialize, Serialize};
@@ -140,6 +140,7 @@ mod tests {
     use crate::login::store::StoredToken;
     use rstest::*;
     use std::str::FromStr;
+    use chris::types::PluginInstanceId;
 
     #[fixture]
     fn sessions() -> Vec<SavedCubeState> {
