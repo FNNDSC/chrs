@@ -3,7 +3,7 @@ use super::base::BaseChrisClient;
 use super::filebrowser::FileBrowser;
 use super::search::LIMIT_ZERO;
 use super::searches::{FeedSearchBuilder, PluginSearchBuilder, SearchBuilder};
-use super::variant::RoAccess;
+use super::access::RoAccess;
 use crate::errors::{check, CubeError};
 use crate::models::{BaseResponse, CubeLinks};
 use crate::types::*;

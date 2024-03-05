@@ -17,7 +17,7 @@ pub use client::authed::ChrisClient;
 pub use client::base::BaseChrisClient;
 pub use client::filebrowser::{FileBrowser, FileBrowserEntry};
 pub use client::search::Search;
-pub use client::variant::{Access, RoAccess, RwAccess};
+pub use client::access::{Access, RoAccess, RwAccess};
 pub use models::*;
 
 // re-export

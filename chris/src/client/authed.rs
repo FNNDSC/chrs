@@ -3,7 +3,7 @@ use super::search::LIMIT_ZERO;
 use super::searches::{
     FeedSearchBuilder, PluginInstanceSearchBuilder, PluginSearchBuilder, SearchBuilder,
 };
-use super::variant::RoAccess;
+use super::access::RoAccess;
 use crate::errors::{check, CubeError, FileIOError};
 use crate::models::{BaseResponse, CubeLinks, FileUploadResponse};
 use crate::types::*;

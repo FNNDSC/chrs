@@ -1,4 +1,4 @@
-use super::variant::Access;
+use super::access::Access;
 use crate::types::{CollectionUrl, FeedId, PluginInstanceId};
 use crate::{FeedResponse, PluginInstanceResponse, PluginResponse, Search};
 use serde::de::DeserializeOwned;

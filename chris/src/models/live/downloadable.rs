@@ -1,4 +1,4 @@
-use crate::client::variant::Access;
+use crate::client::access::Access;
 use crate::errors::{check, CubeError, FileIOError};
 use crate::models::linked::*;
 use crate::types::*;

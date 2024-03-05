@@ -1,6 +1,6 @@
 //! Helpers for pagination.
 
-use super::variant::Access;
+use super::access::Access;
 use crate::errors::{check, CubeError};
 use crate::models::LinkedModel;
 use async_stream::{stream, try_stream};

@@ -1,7 +1,7 @@
 //! CUBE filebrowser API client module.
 
 use super::search::Search;
-use crate::client::variant::RoAccess;
+use crate::client::access::RoAccess;
 use crate::errors::{check, CubeError};
 use crate::models::CubeFile;
 use crate::types::*;

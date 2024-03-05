@@ -1,4 +1,4 @@
-use crate::client::variant::{RoAccess, RwAccess};
+use crate::client::access::{RoAccess, RwAccess};
 use crate::errors::{check, CubeError};
 use crate::models::data::{PluginParameter, PluginResponse};
 use crate::models::linked::LinkedModel;

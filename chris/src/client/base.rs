@@ -1,6 +1,6 @@
 use super::filebrowser::FileBrowser;
 use super::searches::{FeedSearchBuilder, PluginSearchBuilder};
-use super::variant::{Access, RoAccess};
+use super::access::{Access, RoAccess};
 use crate::errors::{check, CubeError};
 use crate::types::{CubeUrl, FeedId, PluginInstanceId};
 use crate::{FeedResponse, LinkedModel, PluginInstanceResponse};

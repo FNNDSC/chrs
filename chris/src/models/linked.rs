@@ -1,6 +1,6 @@
 //! Structs which represent *CUBE* resources that are connected/linked to other *CUBE* resources.
 
-use crate::client::variant::Access;
+use crate::client::access::Access;
 use crate::errors::{check, CubeError};
 use crate::types::ItemUrl;
 use serde::de::DeserializeOwned;
