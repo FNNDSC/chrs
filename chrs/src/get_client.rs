@@ -1,14 +1,20 @@
 use crate::login::state::ChrsSessions;
+use chris::errors::CubeError;
 use chris::reqwest::Response;
-use chris::types::{CubeUrl, PluginInstanceId, Username};
-use chris::{Account, AnonChrisClient, BaseChrisClient, ChrisClient, PluginInstanceResponse, RoAccess};
-use color_eyre::eyre::{eyre, Context, Error, Result};
+use chris::types::{CubeUrl, FeedId, PluginInstanceId, Username};
+use chris::{
+    Access, Account, AnonChrisClient, BaseChrisClient, ChrisClient, FeedResponse, LinkedModel,
+    PluginInstanceResponse, RoAccess,
+};
+use color_eyre::eyre::{bail, eyre, Context, Error, OptionExt};
 use color_eyre::owo_colors::OwoColorize;
+use futures::TryStreamExt;
+use itertools::Itertools;
 use reqwest_middleware::Middleware;
 use reqwest_retry::{
     policies::ExponentialBackoff, RetryTransientMiddleware, Retryable, RetryableStrategy,
 };
-use chris::errors::CubeError;
+use serde::de::DeserializeOwned;
 
 /// A client which accesses read-only APIs only.
 /// It may use authorization, in which case it is able to read private collections.
@@ -24,31 +30,65 @@ impl Client {
     /// Use this client for public read-only access only.
     pub fn into_ro(self) -> RoClient {
         match self {
-            Client::Anon(c) => Box::new(c),
-            Client::LoggedIn(c) => Box::new(c.into_ro()),
+            Self::Anon(c) => Box::new(c),
+            Self::LoggedIn(c) => Box::new(c.into_ro()),
         }
     }
 
     pub fn url(&self) -> &CubeUrl {
         match self {
-            Client::Anon(c) => c.url(),
-            Client::LoggedIn(c) => c.url(),
+            Self::Anon(c) => c.url(),
+            Self::LoggedIn(c) => c.url(),
         }
     }
 
     pub fn username(&self) -> Username {
         match self {
-            Client::Anon(_) => Username::from_static(""),
-            Client::LoggedIn(c) => c.username().clone(),
+            Self::Anon(_) => Username::from_static(""),
+            Self::LoggedIn(c) => c.username().clone(),
         }
     }
 
-    pub async fn get_plugin_instance(&self, id: PluginInstanceId) -> Result<PluginInstanceResponse, CubeError> {
+    pub async fn get_plugin_instance(
+        &self,
+        id: PluginInstanceId,
+    ) -> Result<PluginInstanceResponse, CubeError> {
         match self {
-            Client::Anon(c) => c.get_plugin_instance(id).await.map(|p| p.object),
-            Client::LoggedIn(c) => c.get_plugin_instance(id).await.map(|p| p.object)
+            Self::Anon(c) => c.get_plugin_instance(id).await.map(object_of),
+            Self::LoggedIn(c) => c.get_plugin_instance(id).await.map(object_of),
         }
     }
+
+    pub async fn get_feed(&self, id: FeedId) -> Result<FeedResponse, CubeError> {
+        match self {
+            Self::Anon(c) => c.get_feed(id).await.map(object_of),
+            Self::LoggedIn(c) => c.get_feed(id).await.map(object_of),
+        }
+    }
+
+    pub async fn get_feed_by_name(&self, name: &str) -> color_eyre::Result<FeedResponse> {
+        let feeds: Vec<_> = match self {
+            Self::Anon(c) => {
+                let query = c.public_feeds().name(name).page_limit(10).max_items(10);
+                query.search().stream().try_collect().await
+            }
+            Self::LoggedIn(c) => {
+                let query = c.feeds().name(name).page_limit(10).max_items(10);
+                query.search().stream().try_collect().await
+            }
+        }?;
+        if feeds.len() > 1 {
+            bail!(
+                "More than one feed found: {}",
+                feeds.iter().map(|f| format!("feed/{}", f.id.0)).join(" ")
+            )
+        }
+        feeds.into_iter().next().ok_or_eyre("Feed not found")
+    }
+}
+
+fn object_of<T: DeserializeOwned, A: Access>(x: LinkedModel<T, A>) -> T {
+    x.object
 }
 
 /// Command-line options of `chrs` which are relevant to identifying the user session
@@ -71,7 +111,7 @@ impl Credentials {
     pub async fn get_client(
         self,
         args: impl IntoIterator<Item = impl AsRef<str>>,
-    ) -> Result<(Client, Option<PluginInstanceId>)> {
+    ) -> color_eyre::Result<(Client, Option<PluginInstanceId>)> {
         let Credentials {
             cube_url,
             username,
@@ -155,7 +195,7 @@ async fn get_client_from_state(
 async fn get_anon_client(
     cube_url: CubeUrl,
     retry_middleware: Option<impl Middleware>,
-) -> Result<Client> {
+) -> color_eyre::Result<Client> {
     let client = if let Some(middleware) = retry_middleware {
         AnonChrisClient::build(cube_url)?
             .with(middleware)
@@ -172,7 +212,7 @@ async fn get_authed_client(
     username: Username,
     token: Option<String>,
     retry_middleware: Option<impl Middleware>,
-) -> Result<Client> {
+) -> color_eyre::Result<Client> {
     let token = token.ok_or_else(|| {
         eyre!(
             "The saved token is invalid, please run `{}`",

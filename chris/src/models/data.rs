@@ -100,7 +100,45 @@ pub struct FeedResponse {
     pub name: String,
     pub creator_username: Username,
     pub id: FeedId,
-    pub creation_date: DateString, // many fields missing ;-;
+    pub creation_date: DateString,
+    pub modification_date: DateString,
+    pub public: bool,
+    pub created_jobs: u32,
+    pub waiting_jobs: u32,
+    pub scheduled_jobs: u32,
+    pub started_jobs: u32,
+    pub registering_jobs: u32,
+    pub finished_jobs: u32,
+    pub errored_jobs: u32,
+    pub cancelled_jobs: u32,
+    pub owner: Vec<ItemUrl>,
+    pub note: ItemUrl,
+    pub tags: CollectionUrl,
+    pub comments: CollectionUrl,
+    pub files: CollectionUrl,
+    pub plugin_instances: CollectionUrl
+}
+
+impl FeedResponse {
+    pub fn pending_jobs(&self) -> u32 {
+        self.created_jobs + self.waiting_jobs + self.scheduled_jobs
+    }
+
+    pub fn running_jobs(&self) -> u32 {
+        self.started_jobs + self.registering_jobs
+    }
+
+    pub fn unfinished_jobs(&self) -> u32 {
+        self.pending_jobs() + self.running_jobs()
+    }
+
+    pub fn has_errored_job(&self) -> bool {
+        self.errored_jobs > 0 || self.cancelled_jobs > 0
+    }
+
+    pub fn has_unfinished_jobs(&self) -> bool {
+        self.unfinished_jobs() > 0
+    }
 }
 
 #[derive(Deserialize, Debug)]

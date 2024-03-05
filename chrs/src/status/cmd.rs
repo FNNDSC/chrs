@@ -1,9 +1,195 @@
-use color_eyre::eyre::Result;
-use chris::types::PluginInstanceId;
-use crate::get_client::Credentials;
+use crate::arg::GivenPluginInstance;
+use crate::get_client::{Client, Credentials, RoClient};
+use crate::unicode;
+use chris::types::{FeedId, PluginInstanceId};
+use chris::{BaseChrisClient, FeedResponse, PluginInstanceResponse};
+use color_eyre::eyre::{Error, OptionExt, Result};
+use color_eyre::owo_colors::OwoColorize;
+use std::fmt::Display;
 
-pub async fn status(credentials: Credentials, feed_or_plugin_instance: Option<String>) -> Result<()> {
-    let (client, current_plinst) = credentials.get_client(feed_or_plugin_instance.as_ref().as_slice()).await?;
+pub async fn status(
+    credentials: Credentials,
+    feed_or_plugin_instance: Option<String>,
+) -> Result<()> {
+    let (client, current_plinst) = credentials
+        .get_client(feed_or_plugin_instance.as_ref().as_slice())
+        .await?;
+    let fopi = feed_or_plugin_instance
+        .or_else(|| {
+            current_plinst
+                .as_ref()
+                .map(|i| format!("plugininstance/{}", i.0))
+        })
+        .ok_or_eyre("missing operand")?;
+    let given = GivenFeedOrPluginInstance::from(fopi);
+    let (feed, plinst) = given.resolve_using(&client, current_plinst).await?;
+    print_status(client.into_ro(), feed, plinst, None).await
+}
 
+enum GivenFeedOrPluginInstance {
+    FeedId(FeedId),
+    FeedName(String),
+    PluginInstance(GivenPluginInstance),
+    Ambiguous(String),
+}
+
+impl From<String> for GivenFeedOrPluginInstance {
+    fn from(value: String) -> Self {
+        if let Some(id) = parse_feed_id_from_url(&value) {
+            return Self::FeedId(id);
+        }
+        value
+            .split_once('/')
+            .and_then(|(left, right)| {
+                if left == "f" || left == "feed" {
+                    Some(
+                        right
+                            .parse::<u32>()
+                            .map(FeedId)
+                            .map(Self::FeedId)
+                            .unwrap_or(Self::FeedName(right.to_string())),
+                    )
+                } else {
+                    None
+                }
+            })
+            .unwrap_or_else(|| {
+                let plinst = GivenPluginInstance::from(value);
+                if let GivenPluginInstance::Title(ambiguous) = plinst {
+                    Self::Ambiguous(ambiguous)
+                } else {
+                    Self::PluginInstance(plinst)
+                }
+            })
+    }
+}
+
+impl GivenFeedOrPluginInstance {
+    async fn resolve_using(
+        self,
+        client: &Client,
+        old: Option<PluginInstanceId>,
+    ) -> Result<(Option<FeedResponse>, Option<PluginInstanceResponse>)> {
+        match self {
+            GivenFeedOrPluginInstance::FeedId(id) => client
+                .get_feed(id)
+                .await
+                .map(|f| (Some(f), None))
+                .map_err(Error::new),
+            GivenFeedOrPluginInstance::FeedName(name) => client
+                .get_feed_by_name(&name)
+                .await
+                .map(|f| (Some(f), None)),
+            GivenFeedOrPluginInstance::PluginInstance(p) => get_plinst_and_feed(client, p, old)
+                .await
+                .map(|(f, p)| (Some(f), Some(p))),
+            GivenFeedOrPluginInstance::Ambiguous(_) => Err(Error::msg(
+                "Operand is ambiguous, resolution not implemented",
+            )),
+        }
+    }
+}
+
+async fn get_plinst_and_feed(
+    client: &Client,
+    p: GivenPluginInstance,
+    old: Option<PluginInstanceId>,
+) -> Result<(FeedResponse, PluginInstanceResponse)> {
+    let plinst = p.get_using(client, old).await?;
+    let feed = client.get_feed(plinst.feed_id).await?;
+    Ok((feed, plinst))
+}
+
+fn parse_feed_id_from_url(url: &str) -> Option<FeedId> {
+    if !url.starts_with("http://") && !url.starts_with("https://") {
+        return None;
+    }
+    url.split_once("/api/v1/")
+        .map(|(_, right)| right)
+        .and_then(|s| s.strip_suffix('/'))
+        .and_then(|s| s.parse().ok())
+        .map(FeedId)
+}
+
+async fn print_status(
+    client: RoClient,
+    feed: Option<FeedResponse>,
+    plinst: Option<PluginInstanceResponse>,
+    ui_url: Option<&str>,
+) -> Result<()> {
+    if let Some(plugin_instance) = plinst {
+        if let Some(feed) = feed {
+            print_branch_status(&client, feed, plugin_instance, ui_url).await
+        } else {
+            let feed = client.get_feed(plugin_instance.feed_id).await?;
+            print_branch_status(&client, feed.object, plugin_instance, ui_url).await
+        }
+    } else if let Some(feed) = feed {
+        only_print_feed_status(feed, ui_url).await
+    } else {
+        Ok(())
+    }
+}
+
+async fn only_print_feed_status(feed: FeedResponse, ui_url: Option<&str>) -> Result<()> {
+    let symbol = feed_symbol_for(&feed);
+    let name = if feed.name.as_str().is_empty() {
+        ""
+    } else {
+        feed.name.as_str()
+    };
+
+    let styled_name = if feed.has_errored_job() {
+        name.bold().bright_red().to_string()
+    } else {
+        name.bold().bright_green().to_string()
+    };
+
+    println!("{} {}", symbol, styled_name);
+    if let Some(url) = ui_url {
+        println!("  {}", ui_feed_url(url, &feed))
+    }
+    let bar = "  |".dimmed();
+    println!("{}", &bar);
+    println!("{}   {}", &bar, format!("{}: {}", " created", feed.creation_date.italic()).dimmed());
+    println!("{}   {}", &bar, format!("{}: {}", "modified", feed.modification_date.italic()).dimmed());
+    println!("{}", &bar);
+    println!("{}   {}", &bar, format!("finished: {}  pending: {}  running: {}  errors: {}", feed.finished_jobs, feed.pending_jobs(), feed.running_jobs(), feed.errored_jobs).dimmed());
+
+    // TODO get note
+
+    Ok(())
+}
+
+fn feed_symbol_for(feed: &FeedResponse) -> impl Display {
+    if feed.has_errored_job() {
+        unicode::BLACK_DOWN_POINTING_TRIANGLE
+            .bold()
+            .red()
+            .to_string()
+    } else if feed.has_unfinished_jobs() {
+        unicode::BLACK_UP_POINTING_TRIANGLE
+            .bold()
+            .yellow()
+            .to_string()
+    } else {
+        unicode::BLACK_UP_POINTING_TRIANGLE
+            .bold()
+            .green()
+            .to_string()
+    }
+}
+
+fn ui_feed_url(url: &str, feed: &FeedResponse) -> String {
+    let t = if feed.public { "public" } else { "private" };
+    format!("{}/feeds/{}?type={}", url, feed.id.0, t)
+}
+
+async fn print_branch_status(
+    client: &RoClient,
+    feed: FeedResponse,
+    plinst: PluginInstanceResponse,
+    ui_url: Option<&str>,
+) -> Result<()> {
     todo!()
 }

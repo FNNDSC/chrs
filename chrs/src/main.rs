@@ -4,8 +4,9 @@ mod files;
 mod get_client;
 mod login;
 mod ls;
-mod whoami;
 mod status;
+pub mod unicode;
+mod whoami;
 
 use clap::{builder::NonEmptyStringValueParser, Parser, Subcommand};
 
@@ -15,9 +16,9 @@ use crate::login::cmd::{login, logout};
 use crate::login::store::Backend;
 use crate::login::switch::switch_login;
 use crate::ls::{ls, LsArgs};
+use crate::status::cmd::status;
 use crate::whoami::whoami;
 use chris::types::{CubeUrl, Username};
-use crate::status::cmd::status;
 
 #[derive(Parser)]
 #[clap(
@@ -88,7 +89,7 @@ enum Commands {
     Status {
         /// Feed or plugin instance
         #[clap(value_parser = NonEmptyStringValueParser::new())]
-        feed_or_plugin_instance: Option<String>
+        feed_or_plugin_instance: Option<String>,
     },
 
     //
@@ -275,6 +276,8 @@ async fn main() -> color_eyre::eyre::Result<()> {
 
         Commands::Ls(args) => ls(credentials, args).await,
         Commands::Cd { plugin_instance } => cd(credentials, plugin_instance).await,
-        Commands::Status { feed_or_plugin_instance } => status(credentials, feed_or_plugin_instance).await
+        Commands::Status {
+            feed_or_plugin_instance,
+        } => status(credentials, feed_or_plugin_instance).await,
     }
 }
