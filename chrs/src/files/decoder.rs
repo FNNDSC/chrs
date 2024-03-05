@@ -1,7 +1,5 @@
 //! Helper functions for dealing with understanding fnames.
 //!
-//! **WIP WIP WIP WIP WIP**
-//!
 //! ## Notes
 //!
 //! There is no consistent terminology used in the code. Though perhaps
@@ -16,7 +14,7 @@
 //!   For instance, `chris/feed_4` is a fname-like (but not a valid fname).
 //!   _fnl_ is a superset of fname.
 
-// FIXME remove disabled lint rules after done with reimplementation
+// FIXME remove disabled lint rules after done with everything
 #![allow(dead_code)]
 #![allow(unused_variables)]
 
@@ -60,6 +58,10 @@ impl MaybeChrisPathHumanCoder<'_> {
         }
     }
 
+    // BLOCKED by https://github.com/FNNDSC/ChRIS_ultron_backEnd/issues/530
+    // Here we want to use the same code for logged in users vs anonymous users,
+    // however since anonymous users can't use the same plugins/instances/search/
+    // endpoint as logged in users, implementation would be messy.
     // pub fn canonicalize(&mut self, _ufn: UnionFnameLike) -> FnameLike {
     //     unimplemented!()
     // }

@@ -23,9 +23,9 @@ pub struct LsArgs {
     #[clap(short, long)]
     pub full: bool,
 
-    /// Do not rename folders with feed names and plugin instance titles
+    /// Rename folders with feed names and plugin instance titles
     #[clap(short, long)]
-    pub raw: bool,
+    pub rename: bool,
 
     /// What to print
     #[clap(short, long, default_value_t, value_enum)]
@@ -42,7 +42,7 @@ pub async fn ls(
         tree,
         level,
         full,
-        raw,
+        rename,
         show,
         path,
     }: LsArgs,
@@ -60,7 +60,7 @@ pub async fn ls(
         "".to_string()
     };
 
-    let coder = MaybeChrisPathHumanCoder::new(&ro_client, !raw);
+    let coder = MaybeChrisPathHumanCoder::new(&ro_client, rename);
     let (tx_fname, rx_fname) = unbounded_channel();
     let (tx_decoded, rx_decoded) = unbounded_channel();
     let decode_channel = DecodeChannel::new(tx_fname, rx_decoded);
