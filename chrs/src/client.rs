@@ -3,10 +3,7 @@ use crate::login::UiUrl;
 use chris::errors::CubeError;
 use chris::reqwest::Response;
 use chris::types::{CubeUrl, FeedId, PluginInstanceId, Username};
-use chris::{
-    Access, Account, AnonChrisClient, BaseChrisClient, ChrisClient, FeedResponse, LinkedModel,
-    PluginInstanceResponse, RoAccess,
-};
+use chris::{Access, Account, AnonChrisClient, BaseChrisClient, ChrisClient, FeedResponse, FeedRo, LinkedModel, PluginInstanceResponse, RoAccess};
 use color_eyre::eyre::{bail, eyre, Context, Error, OptionExt};
 use color_eyre::owo_colors::OwoColorize;
 use futures::TryStreamExt;
@@ -60,28 +57,28 @@ impl Client {
         }
     }
 
-    pub async fn get_feed(&self, id: FeedId) -> Result<FeedResponse, CubeError> {
+    pub async fn get_feed(&self, id: FeedId) -> Result<FeedRo, CubeError> {
         match self {
-            Self::Anon(c) => c.get_feed(id).await.map(object_of),
-            Self::LoggedIn(c) => c.get_feed(id).await.map(object_of),
+            Self::Anon(c) => c.get_feed(id).await,
+            Self::LoggedIn(c) => c.get_feed(id).await.map(|f| f.into_ro()),
         }
     }
 
-    pub async fn get_feed_by_name(&self, name: &str) -> color_eyre::Result<FeedResponse> {
+    pub async fn get_feed_by_name(&self, name: &str) -> color_eyre::Result<FeedRo> {
         let feeds: Vec<_> = match self {
             Self::Anon(c) => {
                 let query = c.public_feeds().name(name).page_limit(10).max_items(10);
-                query.search().stream().try_collect().await
+                query.search().stream_connected().try_collect().await
             }
             Self::LoggedIn(c) => {
                 // need to get both public feeds and private feeds
                 // https://github.com/FNNDSC/ChRIS_ultron_backEnd/issues/530
                 let private_query = c.feeds().name(name).page_limit(10).max_items(10);
-                let private_feeds: Vec<_> = private_query.search().stream().try_collect().await?;
+                let private_feeds: Vec<_> = private_query.search().stream_connected().map_ok(|f| f.into_ro()).try_collect().await?;
                 if private_feeds.is_empty() {
                     let public_feeds_query =
                         c.public_feeds().name(name).page_limit(10).max_items(10);
-                    public_feeds_query.search().stream().try_collect().await
+                    public_feeds_query.search().stream_connected().try_collect().await
                 } else {
                     Ok(private_feeds)
                 }
@@ -90,7 +87,7 @@ impl Client {
         if feeds.len() > 1 {
             bail!(
                 "More than one feed found: {}",
-                feeds.iter().map(|f| format!("feed/{}", f.id.0)).join(" ")
+                feeds.iter().map(|f| format!("feed/{}", f.object.id.0)).join(" ")
             )
         }
         feeds.into_iter().next().ok_or_eyre("Feed not found")

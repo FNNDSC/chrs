@@ -3,7 +3,7 @@ use crate::client::{Client, Credentials, RoClient};
 use crate::login::UiUrl;
 use crate::unicode;
 use chris::types::{FeedId, PluginInstanceId};
-use chris::{FeedResponse, PluginInstanceResponse};
+use chris::{FeedResponse, FeedRo, PluginInstanceResponse};
 use color_eyre::eyre::{Error, OptionExt, Result};
 use color_eyre::owo_colors::OwoColorize;
 use std::fmt::Display;
@@ -70,7 +70,7 @@ impl GivenFeedOrPluginInstance {
         self,
         client: &Client,
         old: Option<PluginInstanceId>,
-    ) -> Result<(Option<FeedResponse>, Option<PluginInstanceResponse>)> {
+    ) -> Result<(Option<FeedRo>, Option<PluginInstanceResponse>)> {
         match self {
             GivenFeedOrPluginInstance::FeedId(id) => client
                 .get_feed(id)
@@ -95,7 +95,7 @@ async fn get_plinst_and_feed(
     client: &Client,
     p: GivenPluginInstance,
     old: Option<PluginInstanceId>,
-) -> Result<(FeedResponse, PluginInstanceResponse)> {
+) -> Result<(FeedRo, PluginInstanceResponse)> {
     let plinst = p.get_using(client, old).await?;
     let feed = client.get_feed(plinst.feed_id).await?;
     Ok((feed, plinst))
@@ -114,7 +114,7 @@ fn parse_feed_id_from_url(url: &str) -> Option<FeedId> {
 
 async fn print_status(
     client: RoClient,
-    feed: Option<FeedResponse>,
+    feed: Option<FeedRo>,
     plinst: Option<PluginInstanceResponse>,
     ui_url: Option<UiUrl>,
 ) -> Result<()> {
@@ -123,7 +123,7 @@ async fn print_status(
             print_branch_status(&client, feed, plugin_instance, ui_url).await
         } else {
             let feed = client.get_feed(plugin_instance.feed_id).await?;
-            print_branch_status(&client, feed.object, plugin_instance, ui_url).await
+            print_branch_status(&client, feed, plugin_instance, ui_url).await
         }
     } else if let Some(feed) = feed {
         only_print_feed_status(feed, ui_url).await
@@ -132,15 +132,15 @@ async fn print_status(
     }
 }
 
-async fn only_print_feed_status(feed: FeedResponse, ui_url: Option<UiUrl>) -> Result<()> {
-    let symbol = feed_symbol_for(&feed);
-    let name = if feed.name.is_empty() {
+async fn only_print_feed_status(feed: FeedRo, ui_url: Option<UiUrl>) -> Result<()> {
+    let symbol = feed_symbol_for(&feed.object);
+    let name = if feed.object.name.is_empty() {
         ""
     } else {
-        feed.name.as_str()
+        feed.object.name.as_str()
     };
 
-    let styled_name = if feed.has_errored_job() {
+    let styled_name = if feed.object.has_errored_job() {
         name.bold().bright_red().to_string()
     } else {
         name.bold().bright_green().to_string()
@@ -148,19 +148,19 @@ async fn only_print_feed_status(feed: FeedResponse, ui_url: Option<UiUrl>) -> Re
 
     println!("{} {}", symbol, styled_name);
     if let Some(ui) = ui_url {
-        println!("  {}", ui.feed_url_of(&feed).underline())
+        println!("  {}", ui.feed_url_of(&feed.object).underline())
     }
     let bar = "  |".dimmed();
     println!("{}", &bar);
     println!(
         "{}   {}",
         &bar,
-        format!("{}: {}", " created", feed.creation_date.italic()).dimmed()
+        format!("{}: {}", " created", feed.object.creation_date.italic()).dimmed()
     );
     println!(
         "{}   {}",
         &bar,
-        format!("{}: {}", "modified", feed.modification_date.italic()).dimmed()
+        format!("{}: {}", "modified", feed.object.modification_date.italic()).dimmed()
     );
     println!("{}", &bar);
     println!(
@@ -168,10 +168,10 @@ async fn only_print_feed_status(feed: FeedResponse, ui_url: Option<UiUrl>) -> Re
         &bar,
         format!(
             "finished: {}  pending: {}  running: {}  errors: {}",
-            feed.finished_jobs,
-            feed.pending_jobs(),
-            feed.running_jobs(),
-            feed.errored_jobs
+            feed.object.finished_jobs,
+            feed.object.pending_jobs(),
+            feed.object.running_jobs(),
+            feed.object.errored_jobs
         )
         .dimmed()
     );
@@ -202,7 +202,7 @@ fn feed_symbol_for(feed: &FeedResponse) -> impl Display {
 
 async fn print_branch_status(
     client: &RoClient,
-    feed: FeedResponse,
+    feed: FeedRo,
     plinst: PluginInstanceResponse,
     ui_url: Option<UiUrl>,
 ) -> Result<()> {

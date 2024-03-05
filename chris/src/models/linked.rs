@@ -5,6 +5,7 @@ use crate::errors::{check, CubeError};
 use crate::types::ItemUrl;
 use serde::de::DeserializeOwned;
 use std::marker::PhantomData;
+use crate::{RoAccess, RwAccess};
 
 /// A client to the subset of the *CUBE* API linked to by this object's generic type.
 /// In less fancy speak, [LinkedModel] is a thing which can get, create, modify, or delete
@@ -13,6 +14,17 @@ pub struct LinkedModel<T: DeserializeOwned, A: Access> {
     pub(crate) client: reqwest_middleware::ClientWithMiddleware,
     pub object: T,
     pub(crate) phantom: PhantomData<A>,
+}
+
+impl<T: DeserializeOwned> LinkedModel<T, RwAccess> {
+    pub fn into_ro(self) -> LinkedModel<T, RoAccess> {
+        LinkedModel {
+            client: self.client,
+            object: self.object,
+            phantom: Default::default()
+        }
+    }
+
 }
 
 /// You can think of [LazyLinkedModel] as a lazy [LinkedModel]: it has methods
