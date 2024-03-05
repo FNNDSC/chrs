@@ -27,6 +27,9 @@ pub struct ActualSearch<R: DeserializeOwned, A: Access, Q: Serialize + Sized> {
     query: Q,
     phantom: PhantomData<(R, A)>,
 
+    /// Maximum number of items to produce
+    max_items: Option<usize>,
+
     // The perfectionist approach would be to define another enum variant,
     // the least-code approach would be to use `dyn`
     /// Bad-ish boolean.
@@ -95,6 +98,7 @@ impl<R: DeserializeOwned, A: Access, Q: Serialize + Sized> ActualSearch<R, A, Q>
 
     /// See [Search::stream]
     fn stream(&self) -> impl Stream<Item = Result<R, CubeError>> + '_ {
+        let mut count = 0;
         try_stream! {
             // retrieval of the first page works a little differently, since we
             // don't know what `next_url` is, we call client.get(...).query(...)
@@ -102,7 +106,11 @@ impl<R: DeserializeOwned, A: Access, Q: Serialize + Sized> ActualSearch<R, A, Q>
             let res = self.get_search().send().await?;
             let page: Paginated<R> = check(res).await?.json().await?;
             for item in page.results {
-                yield item
+                if count >= self.max_items.unwrap_or(usize::MAX) {
+                    return;
+                }
+                yield item;
+                count += 1;
             }
 
             let mut next_url = page.next;
@@ -112,7 +120,11 @@ impl<R: DeserializeOwned, A: Access, Q: Serialize + Sized> ActualSearch<R, A, Q>
                 let page: Paginated<R> = check(res).await?.json().await?;
 
                 for item in page.results {
-                    yield item
+                if count >= self.max_items.unwrap_or(usize::MAX) {
+                        return;
+                    }
+                    yield item;
+                    count += 1;
                 }
                 next_url = page.next;
             }
@@ -133,6 +145,7 @@ impl<R: DeserializeOwned, A: Access> Search<R, A, ()> {
             query: (),
             phantom: Default::default(),
             basic: true,
+            max_items: None
         };
         Self::Search(s)
     }
@@ -144,6 +157,7 @@ impl<R: DeserializeOwned, A: Access, Q: Serialize + Sized> Search<R, A, Q> {
         client: &reqwest_middleware::ClientWithMiddleware,
         base_url: impl ToString,
         query: Q,
+        max_items: Option<usize>
     ) -> Self {
         let s = ActualSearch {
             client: client.clone(),
@@ -151,14 +165,10 @@ impl<R: DeserializeOwned, A: Access, Q: Serialize + Sized> Search<R, A, Q> {
             query,
             phantom: Default::default(),
             basic: false,
+            max_items
         };
         Self::Search(s)
     }
-
-    // /// Create a dummy empty search object which returns no results.
-    // pub(crate) fn empty() -> Self {
-    //     Self::Empty
-    // }
 
     /// Get the count of items in this collection.
     pub async fn get_count(&self) -> Result<u32, CubeError> {

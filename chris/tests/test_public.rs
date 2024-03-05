@@ -119,3 +119,14 @@ async fn test_get_plugin_instance(chris_client: &AnonChrisClient) -> AnyResult {
     assert_eq!(pi.object.id, id);
     Ok(())
 }
+
+#[rstest]
+#[case(3)]
+#[case(5)]
+#[tokio::test(flavor = "multi_thread")]
+async fn test_search_max_items(chris_client: &AnonChrisClient, #[case] count: usize) -> AnyResult {
+    let query = chris_client.plugin().max_items(count);
+    let items: Vec<_> = query.search().stream().try_collect().await?;
+    assert_eq!(items.len(), count);
+    Ok(())
+}

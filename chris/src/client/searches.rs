@@ -19,6 +19,7 @@ pub struct SearchBuilder<'a, A: Access, T: DeserializeOwned> {
     pub(crate) url: &'a CollectionUrl,
     query: HashMap<&'static str, QueryValue>,
     phantom: PhantomData<(A, T)>,
+    max_items: Option<usize>
 }
 
 impl<'a, A: Access, T: DeserializeOwned> SearchBuilder<'a, A, T> {
@@ -32,18 +33,32 @@ impl<'a, A: Access, T: DeserializeOwned> SearchBuilder<'a, A, T> {
             url,
             query: Default::default(),
             phantom: Default::default(),
+            max_items: None,
         }
     }
 
     /// Complete the search query
     pub fn search(&self) -> Search<T, A, &HashMap<&'static str, QueryValue>> {
-        Search::new(self.client, self.url, &self.query)
+        Search::new(self.client, self.url, &self.query, self.max_items)
     }
 
     /// Set maximum number of items to return per page. The only reason to set this would
     /// be for performance reasons. Generally you don't need to set it.
-    pub fn limit(self, limit: u32) -> Self {
+    ///
+    /// See also: [Self::max_items]
+    pub fn page_limit(self, limit: u32) -> Self {
         self.add_u32("limit", limit)
+    }
+
+    /// Caps the number of items to produce.
+    pub fn max_items(self, max_items: usize) -> Self {
+        Self {
+            client: self.client,
+            url: self.url,
+            query: self.query,
+            phantom: Default::default(),
+            max_items: Some(max_items),
+        }
     }
 
     pub(crate) fn add_string(mut self, key: &'static str, value: impl Into<String>) -> Self {
