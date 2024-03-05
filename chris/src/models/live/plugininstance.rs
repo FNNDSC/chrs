@@ -1,13 +1,17 @@
-use crate::models::active::feed::ShallowFeed;
-use crate::models::PluginInstanceResponse;
-use reqwest::Client;
-use crate::models::connected::ConnectedModel;
-use crate::models::data::PluginInstanceResponse;
+use crate::{
+    Access, FeedResponse, LazyLinkedModel, LinkedModel, PluginInstanceResponse, RoAccess, RwAccess,
+};
 
-pub type PluginInstance = ConnectedModel<PluginInstanceResponse>;
+pub type PluginInstanceRw = LinkedModel<PluginInstanceResponse, RwAccess>;
+pub type PluginInstanceRo = LinkedModel<PluginInstanceResponse, RoAccess>;
 
-impl PluginInstance {
-    pub fn feed(&self) -> ShallowFeed {
-        ShallowFeed::new(self.client.clone(), self.plugin_instance.feed.clone())
+impl<A: Access> LinkedModel<PluginInstanceResponse, A> {
+    /// Feed of this plugin instance.
+    pub fn feed(&self) -> LazyLinkedModel<FeedResponse, A> {
+        LazyLinkedModel {
+            url: &self.object.feed,
+            client: self.client.clone(),
+            phantom: Default::default(),
+        }
     }
 }

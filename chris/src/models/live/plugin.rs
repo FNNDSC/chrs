@@ -1,8 +1,8 @@
 use crate::client::variant::{RoAccess, RwAccess};
 use crate::errors::{check, CubeError};
-use crate::models::data::{PluginInstanceResponse, PluginParameter, PluginResponse};
+use crate::models::data::{PluginParameter, PluginResponse};
 use crate::models::linked::LinkedModel;
-use crate::Search;
+use crate::{PluginInstanceRw, Search};
 use serde::Serialize;
 
 /// A [ChrisPlugin]. Call [Plugin::create_instance] to "run" this plugin.
@@ -16,7 +16,7 @@ impl Plugin {
     pub async fn create_instance<T: Serialize + ?Sized>(
         &self,
         body: &T,
-    ) -> Result<PluginInstanceResponse, CubeError> {
+    ) -> Result<PluginInstanceRw, CubeError> {
         let res = self
             .client
             .post(self.object.instances.as_str())
@@ -24,7 +24,11 @@ impl Plugin {
             .send()
             .await?;
         let data = check(res).await?.json().await?;
-        Ok(data)
+        Ok(LinkedModel {
+            client: self.client.clone(),
+            object: data,
+            phantom: Default::default(),
+        })
     }
 }
 

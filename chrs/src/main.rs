@@ -5,6 +5,7 @@ mod get_client;
 mod login;
 mod ls;
 mod whoami;
+mod status;
 
 use clap::{builder::NonEmptyStringValueParser, Parser, Subcommand};
 
@@ -16,6 +17,7 @@ use crate::login::switch::switch_login;
 use crate::ls::{ls, LsArgs};
 use crate::whoami::whoami;
 use chris::types::{CubeUrl, Username};
+use crate::status::cmd::status;
 
 #[derive(Parser)]
 #[clap(
@@ -81,15 +83,20 @@ enum Commands {
         #[clap(value_parser = NonEmptyStringValueParser::new())]
         plugin_instance: String,
     },
+
+    /// Show status of a plugin instance and its feed
+    Status {
+        /// Feed or plugin instance
+        #[clap(value_parser = NonEmptyStringValueParser::new())]
+        feed_or_plugin_instance: Option<String>
+    },
+
     //
     // /// Get detailed information about a ChRIS object
     // ///
     // /// An object may be a plugin, plugin instance, pipeline, feed, or file.
     // // Future work: also support PACS files
     // Describe(String),
-    //
-    // /// Show status of a plugin instance and its feed
-    // Status(String),
     //
     // /// Run a plugin or pipeline
     // // TODO: can also create feed and upload files
@@ -268,5 +275,6 @@ async fn main() -> color_eyre::eyre::Result<()> {
 
         Commands::Ls(args) => ls(credentials, args).await,
         Commands::Cd { plugin_instance } => cd(credentials, plugin_instance).await,
+        Commands::Status { feed_or_plugin_instance } => status(credentials, feed_or_plugin_instance).await
     }
 }

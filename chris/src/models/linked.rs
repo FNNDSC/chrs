@@ -1,6 +1,8 @@
 //! Structs which represent *CUBE* resources that are connected/linked to other *CUBE* resources.
 
 use crate::client::variant::Access;
+use crate::errors::{check, CubeError};
+use crate::types::ItemUrl;
 use serde::de::DeserializeOwned;
 use std::marker::PhantomData;
 
@@ -16,21 +18,26 @@ pub struct LinkedModel<T: DeserializeOwned, A: Access> {
 /// You can think of [LazyLinkedModel] as a lazy [LinkedModel]: it has methods
 /// for changing this resource, and can be transformed into a [LinkedModel]
 /// by calling [LazyLinkedModel::get].
-pub struct LazyLinkedModel<T: DeserializeOwned, A: Access, U: reqwest::IntoUrl> {
-    #[allow(unused)] // TODO remove me after implementing LazyLinkedModel.get
+pub struct LazyLinkedModel<'a, T: DeserializeOwned, A: Access> {
+    pub url: &'a ItemUrl,
     pub(crate) client: reqwest_middleware::ClientWithMiddleware,
-    pub url: U,
-    phantom: PhantomData<(T, A)>,
+    pub(crate) phantom: PhantomData<(T, A)>,
 }
 
-impl<T: DeserializeOwned, A: Access, U: reqwest::IntoUrl> LazyLinkedModel<T, A, U> {
-    /// Make a HTTP GET request to populate the data of this object.
-    pub async fn get(self) -> LinkedModel<T, A> {
-        todo!()
+impl<T: DeserializeOwned, A: Access> LazyLinkedModel<'_, T, A> {
+    pub async fn get(self) -> Result<LinkedModel<T, A>, CubeError> {
+        let res = self.client.get(self.url.as_str()).send().await?;
+        let data = check(res).await?.json().await?;
+        Ok(LinkedModel {
+            object: data,
+            client: self.client,
+            phantom: Default::default(),
+        })
     }
 }
 
-// TODO: LinkedModel should have a get method too, which "refreshes" its data.
+// Future work:
+// LinkedModel should have a get method too, which "refreshes" its data.
 // struct LinkedModel<T: DeserializeOwned + HasUrl>
 //
 // trait HasUrl {

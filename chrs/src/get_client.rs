@@ -1,13 +1,14 @@
 use crate::login::state::ChrsSessions;
 use chris::reqwest::Response;
 use chris::types::{CubeUrl, PluginInstanceId, Username};
-use chris::{Account, AnonChrisClient, BaseChrisClient, ChrisClient, RoAccess};
+use chris::{Account, AnonChrisClient, BaseChrisClient, ChrisClient, PluginInstanceResponse, RoAccess};
 use color_eyre::eyre::{eyre, Context, Error, Result};
 use color_eyre::owo_colors::OwoColorize;
 use reqwest_middleware::Middleware;
 use reqwest_retry::{
     policies::ExponentialBackoff, RetryTransientMiddleware, Retryable, RetryableStrategy,
 };
+use chris::errors::CubeError;
 
 /// A client which accesses read-only APIs only.
 /// It may use authorization, in which case it is able to read private collections.
@@ -39,6 +40,13 @@ impl Client {
         match self {
             Client::Anon(_) => Username::from_static(""),
             Client::LoggedIn(c) => c.username().clone(),
+        }
+    }
+
+    pub async fn get_plugin_instance(&self, id: PluginInstanceId) -> Result<PluginInstanceResponse, CubeError> {
+        match self {
+            Client::Anon(c) => c.get_plugin_instance(id).await.map(|p| p.object),
+            Client::LoggedIn(c) => c.get_plugin_instance(id).await.map(|p| p.object)
         }
     }
 }
