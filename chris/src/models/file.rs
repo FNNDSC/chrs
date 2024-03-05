@@ -9,6 +9,12 @@ pub struct CubeFile {
     fsize: u64,
 }
 
+impl From<CubeFile> for FileResourceFname {
+    fn from(value: CubeFile) -> Self {
+        value.fname
+    }
+}
+
 impl Downloadable for CubeFile {
     fn file_resource_url(&self) -> &FileResourceUrl {
         &self.file_resource

@@ -14,9 +14,8 @@ impl DecodeChannel {
         }
     }
 
-    pub async fn decode(&mut self, fname: &str) -> String {
-        // TODO can I avoid this clone? https://github.com/dcchut/async-recursion/issues/37
-        self.tx_fname.send(fname.to_string()).unwrap();
+    pub async fn decode(&mut self, fname: String) -> String {
+        self.tx_fname.send(fname).unwrap();
         self.rx_decoded.recv().await.unwrap()
     }
 }
