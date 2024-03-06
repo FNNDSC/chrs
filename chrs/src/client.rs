@@ -3,7 +3,7 @@ use crate::login::UiUrl;
 use chris::errors::CubeError;
 use chris::reqwest::Response;
 use chris::types::{CubeUrl, FeedId, PluginInstanceId, Username};
-use chris::{Access, Account, AnonChrisClient, BaseChrisClient, ChrisClient, FeedResponse, FeedRo, LinkedModel, PluginInstanceResponse, RoAccess};
+use chris::{Access, Account, AnonChrisClient, BaseChrisClient, ChrisClient, FeedRo, LinkedModel, PluginInstanceResponse, RoAccess};
 use color_eyre::eyre::{bail, eyre, Context, Error, OptionExt};
 use color_eyre::owo_colors::OwoColorize;
 use futures::TryStreamExt;
