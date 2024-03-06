@@ -1,8 +1,8 @@
 use camino::Utf8PathBuf;
+use fake::Fake;
 use chris::errors::FileIOError;
 use chris::{Account, BaseChrisClient, ChrisClient, Downloadable, FileUploadResponse};
 use futures::{StreamExt, TryStreamExt};
-use names::Generator;
 use rstest::*;
 
 use chris::types::{CubeUrl, FileBrowserPath, Username};
@@ -69,8 +69,8 @@ fn cube_url() -> CubeUrl {
 #[fixture]
 #[once]
 fn chris_client(cube_url: CubeUrl) -> ChrisClient {
-    let username = Generator::default().next().unwrap();
-    let email = format!("{}@example.org", &username);
+    let username: String = fake::faker::internet::en::Username().fake();
+    let email: String = fake::faker::internet::en::SafeEmail().fake();
     let password = format!("{}1234", &username.chars().rev().collect::<String>());
     let username = Username::new(username);
     futures::executor::block_on(async {

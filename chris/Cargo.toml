@@ -39,7 +39,6 @@ async-trait = "0.1.77"
 [dev-dependencies]
 serde_json = "1.0.114"
 serde_yaml = "0.9.32"
-names = { version = "0.14.0", default-features = false }
 rstest = "0.18.2"
 tokio-test = "0.4.3"
 async-std = { version = "1.11.0", features = ["attributes"] }
@@ -47,6 +46,7 @@ tempfile = "3.3.0"
 futures = { version = "0.3.30", features = [ "executor" ] }
 macro_rules_attribute = "0.2.0"
 pathdiff = "0.2.1"
+fake = "2.9.2"
 
 
 # https://github.com/cross-rs/cross/issues/229#issuecomment-597898074
