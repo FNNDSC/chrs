@@ -2,8 +2,9 @@ use crate::arg::GivenPluginInstance;
 use crate::client::{Client, Credentials, RoClient};
 use crate::login::UiUrl;
 use chris::types::{FeedId, PluginInstanceId};
-use chris::{FeedRo, PluginInstanceResponse};
+use chris::{FeedRo, PluginInstanceRo};
 use color_eyre::eyre::{Error, OptionExt, Result};
+use crate::status::branch::print_branch_status;
 use super::feed::only_print_feed_status;
 
 pub async fn status(
@@ -68,7 +69,7 @@ impl GivenFeedOrPluginInstance {
         self,
         client: &Client,
         old: Option<PluginInstanceId>,
-    ) -> Result<(Option<FeedRo>, Option<PluginInstanceResponse>)> {
+    ) -> Result<(Option<FeedRo>, Option<PluginInstanceRo>)> {
         match self {
             GivenFeedOrPluginInstance::FeedId(id) => client
                 .get_feed(id)
@@ -93,9 +94,9 @@ async fn get_plinst_and_feed(
     client: &Client,
     p: GivenPluginInstance,
     old: Option<PluginInstanceId>,
-) -> Result<(FeedRo, PluginInstanceResponse)> {
+) -> Result<(FeedRo, PluginInstanceRo)> {
     let plinst = p.get_using(client, old).await?;
-    let feed = client.get_feed(plinst.feed_id).await?;
+    let feed = plinst.feed().get().await?;
     Ok((feed, plinst))
 }
 
@@ -113,14 +114,14 @@ fn parse_feed_id_from_url(url: &str) -> Option<FeedId> {
 async fn print_status(
     client: RoClient,
     feed: Option<FeedRo>,
-    plinst: Option<PluginInstanceResponse>,
+    plinst: Option<PluginInstanceRo>,
     ui_url: Option<UiUrl>,
 ) -> Result<()> {
     if let Some(plugin_instance) = plinst {
         if let Some(feed) = feed {
             print_branch_status(&client, feed, plugin_instance, ui_url).await
         } else {
-            let feed = client.get_feed(plugin_instance.feed_id).await?;
+            let feed = plugin_instance.feed().get().await?;
             print_branch_status(&client, feed, plugin_instance, ui_url).await
         }
     } else if let Some(feed) = feed {
@@ -128,16 +129,4 @@ async fn print_status(
     } else {
         Ok(())
     }
-}
-
-
-async fn print_branch_status(
-    client: &RoClient,
-    feed: FeedRo,
-    plinst: PluginInstanceResponse,
-    ui_url: Option<UiUrl>,
-) -> Result<()> {
-    only_print_feed_status(feed, ui_url).await?;
-    println!("PRINTING THE PLUGIN INSTANCE BRANCH IS NOT YET IMPLEMENTED");
-    Ok(())
 }

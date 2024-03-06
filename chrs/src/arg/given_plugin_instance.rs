@@ -1,6 +1,6 @@
 use crate::client::Client;
 use chris::types::PluginInstanceId;
-use chris::{BaseChrisClient, ChrisClient, PluginInstanceResponse};
+use chris::{Access, BaseChrisClient, ChrisClient, LinkedModel, PluginInstanceResponse, PluginInstanceRo};
 use color_eyre::eyre;
 use color_eyre::eyre::{bail, OptionExt, Result};
 use color_eyre::owo_colors::OwoColorize;
@@ -78,7 +78,7 @@ impl GivenPluginInstance {
         self,
         client: &Client,
         old: Option<PluginInstanceId>,
-    ) -> Result<PluginInstanceResponse> {
+    ) -> Result<PluginInstanceRo> {
         match self {
             Self::Id(id) => client
                 .get_plugin_instance(id)
@@ -94,7 +94,7 @@ async fn get_by_title(
     client: &Client,
     name: String,
     old: Option<PluginInstanceId>,
-) -> Result<PluginInstanceResponse> {
+) -> Result<PluginInstanceRo> {
     if let Client::LoggedIn(chris) = client {
         search_title(chris, name, old).await
     } else {
@@ -106,7 +106,7 @@ async fn search_title(
     chris: &ChrisClient,
     title: String,
     old: Option<PluginInstanceId>,
-) -> Result<PluginInstanceResponse> {
+) -> Result<PluginInstanceRo> {
     if let Some(old) = old {
         if let Some(res) = search_title_within_feed(chris, title.clone(), old).await? {
             return Ok(res);
@@ -119,7 +119,7 @@ async fn search_title_within_feed(
     chris: &ChrisClient,
     title: String,
     old: PluginInstanceId,
-) -> Result<Option<PluginInstanceResponse>> {
+) -> Result<Option<PluginInstanceRo>> {
     let old = chris.get_plugin_instance(old).await?;
     let query = chris
         .plugin_instances()
@@ -127,7 +127,7 @@ async fn search_title_within_feed(
         .title(title)
         .page_limit(10)
         .max_items(10);
-    let items: Vec<_> = query.search().stream().try_collect().await?;
+    let items: Vec<PluginInstanceRo> = query.search().stream_connected().map_ok(|p| p.into()).try_collect().await?;
     if items.len() > 1 {
         bail!(
             "Multiple plugin instances found. Please specify: {}",
@@ -140,9 +140,9 @@ async fn search_title_within_feed(
 async fn search_title_any_feed(
     chris: &ChrisClient,
     title: String,
-) -> Result<PluginInstanceResponse> {
+) -> Result<PluginInstanceRo> {
     let query = chris.plugin_instances().title(title);
-    let items: Vec<_> = query.search().stream().try_collect().await?;
+    let items: Vec<_> = query.search().stream_connected().try_collect().await?;
     if items.len() > 1 {
         bail!(
             "Multiple plugin instances found. Please specify: {}",
@@ -152,22 +152,23 @@ async fn search_title_any_feed(
     items
         .into_iter()
         .next()
+        .map(|p| p.into())
         .ok_or_eyre("Plugin instance not found")
 }
 
-fn plugin_instance_string(p: &PluginInstanceResponse) -> String {
-    format!("plugininstance/{}", p.id.0)
+fn plugin_instance_string<A: Access>(p: &LinkedModel<PluginInstanceResponse, A>) -> String {
+    format!("plugininstance/{}", p.object.id.0)
 }
 
 async fn get_parents(
     client: &Client,
     parents: u32,
     old: Option<PluginInstanceId>,
-) -> Result<PluginInstanceResponse> {
+) -> Result<PluginInstanceRo> {
     let old_id = old.ok_or_eyre("No current plugin instance context, cannot get previous.")?;
     let mut current = client.get_plugin_instance(old_id).await?;
     for i in 0..parents {
-        if let Some(previous_id) = current.previous_id {
+        if let Some(previous_id) = current.object.previous_id {
             current = client.get_plugin_instance(previous_id).await?;
         } else {
             eprintln!(

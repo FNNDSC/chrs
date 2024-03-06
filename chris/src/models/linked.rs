@@ -16,15 +16,14 @@ pub struct LinkedModel<T: DeserializeOwned, A: Access> {
     pub(crate) phantom: PhantomData<A>,
 }
 
-impl<T: DeserializeOwned> LinkedModel<T, RwAccess> {
-    pub fn into_ro(self) -> LinkedModel<T, RoAccess> {
+impl<T: DeserializeOwned> From<LinkedModel<T, RwAccess>> for LinkedModel<T, RoAccess> {
+    fn from(value: LinkedModel<T, RwAccess>) -> LinkedModel<T, RoAccess> {
         LinkedModel {
-            client: self.client,
-            object: self.object,
+            client: value.client,
+            object: value.object,
             phantom: Default::default()
         }
     }
-
 }
 
 /// You can think of [LazyLinkedModel] as a lazy [LinkedModel]: it has methods

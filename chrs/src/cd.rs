@@ -10,6 +10,6 @@ pub async fn cd(credentials: Credentials, given_plinst: String) -> Result<()> {
     let username = client.username();
     let plinst = given_plinst.get_using(&client, old_plinst).await?;
     let mut sessions = ChrsSessions::load()?;
-    sessions.set_plugin_instance(&cube_url, &username, plinst.id);
+    sessions.set_plugin_instance(&cube_url, &username, plinst.object.id);
     sessions.save()
 }

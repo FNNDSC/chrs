@@ -3,7 +3,7 @@ use crate::login::UiUrl;
 use chris::errors::CubeError;
 use chris::reqwest::Response;
 use chris::types::{CubeUrl, FeedId, PluginInstanceId, Username};
-use chris::{Access, Account, AnonChrisClient, BaseChrisClient, ChrisClient, FeedRo, LinkedModel, PluginInstanceResponse, RoAccess};
+use chris::{Account, AnonChrisClient, BaseChrisClient, ChrisClient, FeedRo, PluginInstanceRo, RoAccess};
 use color_eyre::eyre::{bail, eyre, Context, Error, OptionExt};
 use color_eyre::owo_colors::OwoColorize;
 use futures::TryStreamExt;
@@ -12,7 +12,6 @@ use reqwest_middleware::Middleware;
 use reqwest_retry::{
     policies::ExponentialBackoff, RetryTransientMiddleware, Retryable, RetryableStrategy,
 };
-use serde::de::DeserializeOwned;
 
 /// A client which accesses read-only APIs only.
 /// It may use authorization, in which case it is able to read private collections.
@@ -50,17 +49,17 @@ impl Client {
     pub async fn get_plugin_instance(
         &self,
         id: PluginInstanceId,
-    ) -> Result<PluginInstanceResponse, CubeError> {
+    ) -> Result<PluginInstanceRo, CubeError> {
         match self {
-            Self::Anon(c) => c.get_plugin_instance(id).await.map(object_of),
-            Self::LoggedIn(c) => c.get_plugin_instance(id).await.map(object_of),
+            Self::Anon(c) => c.get_plugin_instance(id).await,
+            Self::LoggedIn(c) => c.get_plugin_instance(id).await.map(|p| p.into()),
         }
     }
 
     pub async fn get_feed(&self, id: FeedId) -> Result<FeedRo, CubeError> {
         match self {
             Self::Anon(c) => c.get_feed(id).await,
-            Self::LoggedIn(c) => c.get_feed(id).await.map(|f| f.into_ro()),
+            Self::LoggedIn(c) => c.get_feed(id).await.map(|f| f.into()),
         }
     }
 
@@ -74,7 +73,7 @@ impl Client {
                 // need to get both public feeds and private feeds
                 // https://github.com/FNNDSC/ChRIS_ultron_backEnd/issues/530
                 let private_query = c.feeds().name(name).page_limit(10).max_items(10);
-                let private_feeds: Vec<_> = private_query.search().stream_connected().map_ok(|f| f.into_ro()).try_collect().await?;
+                let private_feeds: Vec<_> = private_query.search().stream_connected().map_ok(|f| f.into()).try_collect().await?;
                 if private_feeds.is_empty() {
                     let public_feeds_query =
                         c.public_feeds().name(name).page_limit(10).max_items(10);
@@ -92,10 +91,6 @@ impl Client {
         }
         feeds.into_iter().next().ok_or_eyre("Feed not found")
     }
-}
-
-fn object_of<T: DeserializeOwned, A: Access>(x: LinkedModel<T, A>) -> T {
-    x.object
 }
 
 /// Command-line options of `chrs` which are relevant to identifying the user session
