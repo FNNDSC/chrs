@@ -1,9 +1,8 @@
+use super::access::RoAccess;
 use super::base::fetch_id;
 use super::base::BaseChrisClient;
 use super::filebrowser::FileBrowser;
-use super::search::LIMIT_ZERO;
-use super::searches::{FeedSearchBuilder, PluginSearchBuilder, SearchBuilder};
-use super::access::RoAccess;
+use crate::search::{LIMIT_ZERO, FeedSearchBuilder, PluginSearchBuilder, SearchBuilder};
 use crate::errors::{check, CubeError};
 use crate::models::{BaseResponse, CubeLinks};
 use crate::types::*;
@@ -79,11 +78,11 @@ impl BaseChrisClient<RoAccess> for AnonChrisClient {
     }
 
     fn plugin(&self) -> PluginSearchBuilder<RoAccess> {
-        SearchBuilder::new(&self.client, &self.links.plugins)
+        SearchBuilder::query(&self.client, &self.links.plugins)
     }
 
     fn public_feeds(&self) -> FeedSearchBuilder<RoAccess> {
-        FeedSearchBuilder::new(&self.client, &self.links.public_feeds)
+        FeedSearchBuilder::query(&self.client, &self.links.public_feeds)
     }
 
     async fn get_feed(&self, id: FeedId) -> Result<LinkedModel<FeedResponse, RoAccess>, CubeError> {

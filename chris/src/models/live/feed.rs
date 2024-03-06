@@ -1,6 +1,7 @@
 use crate::errors::{check, CubeError};
 use crate::models::data::FeedResponse;
-use crate::{Access, LinkedModel, NoteResponse, PluginInstanceResponse, RoAccess, RwAccess, Search};
+use crate::search::SearchBuilder;
+use crate::{Access, LinkedModel, NoteResponse, PluginInstanceResponse, RoAccess, RwAccess};
 
 /// ChRIS feed note.
 pub type Note<A> = LinkedModel<NoteResponse, A>;
@@ -22,8 +23,8 @@ impl<A: Access> Feed<A> {
     }
 
     /// Get the plugin instances of this feed.
-    pub async fn get_plugin_instances(&self) -> FeedPluginInstances<A> {
-        Search::collection(&self.client, &self.object.plugin_instances)
+    pub async fn get_plugin_instances<'a>(&'a self) -> FeedPluginInstances<'a, A> {
+        SearchBuilder::collection(&self.client, &self.object.plugin_instances)
     }
 }
 
@@ -58,4 +59,4 @@ impl FeedRw {
     }
 }
 
-type FeedPluginInstances<A> = Search<PluginInstanceResponse, A, ()>;
+type FeedPluginInstances<'a, A> = SearchBuilder<'a, PluginInstanceResponse, A>;

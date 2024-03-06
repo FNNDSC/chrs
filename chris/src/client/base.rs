@@ -1,7 +1,7 @@
-use super::filebrowser::FileBrowser;
-use super::searches::{FeedSearchBuilder, PluginSearchBuilder};
 use super::access::{Access, RoAccess};
+use super::filebrowser::FileBrowser;
 use crate::errors::{check, CubeError};
+use crate::search::{FeedSearchBuilder, PluginSearchBuilder};
 use crate::types::{CubeUrl, FeedId, PluginInstanceId};
 use crate::{FeedResponse, LinkedModel, PluginInstanceResponse};
 use async_trait::async_trait;

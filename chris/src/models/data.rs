@@ -125,7 +125,7 @@ pub struct NoteResponse {
     pub url: ItemUrl,
     pub title: String,
     pub content: String,
-    pub feed: CollectionUrl
+    pub feed: CollectionUrl,
 }
 
 impl FeedResponse {

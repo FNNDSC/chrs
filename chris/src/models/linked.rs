@@ -3,9 +3,9 @@
 use crate::client::access::Access;
 use crate::errors::{check, CubeError};
 use crate::types::ItemUrl;
+use crate::{RoAccess, RwAccess};
 use serde::de::DeserializeOwned;
 use std::marker::PhantomData;
-use crate::{RoAccess, RwAccess};
 
 /// A client to the subset of the *CUBE* API linked to by this object's generic type.
 /// In less fancy speak, [LinkedModel] is a thing which can get, create, modify, or delete
@@ -21,7 +21,7 @@ impl<T: DeserializeOwned> From<LinkedModel<T, RwAccess>> for LinkedModel<T, RoAc
         LinkedModel {
             client: value.client,
             object: value.object,
-            phantom: Default::default()
+            phantom: Default::default(),
         }
     }
 }

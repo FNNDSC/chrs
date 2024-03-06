@@ -1,5 +1,5 @@
 use bytes::Bytes;
-use chris::{types::*, AnonChrisClient, BaseChrisClient, ChrisPlugin, Downloadable};
+use chris::{types::*, AnonChrisClient, BaseChrisClient, Downloadable};
 use futures::{future, pin_mut, StreamExt, TryStreamExt};
 use rstest::*;
 use std::collections::HashSet;
@@ -48,7 +48,7 @@ async fn test_filebrowser_download_file(chris_client: &AnonChrisClient) -> AnyRe
         .readdir("chrisui/feed_310/pl-dircopy_313/pl-unstack-folders_314/pl-mri-preview_875/data")
         .await?
         .expect("Filebrowser path not found");
-    let search = entry.iter_files();
+    let search = entry.iter_files(None);
     let search_results = search.stream_connected().try_filter(|f| {
         future::ready(
             f.object
@@ -84,7 +84,7 @@ async fn test_get_plugin_parameters(chris_client: &AnonChrisClient) -> AnyResult
         .search()
         .get_only()
         .await?;
-    let params: Vec<_> = plugin.get_parameters().stream().try_collect().await?;
+    let params: Vec<_> = plugin.get_parameters(None).stream().try_collect().await?;
     let expected = HashSet::from(["--inputs", "--outputs", "--background", "--units-fallback"]);
     let actual = HashSet::from_iter(params.iter().map(|p| p.flag.as_str()));
     assert_eq!(expected, actual);

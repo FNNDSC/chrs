@@ -1,6 +1,6 @@
 //! CUBE filebrowser API client module.
 
-use super::search::Search;
+use crate::search::Search;
 use crate::client::access::RoAccess;
 use crate::errors::{check, CubeError};
 use crate::models::CubeFile;
@@ -115,9 +115,9 @@ impl FileBrowserEntry {
     }
 
     /// Iterate over files.
-    pub fn iter_files(&self) -> Search<CubeFile, RoAccess, ()> {
+    pub fn iter_files(&self, max_items: Option<usize>) -> Search<CubeFile, RoAccess, ()> {
         if let Some(url) = &self.files {
-            Search::collection(&self.client, url)
+            Search::collection(&self.client, url, (), max_items)
         } else {
             Search::Empty
         }

@@ -9,15 +9,15 @@ mod requests;
 pub mod errors;
 // pub mod pipeline;
 mod account;
+pub mod search;
 pub mod types;
 
 pub use account::Account;
+pub use client::access::{Access, RoAccess, RwAccess};
 pub use client::anon::AnonChrisClient;
 pub use client::authed::ChrisClient;
 pub use client::base::BaseChrisClient;
 pub use client::filebrowser::{FileBrowser, FileBrowserEntry};
-pub use client::search::Search;
-pub use client::access::{Access, RoAccess, RwAccess};
 pub use models::*;
 
 // re-export

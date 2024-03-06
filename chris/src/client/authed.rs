@@ -1,11 +1,10 @@
-use super::base::fetch_id;
-use super::search::LIMIT_ZERO;
-use super::searches::{
-    FeedSearchBuilder, PluginInstanceSearchBuilder, PluginSearchBuilder, SearchBuilder,
-};
 use super::access::RoAccess;
+use super::base::fetch_id;
 use crate::errors::{check, CubeError, FileIOError};
 use crate::models::{BaseResponse, CubeLinks, FileUploadResponse};
+use crate::search::{
+    FeedSearchBuilder, PluginInstanceSearchBuilder, PluginSearchBuilder, SearchBuilder, LIMIT_ZERO,
+};
 use crate::types::*;
 use crate::{
     Access, BaseChrisClient, FeedResponse, FileBrowser, LinkedModel, PluginInstanceResponse,
@@ -107,7 +106,7 @@ impl<A: Access> AuthedChrisClient<A> {
 
     /// Search for feeds
     pub fn feeds(&self) -> FeedSearchBuilder<A> {
-        FeedSearchBuilder::new(&self.client, &self.feeds_url)
+        FeedSearchBuilder::query(&self.client, &self.feeds_url)
     }
 
     // ==================================================
@@ -194,11 +193,11 @@ impl<A: Access> BaseChrisClient<A> for AuthedChrisClient<A> {
     }
 
     fn plugin(&self) -> PluginSearchBuilder<A> {
-        SearchBuilder::new(&self.client, &self.links.plugins)
+        SearchBuilder::query(&self.client, &self.links.plugins)
     }
 
     fn public_feeds(&self) -> FeedSearchBuilder<RoAccess> {
-        FeedSearchBuilder::new(&self.client, &self.links.public_feeds)
+        FeedSearchBuilder::query(&self.client, &self.links.public_feeds)
     }
 
     async fn get_feed(&self, id: FeedId) -> Result<LinkedModel<FeedResponse, A>, CubeError> {
@@ -229,6 +228,6 @@ impl ChrisClient {
 
 impl<A: Access> AuthedChrisClient<A> {
     pub fn plugin_instances(&self) -> PluginInstanceSearchBuilder<A> {
-        PluginInstanceSearchBuilder::new(&self.client, &self.links.plugin_instances)
+        PluginInstanceSearchBuilder::collection(&self.client, &self.links.plugin_instances)
     }
 }

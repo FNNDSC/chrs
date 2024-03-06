@@ -1,13 +1,14 @@
 //! Helpers for pagination.
 
-use super::access::Access;
 use crate::errors::{check, CubeError};
 use crate::models::LinkedModel;
+use crate::types::CollectionUrl;
+use crate::Access;
 use async_stream::{stream, try_stream};
 use futures::Stream;
+use reqwest_middleware::ClientWithMiddleware;
 use serde::{de::DeserializeOwned, Deserialize, Serialize};
 use std::marker::PhantomData;
-use crate::types::CollectionUrl;
 
 /// An abstraction over collection APIs, i.e. paginated API endpoints which return a `results` list.
 ///
@@ -23,7 +24,7 @@ pub enum Search<R: DeserializeOwned, A: Access, Q: Serialize + Sized> {
 
 /// The "some" variant of [Search].
 pub struct ActualSearch<R: DeserializeOwned, A: Access, Q: Serialize + Sized> {
-    client: reqwest_middleware::ClientWithMiddleware,
+    client: ClientWithMiddleware,
     base_url: String,
     query: Q,
     phantom: PhantomData<(R, A)>,
@@ -131,42 +132,44 @@ impl<R: DeserializeOwned, A: Access, Q: Serialize + Sized> ActualSearch<R, A, Q>
     }
 }
 
-impl<R: DeserializeOwned, A: Access> Search<R, A, ()> {
-    /// Constructor for retrieving items from the given `base_url` itself
-    /// (instead of `{base_url}search/`), without any query parameters.
-    pub(crate) fn collection(
-        client: &reqwest_middleware::ClientWithMiddleware,
-        base_url: &CollectionUrl,
-    ) -> Self {
-        let s = ActualSearch {
-            client: client.clone(),
-            base_url: base_url.to_string(),
-            query: (),
-            phantom: Default::default(),
-            is_search: false,
-            max_items: None,
-        };
-        Self::Search(s)
-    }
-}
-
 impl<R: DeserializeOwned, A: Access, Q: Serialize + Sized> Search<R, A, Q> {
-    /// Create a search query.
-    pub(crate) fn search(
+    fn new(
         client: &reqwest_middleware::ClientWithMiddleware,
         base_url: &CollectionUrl,
         query: Q,
         max_items: Option<usize>,
+        is_search: bool,
     ) -> Self {
         let s = ActualSearch {
             client: client.clone(),
             base_url: base_url.to_string(),
             query,
-            phantom: Default::default(),
-            is_search: true,
+            is_search,
             max_items,
+            phantom: Default::default(),
         };
         Self::Search(s)
+    }
+
+    /// Create a search query.
+    pub(crate) fn search(
+        client: &ClientWithMiddleware,
+        base_url: &CollectionUrl,
+        query: Q,
+        max_items: Option<usize>,
+    ) -> Self {
+        Self::new(client, base_url, query, max_items, true)
+    }
+
+    /// Constructor for retrieving items from the given `base_url` itself
+    /// (instead of `{base_url}search/`), without any query parameters.
+    pub(crate) fn collection(
+        client: &ClientWithMiddleware,
+        base_url: &CollectionUrl,
+        query: Q,
+        max_items: Option<usize>,
+    ) -> Self {
+        Self::new(client, base_url, query, max_items, false)
     }
 
     /// Get the count of items in this collection.
