@@ -39,7 +39,7 @@ impl<'a, A: Access, T: DeserializeOwned> SearchBuilder<'a, A, T> {
 
     /// Complete the search query
     pub fn search(&self) -> Search<T, A, &HashMap<&'static str, QueryValue>> {
-        Search::new(self.client, self.url, &self.query, self.max_items)
+        Search::search(self.client, self.url, &self.query, self.max_items)
     }
 
     /// Set maximum number of items to return per page. The only reason to set this would

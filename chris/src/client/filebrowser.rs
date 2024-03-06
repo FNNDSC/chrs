@@ -121,7 +121,7 @@ impl FileBrowserEntry {
     /// Iterate over files.
     pub fn iter_files(&self) -> Search<CubeFile, RoAccess, ()> {
         if let Some(url) = &self.files {
-            Search::basic(&self.client, url)
+            Search::collection(&self.client, url)
         } else {
             Search::Empty
         }

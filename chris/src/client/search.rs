@@ -30,10 +30,8 @@ pub struct ActualSearch<R: DeserializeOwned, A: Access, Q: Serialize + Sized> {
     /// Maximum number of items to produce
     max_items: Option<usize>,
 
-    // The perfectionist approach would be to define another enum variant,
-    // the least-code approach would be to use `dyn`
-    /// Bad-ish boolean.
-    basic: bool,
+    /// Whether to append "search/" to the URL.
+    is_search: bool,
 }
 
 impl<R: DeserializeOwned, A: Access, Q: Serialize + Sized> ActualSearch<R, A, Q> {
@@ -54,12 +52,12 @@ impl<R: DeserializeOwned, A: Access, Q: Serialize + Sized> ActualSearch<R, A, Q>
 impl<R: DeserializeOwned, A: Access, Q: Serialize + Sized> ActualSearch<R, A, Q> {
     /// Create a HTTP GET request for this search.
     fn get_search(&self) -> reqwest_middleware::RequestBuilder {
-        if self.basic {
-            let url = self.base_url.as_str();
-            self.client.get(url)
-        } else {
+        if self.is_search {
             let url = format!("{}search/", &self.base_url);
             self.client.get(url).query(&self.query)
+        } else {
+            let url = self.base_url.as_str();
+            self.client.get(url)
         }
     }
 
@@ -135,7 +133,7 @@ impl<R: DeserializeOwned, A: Access, Q: Serialize + Sized> ActualSearch<R, A, Q>
 impl<R: DeserializeOwned, A: Access> Search<R, A, ()> {
     /// Constructor for retrieving items from the given `base_url` itself
     /// (instead of `{base_url}search/`), without any query parameters.
-    pub(crate) fn basic(
+    pub(crate) fn collection(
         client: &reqwest_middleware::ClientWithMiddleware,
         base_url: impl ToString,
     ) -> Self {
@@ -144,7 +142,7 @@ impl<R: DeserializeOwned, A: Access> Search<R, A, ()> {
             base_url: base_url.to_string(),
             query: (),
             phantom: Default::default(),
-            basic: true,
+            is_search: false,
             max_items: None,
         };
         Self::Search(s)
@@ -153,7 +151,7 @@ impl<R: DeserializeOwned, A: Access> Search<R, A, ()> {
 
 impl<R: DeserializeOwned, A: Access, Q: Serialize + Sized> Search<R, A, Q> {
     /// Create a search query.
-    pub(crate) fn new(
+    pub(crate) fn search(
         client: &reqwest_middleware::ClientWithMiddleware,
         base_url: impl ToString,
         query: Q,
@@ -164,7 +162,7 @@ impl<R: DeserializeOwned, A: Access, Q: Serialize + Sized> Search<R, A, Q> {
             base_url: base_url.to_string(),
             query,
             phantom: Default::default(),
-            basic: false,
+            is_search: true,
             max_items,
         };
         Self::Search(s)

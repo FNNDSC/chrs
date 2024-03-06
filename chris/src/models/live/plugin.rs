@@ -40,12 +40,12 @@ pub trait ChrisPlugin {
 
 impl ChrisPlugin for Plugin {
     fn get_parameters(&self) -> Search<PluginParameter, RoAccess, ()> {
-        Search::basic(&self.client, &self.object.parameters)
+        Search::collection(&self.client, &self.object.parameters)
     }
 }
 
 impl ChrisPlugin for PublicPlugin {
     fn get_parameters(&self) -> Search<PluginParameter, RoAccess, ()> {
-        Search::basic(&self.client, &self.object.parameters)
+        Search::collection(&self.client, &self.object.parameters)
     }
 }
