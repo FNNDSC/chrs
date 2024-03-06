@@ -17,6 +17,10 @@ pub struct PluginId(pub u32);
 #[derive(Copy, Clone, Shrinkwrap, Serialize, Deserialize, Debug, Hash, Eq, PartialEq)]
 pub struct FeedId(pub u32);
 
+/// Feed note ID
+#[derive(Copy, Clone, Shrinkwrap, Serialize, Deserialize, Debug, Hash, Eq, PartialEq)]
+pub struct NoteId(pub u32);
+
 /// Plugin instance ID
 #[derive(Copy, Clone, Shrinkwrap, Serialize, Deserialize, Debug, Hash, Eq, PartialEq)]
 pub struct PluginInstanceId(pub u32);

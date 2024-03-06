@@ -1,6 +1,6 @@
 use crate::errors::{check, CubeError};
 use crate::models::data::FeedResponse;
-use crate::{LinkedModel, RoAccess, RwAccess};
+use crate::{Access, LinkedModel, NoteResponse, RoAccess, RwAccess};
 //
 // pub struct ShallowFeed {
 //     client: Client,
@@ -22,6 +22,33 @@ use crate::{LinkedModel, RoAccess, RwAccess};
 //         Ok(check(res).await?.json().await?)
 //     }
 // }
+
+/// ChRIS feed note.
+pub type Note<A> = LinkedModel<NoteResponse, A>;
+
+/// ChRIS feed.
+pub type Feed<A> = LinkedModel<FeedResponse, A>;
+
+impl<A: Access> Feed<A> {
+    /// Get the note of this feed.
+    pub async fn get_note(&self) -> Result<Note<A>, CubeError> {
+        let url = self.object.note.as_str();
+        let res = self.client.get(url).send().await?;
+        let object = check(res).await?.json().await?;
+        Ok(LinkedModel {
+            client: self.client.clone(),
+            object,
+            phantom: Default::default(),
+        })
+    }
+}
+
+impl<A: Access> Note<A> {
+    /// Is the content of this note empty?
+    pub fn is_empty(&self) -> bool {
+        self.object.content.is_empty()
+    }
+}
 
 /// A feed which you can edit.
 pub type FeedRw = LinkedModel<FeedResponse, RwAccess>;

@@ -119,6 +119,15 @@ pub struct FeedResponse {
     pub plugin_instances: CollectionUrl,
 }
 
+#[derive(Deserialize)]
+pub struct NoteResponse {
+    pub id: NoteId,
+    pub url: ItemUrl,
+    pub title: String,
+    pub content: String,
+    pub feed: CollectionUrl
+}
+
 impl FeedResponse {
     pub fn pending_jobs(&self) -> u32 {
         self.created_jobs + self.waiting_jobs + self.scheduled_jobs

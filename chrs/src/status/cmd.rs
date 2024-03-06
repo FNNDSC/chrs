@@ -176,7 +176,11 @@ async fn only_print_feed_status(feed: FeedRo, ui_url: Option<UiUrl>) -> Result<(
         .dimmed()
     );
 
-    // TODO get note
+    let note = feed.get_note().await?;
+    if !note.is_empty() {
+        println!("{}", &bar);
+        println!("{} {}", &bar, note.object.content);  // TODO split lines to fit screen
+    }
 
     Ok(())
 }
