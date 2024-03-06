@@ -5,7 +5,6 @@ use crate::client::access::RoAccess;
 use crate::errors::{check, CubeError};
 use crate::models::CubeFile;
 use crate::types::*;
-use aliri_braid::braid;
 use serde::Deserialize;
 use serde::Serialize;
 use serde_with::json::JsonString;
@@ -72,11 +71,8 @@ struct FileBrowserDir {
     #[serde_as(as = "JsonString")]
     subfolders: Vec<String>,
     // url: String,
-    files: Option<FileBrowserFilesUrl>,
+    files: Option<CollectionUrl>,
 }
-
-#[braid(serde)]
-struct FileBrowserFilesUrl;
 
 /// A filebrowser API response, which contains a listing for a _ChRIS_ file path.
 pub struct FileBrowserEntry {
@@ -86,7 +82,7 @@ pub struct FileBrowserEntry {
     // url: String,
     /// API Url for files immediately under this path.
     /// Is `None` if path is `""` (root).
-    files: Option<FileBrowserFilesUrl>,
+    files: Option<CollectionUrl>,
 }
 
 impl FileBrowserEntry {

@@ -1,27 +1,6 @@
 use crate::errors::{check, CubeError};
 use crate::models::data::FeedResponse;
-use crate::{Access, LinkedModel, NoteResponse, RoAccess, RwAccess};
-//
-// pub struct ShallowFeed {
-//     client: Client,
-//     pub url: FeedUrl,
-// }
-//
-// impl ShallowFeed {
-//     pub(crate) fn new(client: Client, url: FeedUrl) -> Self {
-//         Self { client, url }
-//     }
-//
-//     pub async fn set_name(&self, name: &str) -> Result<FeedResponse, CUBEError> {
-//         let res = self
-//             .client
-//             .put(self.url.as_str())
-//             .json(&SetFeedNameBody { name })
-//             .send()
-//             .await?;
-//         Ok(check(res).await?.json().await?)
-//     }
-// }
+use crate::{Access, LinkedModel, NoteResponse, PluginInstanceResponse, RoAccess, RwAccess, Search};
 
 /// ChRIS feed note.
 pub type Note<A> = LinkedModel<NoteResponse, A>;
@@ -40,6 +19,11 @@ impl<A: Access> Feed<A> {
             object,
             phantom: Default::default(),
         })
+    }
+
+    /// Get the plugin instances of this feed.
+    pub async fn get_plugin_instances(&self) -> FeedPluginInstances<A> {
+        Search::collection(&self.client, &self.object.plugin_instances)
     }
 }
 
@@ -73,3 +57,5 @@ impl FeedRw {
         })
     }
 }
+
+type FeedPluginInstances<A> = Search<PluginInstanceResponse, A, ()>;

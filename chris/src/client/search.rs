@@ -7,6 +7,7 @@ use async_stream::{stream, try_stream};
 use futures::Stream;
 use serde::{de::DeserializeOwned, Deserialize, Serialize};
 use std::marker::PhantomData;
+use crate::types::CollectionUrl;
 
 /// An abstraction over collection APIs, i.e. paginated API endpoints which return a `results` list.
 ///
@@ -135,7 +136,7 @@ impl<R: DeserializeOwned, A: Access> Search<R, A, ()> {
     /// (instead of `{base_url}search/`), without any query parameters.
     pub(crate) fn collection(
         client: &reqwest_middleware::ClientWithMiddleware,
-        base_url: impl ToString,
+        base_url: &CollectionUrl,
     ) -> Self {
         let s = ActualSearch {
             client: client.clone(),
@@ -153,7 +154,7 @@ impl<R: DeserializeOwned, A: Access, Q: Serialize + Sized> Search<R, A, Q> {
     /// Create a search query.
     pub(crate) fn search(
         client: &reqwest_middleware::ClientWithMiddleware,
-        base_url: impl ToString,
+        base_url: &CollectionUrl,
         query: Q,
         max_items: Option<usize>,
     ) -> Self {
