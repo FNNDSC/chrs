@@ -31,9 +31,10 @@ pub async fn print_branch_status(
 
     println!("\n{}", unicode::HORIZONTAL_BAR.repeat(40).dimmed());
 
+    let branch_len = branch.len();
     for (i, plinst) in branch.into_iter().enumerate() {
         let is_current = plinst.object.id == selected.object.id;
-        let has_next = i + 1 < all_plinst.len();
+        let has_next = i + 1 < branch_len;
         println!("{} {}", symbol_for(plinst), title_of(plinst, is_current));
         let pipe = if has_next { '|' } else { ' ' };
         let cmd = cmd_of(plinst, threads, show_execshell).await?;
