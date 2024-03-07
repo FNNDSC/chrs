@@ -152,6 +152,7 @@ impl<R: DeserializeOwned, A: Access, Q: Serialize + Sized> Search<R, A, Q> {
     }
 
     /// Create a search query.
+    #[allow(clippy::self_named_constructors)]
     pub(crate) fn search(
         client: &ClientWithMiddleware,
         base_url: &CollectionUrl,
