@@ -2,7 +2,8 @@
 
 use crate::types::*;
 use serde::Deserialize;
-use time::{OffsetDateTime};
+use serde_with::serde_as;
+use time::OffsetDateTime;
 
 #[derive(Deserialize)]
 pub(crate) struct BaseResponse {
@@ -156,6 +157,7 @@ impl FeedResponse {
     }
 }
 
+#[serde_as]
 #[derive(Deserialize, Debug)]
 pub struct PluginInstanceResponse {
     pub url: ItemUrl,
@@ -177,7 +179,8 @@ pub struct PluginInstanceResponse {
     pub end_date: OffsetDateTime,
     pub output_path: String,
     pub status: Status,
-    pub summary: String,
+    #[serde_as(as = "serde_with::json::JsonString")]
+    pub summary: PluginInstanceSummary,
     pub raw: String,
     pub owner_username: Username,
     pub cpu_limit: u32,
@@ -194,6 +197,36 @@ pub struct PluginInstanceResponse {
     pub files: CollectionUrl,
     pub parameters: CollectionUrl,
     pub splits: CollectionUrl,
+}
+
+/// See https://github.com/FNNDSC/ChRIS_ultron_backEnd/blob/01b2928f65738d4266d210d80dc02eba3e530b20/chris_backend/plugininstances/services/manager.py#L862-L885
+#[derive(Deserialize, Debug)]
+#[serde(rename_all = "camelCase")]
+pub struct PluginInstanceSummary {
+    pub push_path: SummaryStatus,
+    pub pull_path: SummaryStatus,
+    pub compute: SummaryCompute,
+}
+
+#[derive(Deserialize, Debug)]
+pub struct SummaryStatus {
+    pub status: bool,
+}
+
+
+#[derive(Deserialize, Debug)]
+pub struct SummaryCompute {
+    pub submit: SummaryStatus,
+    #[serde(rename = "return")]
+    pub return_status: PluginInstanceReturnStatus,
+}
+
+
+#[derive(Deserialize, Debug)]
+pub struct PluginInstanceReturnStatus {
+    pub status: bool,
+    pub job_status: String,
+    pub job_logs: String,
 }
 
 #[derive(Deserialize, Debug, Clone, PartialEq)]

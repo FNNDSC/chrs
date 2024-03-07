@@ -1,14 +1,6 @@
-mod arg;
-mod cd;
-mod client;
-mod files;
-mod login;
-mod ls;
-mod status;
-pub mod unicode;
-mod whoami;
-
 use clap::{builder::NonEmptyStringValueParser, Parser, Subcommand};
+
+use chris::types::{CubeUrl, Username};
 
 use crate::cd::cd;
 use crate::client::Credentials;
@@ -16,10 +8,21 @@ use crate::login::cmd::{login, logout};
 use crate::login::store::Backend;
 use crate::login::switch::switch_login;
 use crate::login::UiUrl;
+use crate::logs::logs;
 use crate::ls::{ls, LsArgs};
 use crate::status::cmd::status;
 use crate::whoami::whoami;
-use chris::types::{CubeUrl, Username};
+
+mod arg;
+mod cd;
+mod client;
+mod files;
+mod login;
+mod logs;
+mod ls;
+mod status;
+pub mod unicode;
+mod whoami;
 
 #[derive(Parser)]
 #[clap(
@@ -105,6 +108,11 @@ enum Commands {
         feed_or_plugin_instance: Option<String>,
     },
 
+    /// Show the logs of a plugin instance
+    Logs {
+        /// Plugin instance
+        plugin_instance: Option<String>,
+    },
     //
     // /// Get detailed information about a ChRIS object
     // ///
@@ -302,5 +310,6 @@ async fn main() -> color_eyre::eyre::Result<()> {
             )
             .await
         }
+        Commands::Logs { plugin_instance } => logs(credentials, plugin_instance).await,
     }
 }
