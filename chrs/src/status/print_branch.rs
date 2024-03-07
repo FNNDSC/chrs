@@ -3,6 +3,7 @@ use std::fmt::Display;
 use color_eyre::eyre::{bail, eyre, Result};
 use color_eyre::eyre;
 use color_eyre::owo_colors::OwoColorize;
+use dialoguer::console::Term;
 use futures::TryStreamExt;
 use itertools::Itertools;
 use tokio::try_join;
@@ -31,16 +32,22 @@ pub async fn print_branch_status(
 
     println!("\n{}", unicode::HORIZONTAL_BAR.repeat(40).dimmed());
 
+    let term_cols = std::cmp::min(Term::stdout().size().1, 120) as usize;
     let branch_len = branch.len();
     for (i, plinst) in branch.into_iter().enumerate() {
         let is_current = plinst.object.id == selected.object.id;
         let has_next = i + 1 < branch_len;
         println!("{} {}", symbol_for(plinst), title_of(plinst, is_current));
-        let pipe = if has_next { '|' } else { ' ' };
+        let pipe = if has_next { unicode::VERTICAL_BAR } else { " " };
         let cmd = cmd_of(plinst, threads, show_execshell).await?;
-        println!("{} {}", pipe, cmd.dimmed());
+        let mut is_first = true;
+        for line in textwrap::wrap(cmd.as_str(), term_cols) {
+            let space = if is_first { " " } else { "     " };
+            println!("{}{}{}", pipe.dimmed(), space, line.dimmed());
+            is_first = false;
+        }
         if has_next {
-            println!("{}", pipe)
+            println!("{}", pipe.dimmed())
         }
     }
     Ok(())
