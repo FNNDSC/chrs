@@ -25,7 +25,11 @@ pub struct NoteId(pub u32);
 #[derive(Copy, Clone, Shrinkwrap, Serialize, Deserialize, Debug, Hash, Eq, PartialEq)]
 pub struct PluginInstanceId(pub u32);
 
-/// Plugin Parameter ID
+/// Plugin instance parameter ID
+#[derive(Shrinkwrap, Deserialize, Debug, Copy, Clone, Eq, PartialEq)]
+pub struct PluginInstanceParameterId(pub u32);
+
+/// Plugin parameter ID
 #[derive(Shrinkwrap, Deserialize, Debug, Copy, Clone, Eq, PartialEq)]
 pub struct PluginParameterId(pub u32);
 

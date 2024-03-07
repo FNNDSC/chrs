@@ -1,19 +1,75 @@
 //! Structs which represent *CUBE* resources that are connected/linked to other *CUBE* resources.
 
+use std::marker::PhantomData;
+
+use serde::de::DeserializeOwned;
+use serde::Serialize;
+
 use crate::client::access::Access;
 use crate::errors::{check, CubeError};
-use crate::types::ItemUrl;
+use crate::search::SearchBuilder;
+use crate::types::{CollectionUrl, ItemUrl};
 use crate::{RoAccess, RwAccess};
-use serde::de::DeserializeOwned;
-use std::marker::PhantomData;
 
 /// A client to the subset of the *CUBE* API linked to by this object's generic type.
 /// In less fancy speak, [LinkedModel] is a thing which can get, create, modify, or delete
 /// other things or even itself.
 pub struct LinkedModel<T: DeserializeOwned, A: Access> {
-    pub(crate) client: reqwest_middleware::ClientWithMiddleware,
     pub object: T,
+    pub(crate) client: reqwest_middleware::ClientWithMiddleware,
     pub(crate) phantom: PhantomData<A>,
+}
+
+impl<T: DeserializeOwned, A: Access> LinkedModel<T, A> {
+    /// Get a lazy object of a link
+    pub(crate) fn get_lazy<'a, R: DeserializeOwned>(
+        &'a self,
+        url: &'a ItemUrl,
+    ) -> LazyLinkedModel<R, A> {
+        LazyLinkedModel {
+            url,
+            client: &self.client,
+            phantom: Default::default(),
+        }
+    }
+
+    /// Get items in a collection
+    pub(crate) fn get_collection<'a, R: DeserializeOwned>(
+        &'a self,
+        url: &'a CollectionUrl,
+    ) -> SearchBuilder<R, A> {
+        SearchBuilder::collection(&self.client, url)
+    }
+
+    /// HTTP put request
+    pub(crate) async fn put<S: Serialize + ?Sized>(
+        &self,
+        url: &ItemUrl,
+        data: &S,
+    ) -> Result<Self, CubeError> {
+        let res = self.client.put(url.as_str()).json(data).send().await?;
+        let data = check(res).await?.json().await?;
+        Ok(Self {
+            client: self.client.clone(),
+            object: data,
+            phantom: Default::default(),
+        })
+    }
+
+    /// HTTP POST request
+    pub(crate) async fn post<S: Serialize + ?Sized, R: DeserializeOwned>(
+        &self,
+        url: &CollectionUrl,
+        data: &S,
+    ) -> Result<LinkedModel<R, A>, CubeError> {
+        let res = self.client.post(url.as_str()).json(data).send().await?;
+        let data = check(res).await?.json().await?;
+        Ok(LinkedModel {
+            client: self.client.clone(),
+            object: data,
+            phantom: Default::default(),
+        })
+    }
 }
 
 impl<T: DeserializeOwned> From<LinkedModel<T, RwAccess>> for LinkedModel<T, RoAccess> {
@@ -31,7 +87,7 @@ impl<T: DeserializeOwned> From<LinkedModel<T, RwAccess>> for LinkedModel<T, RoAc
 /// by calling [LazyLinkedModel::get].
 pub struct LazyLinkedModel<'a, T: DeserializeOwned, A: Access> {
     pub url: &'a ItemUrl,
-    pub(crate) client: reqwest_middleware::ClientWithMiddleware,
+    pub(crate) client: &'a reqwest_middleware::ClientWithMiddleware,
     pub(crate) phantom: PhantomData<(T, A)>,
 }
 
@@ -41,7 +97,7 @@ impl<T: DeserializeOwned, A: Access> LazyLinkedModel<'_, T, A> {
         let data = check(res).await?.json().await?;
         Ok(LinkedModel {
             object: data,
-            client: self.client,
+            client: self.client.clone(),
             phantom: Default::default(),
         })
     }

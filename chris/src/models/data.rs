@@ -189,6 +189,18 @@ pub struct PluginInstanceResponse {
 }
 
 #[derive(Deserialize, Debug, Clone, PartialEq)]
+pub struct PluginInstanceParameterResponse {
+    pub url: ItemUrl,
+    pub id: PluginInstanceParameterId,
+    pub param_name: String,
+    pub value: String,
+    #[serde(rename = "type")]
+    pub parameter_type: PluginParameterType,
+    pub plugin_inst: ItemUrl,
+    pub plugin_param: ItemUrl,
+}
+
+#[derive(Deserialize, Debug, Clone, PartialEq)]
 pub struct PluginParameter {
     pub url: ItemUrl,
     pub id: PluginParameterId,

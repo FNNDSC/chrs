@@ -2,7 +2,7 @@ use bytes::Bytes;
 use chris::{types::*, AnonChrisClient, BaseChrisClient, Downloadable};
 use futures::{future, pin_mut, StreamExt, TryStreamExt};
 use rstest::*;
-use std::collections::HashSet;
+use std::collections::{HashMap, HashSet};
 
 mod helpers;
 use helpers::{AnyResult, TESTING_URL};
@@ -84,7 +84,7 @@ async fn test_get_plugin_parameters(chris_client: &AnonChrisClient) -> AnyResult
         .search()
         .get_only()
         .await?;
-    let params: Vec<_> = plugin.get_parameters(None).stream().try_collect().await?;
+    let params: Vec<_> = plugin.parameters().search().stream().try_collect().await?;
     let expected = HashSet::from(["--inputs", "--outputs", "--background", "--units-fallback"]);
     let actual = HashSet::from_iter(params.iter().map(|p| p.flag.as_str()));
     assert_eq!(expected, actual);
@@ -127,9 +127,27 @@ async fn test_get_feed(chris_client: &AnonChrisClient) -> AnyResult {
 #[rstest]
 #[tokio::test(flavor = "multi_thread")]
 async fn test_get_plugin_instance(chris_client: &AnonChrisClient) -> AnyResult {
-    let id = PluginInstanceId(875);
+    let id = PluginInstanceId(380);
     let pi = chris_client.get_plugin_instance(id).await?;
     assert_eq!(pi.object.id, id);
+    assert_eq!(pi.object.plugin_name.as_str(), "pl-bulk-rename");
+    let actual: HashMap<_, _> = pi
+        .parameters()
+        .search()
+        .stream()
+        .map_ok(|p| (p.param_name, p.value))
+        .try_collect()
+        .await?;
+    let expected_values = &[
+        ("filter", ".*\\.dcm"),
+        ("expression", ".*/(.+\\.dcm)"),
+        ("replacement", "$1"),
+    ];
+    let expected: HashMap<_, _> = expected_values
+        .iter()
+        .map(|(k, v)| (k.to_string(), v.to_string()))
+        .collect();
+    assert_eq!(actual, expected);
     Ok(())
 }
 

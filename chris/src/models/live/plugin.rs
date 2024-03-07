@@ -1,10 +1,11 @@
+use serde::Serialize;
+
 use crate::client::access::{RoAccess, RwAccess};
-use crate::errors::{check, CubeError};
+use crate::errors::CubeError;
 use crate::models::data::{PluginParameter, PluginResponse};
 use crate::models::linked::LinkedModel;
-use crate::search::Search;
+use crate::search::SearchBuilder;
 use crate::{Access, PluginInstanceRw};
-use serde::Serialize;
 
 /// A ChRIS plugin. Call [Plugin::create_instance] to "run" this plugin.
 pub type Plugin = LinkedModel<PluginResponse, RwAccess>;
@@ -18,26 +19,12 @@ impl Plugin {
         &self,
         body: &T,
     ) -> Result<PluginInstanceRw, CubeError> {
-        let res = self
-            .client
-            .post(self.object.instances.as_str())
-            .json(body)
-            .send()
-            .await?;
-        let data = check(res).await?.json().await?;
-        Ok(LinkedModel {
-            client: self.client.clone(),
-            object: data,
-            phantom: Default::default(),
-        })
+        self.post(&self.object.instances, body).await
     }
 }
 
 impl<A: Access> LinkedModel<PluginResponse, A> {
-    pub fn get_parameters(
-        &self,
-        max_items: Option<usize>,
-    ) -> Search<PluginParameter, RoAccess, ()> {
-        Search::collection(&self.client, &self.object.parameters, (), max_items)
+    pub fn parameters(&self) -> SearchBuilder<PluginParameter, A> {
+        self.get_collection(&self.object.parameters)
     }
 }

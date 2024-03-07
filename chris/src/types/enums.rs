@@ -22,7 +22,7 @@ pub enum Status {
     RegisteringFiles,
     FinishedSuccessfully,
     FinishedWithError,
-    Cancelled
+    Cancelled,
 }
 
 impl Status {
@@ -38,7 +38,7 @@ pub enum SimplifiedStatus {
     Running,
     Success,
     Error,
-    Cancelled
+    Cancelled,
 }
 
 impl From<Status> for SimplifiedStatus {
@@ -51,7 +51,7 @@ impl From<Status> for SimplifiedStatus {
             Status::RegisteringFiles => Self::Running,
             Status::FinishedSuccessfully => Self::Success,
             Status::FinishedWithError => Self::Error,
-            Status::Cancelled => Self::Cancelled
+            Status::Cancelled => Self::Cancelled,
         }
     }
 }
