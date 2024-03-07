@@ -213,14 +213,12 @@ pub struct SummaryStatus {
     pub status: bool,
 }
 
-
 #[derive(Deserialize, Debug)]
 pub struct SummaryCompute {
     pub submit: SummaryStatus,
     #[serde(rename = "return")]
     pub return_status: PluginInstanceReturnStatus,
 }
-
 
 #[derive(Deserialize, Debug)]
 pub struct PluginInstanceReturnStatus {

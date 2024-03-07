@@ -1,4 +1,5 @@
 use crate::login::state::ChrsSessions;
+use crate::login::store::CubeState;
 use crate::login::UiUrl;
 use chris::errors::CubeError;
 use chris::reqwest::Response;
@@ -193,9 +194,20 @@ async fn get_client_from_state(
     args: impl IntoIterator<Item = impl AsRef<str>>,
     retry_middleware: Option<impl Middleware>,
 ) -> Result<(Client, Option<PluginInstanceId>, Option<UiUrl>), Error> {
-    let url = cube_url.or_else(|| first_cube_urllike(args));
+    let url = cube_url.clone().or_else(|| first_cube_urllike(args));
     let login = ChrsSessions::load()?
         .get_login(url.as_ref(), username.as_ref())?
+        .or_else(|| {
+            // If --cube is not given, no matching login found, but a URL is found from the
+            // positional args, try doing an anonymous login.
+            cube_url.or(url).map(|cube| CubeState {
+                cube,
+                username: Username::from_static(""),
+                token: None,
+                current_plugin_instance_id: None,
+                ui: ui.clone(),
+            })
+        })
         .ok_or_else(|| {
             Error::msg(format!(
                 "Not logged in. Either use the {} option, or run `{}`",
