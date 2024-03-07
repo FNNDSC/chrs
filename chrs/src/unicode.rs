@@ -8,3 +8,7 @@ pub const BLACK_CIRCLE: &str = "\u{25CF}";
 
 pub const BLACK_UP_POINTING_TRIANGLE: &str = "\u{25B2}";
 pub const BLACK_DOWN_POINTING_TRIANGLE: &str = "\u{25BC}";
+
+pub const HORIZONTAL_BAR: &str = "\u{2015}";
+
+pub const VERTICAL_BAR: &str = "\u{007C}";

@@ -60,7 +60,7 @@ pub struct PipelineResponse {
 
 #[derive(Debug, Deserialize)]
 pub struct PluginResponse {
-    pub url: PluginUrl,
+    pub url: ItemUrl,
     pub id: PluginId,
     pub creation_date: String,
     pub name: PluginName,
@@ -159,7 +159,7 @@ pub struct PluginInstanceResponse {
     /// was deleted.
     pub compute_resource: Option<ItemUrl>,
     pub compute_resource_name: Option<ComputeResourceName>,
-    pub plugin: PluginUrl,
+    pub plugin: ItemUrl,
     pub plugin_id: PluginId,
     pub plugin_name: PluginName,
     pub plugin_version: PluginVersion,
@@ -214,7 +214,7 @@ pub struct PluginParameter {
     pub action: PluginParameterAction,
     pub help: String,
     pub ui_exposed: bool,
-    pub plugin: PluginUrl,
+    pub plugin: ItemUrl,
 }
 
 #[derive(Debug, Deserialize)]

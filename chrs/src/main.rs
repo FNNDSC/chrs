@@ -53,6 +53,10 @@ struct Cli {
     #[clap(long)]
     retries: Option<u32>,
 
+    /// Maximum number of concurrent HTTP requests
+    #[clap(short = 'j', long, default_value_t = 4)]
+    threads: usize,
+
     #[clap(subcommand)]
     command: Commands,
 }
@@ -92,6 +96,10 @@ enum Commands {
 
     /// Show status of a plugin instance and its feed
     Status {
+        /// Print plugin execshell and selfpath
+        #[clap(short, long)]
+        execshell: bool,
+
         /// Feed or plugin instance
         #[clap(value_parser = NonEmptyStringValueParser::new())]
         feed_or_plugin_instance: Option<String>,
@@ -284,6 +292,7 @@ async fn main() -> color_eyre::eyre::Result<()> {
         Commands::Cd { plugin_instance } => cd(credentials, plugin_instance).await,
         Commands::Status {
             feed_or_plugin_instance,
-        } => status(credentials, feed_or_plugin_instance).await,
+            execshell
+        } => status(credentials, feed_or_plugin_instance, args.threads, execshell).await,
     }
 }

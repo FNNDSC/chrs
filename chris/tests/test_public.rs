@@ -131,6 +131,10 @@ async fn test_get_plugin_instance(chris_client: &AnonChrisClient) -> AnyResult {
     let pi = chris_client.get_plugin_instance(id).await?;
     assert_eq!(pi.object.id, id);
     assert_eq!(pi.object.plugin_name.as_str(), "pl-bulk-rename");
+
+    let plugin = pi.plugin().get().await?;
+    assert_eq!(pi.object.plugin_id, plugin.object.id);
+
     let actual: HashMap<_, _> = pi
         .parameters()
         .search()

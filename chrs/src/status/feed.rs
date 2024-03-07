@@ -4,7 +4,7 @@ use crate::login::UiUrl;
 use crate::unicode;
 use dialoguer::console::{Term, style};
 
-pub async fn only_print_feed_status(feed: FeedRo, ui_url: Option<UiUrl>) -> color_eyre::Result<()> {
+pub async fn only_print_feed_status(feed: &FeedRo, ui_url: Option<UiUrl>) -> color_eyre::Result<()> {
     let symbol = feed_symbol_for(&feed.object);
     let name = if feed.object.name.is_empty() {
         "(no name)"
@@ -42,7 +42,7 @@ pub async fn only_print_feed_status(feed: FeedRo, ui_url: Option<UiUrl>) -> colo
         println!("{} {}", &bar, style(dim_line).dim())
     }
 
-    let note = feed.get_note().await?;
+    let note = feed.note().get().await?;
     if !note.is_empty() {
         let term_cols = std::cmp::min(Term::stdout().size().1, 120) as usize;
         println!("{}", &bar);

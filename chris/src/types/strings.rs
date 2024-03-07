@@ -24,10 +24,6 @@ pub struct PluginName;
 #[braid(serde)]
 pub struct PluginVersion;
 
-/// Plugin URL
-#[braid(serde)]
-pub struct PluginUrl;
-
 /// Container image name of a plugin
 #[braid(serde)]
 pub struct DockImage;
