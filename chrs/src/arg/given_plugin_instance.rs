@@ -1,6 +1,8 @@
 use crate::client::Client;
 use chris::types::PluginInstanceId;
-use chris::{Access, BaseChrisClient, ChrisClient, LinkedModel, PluginInstanceResponse, PluginInstanceRo};
+use chris::{
+    Access, BaseChrisClient, ChrisClient, LinkedModel, PluginInstanceResponse, PluginInstanceRo,
+};
 use color_eyre::eyre;
 use color_eyre::eyre::{bail, OptionExt, Result};
 use color_eyre::owo_colors::OwoColorize;
@@ -127,7 +129,12 @@ async fn search_title_within_feed(
         .title(title)
         .page_limit(10)
         .max_items(10);
-    let items: Vec<PluginInstanceRo> = query.search().stream_connected().map_ok(|p| p.into()).try_collect().await?;
+    let items: Vec<PluginInstanceRo> = query
+        .search()
+        .stream_connected()
+        .map_ok(|p| p.into())
+        .try_collect()
+        .await?;
     if items.len() > 1 {
         bail!(
             "Multiple plugin instances found. Please specify: {}",
@@ -137,10 +144,7 @@ async fn search_title_within_feed(
     Ok(items.into_iter().next())
 }
 
-async fn search_title_any_feed(
-    chris: &ChrisClient,
-    title: String,
-) -> Result<PluginInstanceRo> {
+async fn search_title_any_feed(chris: &ChrisClient, title: String) -> Result<PluginInstanceRo> {
     let query = chris.plugin_instances().title(title);
     let items: Vec<_> = query.search().stream_connected().try_collect().await?;
     if items.len() > 1 {

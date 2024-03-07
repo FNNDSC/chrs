@@ -1,16 +1,16 @@
 use std::fmt::Display;
 
-use color_eyre::eyre::{bail, eyre, Result};
 use color_eyre::eyre;
+use color_eyre::eyre::{bail, eyre, Result};
 use color_eyre::owo_colors::OwoColorize;
 use dialoguer::console::Term;
 use futures::TryStreamExt;
 use itertools::Itertools;
 use tokio::try_join;
 
-use chris::{FeedRo, PluginInstanceRo, PublicPlugin};
 use chris::errors::CubeError;
 use chris::types::SimplifiedStatus;
+use chris::{FeedRo, PluginInstanceRo, PublicPlugin};
 
 use crate::login::UiUrl;
 use crate::unicode;
@@ -23,12 +23,17 @@ pub async fn print_branch_status(
     selected: PluginInstanceRo,
     ui_url: Option<UiUrl>,
     threads: usize,
-    show_execshell: bool
+    show_execshell: bool,
 ) -> Result<()> {
     only_print_feed_status(&feed, ui_url).await?;
     let all_plinst = get_all_plugin_instances(&feed).await?;
-    let branch = find_branch_to(*selected.object.id, &all_plinst)
-        .ok_or_else(|| eyre!("plugininstance/{} not found in feed, which contains plugin instances {}", *selected.object.id, all_plinst.iter().map(|p| p.object.id.0).join(",")))?;
+    let branch = find_branch_to(*selected.object.id, &all_plinst).ok_or_else(|| {
+        eyre!(
+            "plugininstance/{} not found in feed, which contains plugin instances {}",
+            *selected.object.id,
+            all_plinst.iter().map(|p| p.object.id.0).join(",")
+        )
+    })?;
 
     println!("\n{}", unicode::HORIZONTAL_BAR.repeat(40).dimmed());
 
@@ -59,7 +64,7 @@ fn symbol_for(plinst: &PluginInstanceRo) -> impl Display {
         SimplifiedStatus::Running => unicode::BLACK_CIRCLE.bold().cyan().to_string(),
         SimplifiedStatus::Success => unicode::BLACK_CIRCLE.bold().blue().to_string(),
         SimplifiedStatus::Error => unicode::BLACK_CIRCLE.bold().bright_red().to_string(),
-        SimplifiedStatus::Cancelled => unicode::WHITE_CIRCLE.dimmed().to_string()
+        SimplifiedStatus::Cancelled => unicode::WHITE_CIRCLE.dimmed().to_string(),
     }
 }
 
@@ -76,16 +81,22 @@ fn title_of(plinst: &PluginInstanceRo, is_current: bool) -> impl Display {
     }
 }
 
-async fn cmd_of(plinst: &PluginInstanceRo, threads: usize, show_execshell: bool) -> Result<String, CubeError> {
+async fn cmd_of(
+    plinst: &PluginInstanceRo,
+    threads: usize,
+    show_execshell: bool,
+) -> Result<String, CubeError> {
     let plinst_parameters = plinst.parameters();
     let plinst_parameters_search = plinst_parameters.search();
     let (plugin, flags): (PublicPlugin, Vec<_>) = try_join!(
         plinst.plugin().get(),
-        plinst_parameters_search.stream_connected()
+        plinst_parameters_search
+            .stream_connected()
             .map_ok(|p| async move {
-                p.plugin_parameter().get().await.map(|pp| {
-                    format!("{}={}", pp.object.flag, shlex_quote(&p.object.value))
-                })
+                p.plugin_parameter()
+                    .get()
+                    .await
+                    .map(|pp| format!("{}={}", pp.object.flag, shlex_quote(&p.object.value)))
             })
             .try_buffered(threads)
             .try_collect()
@@ -95,7 +106,10 @@ async fn cmd_of(plinst: &PluginInstanceRo, threads: usize, show_execshell: bool)
             "{} {} {} {}",
             &plugin.object.dock_image,
             shlex_quote(&plugin.object.execshell),
-            shlex_quote(&format!("{}/{}", &plugin.object.selfpath, &plugin.object.selfexec)),
+            shlex_quote(&format!(
+                "{}/{}",
+                &plugin.object.selfpath, &plugin.object.selfexec
+            )),
             flags.join(" ")
         )
     } else {
@@ -111,7 +125,9 @@ async fn cmd_of(plinst: &PluginInstanceRo, threads: usize, show_execshell: bool)
 
 /// Wrapper for [shlex::try_quote] which never fails. NUL characters are replaced.
 fn shlex_quote(in_str: &str) -> String {
-    shlex::try_quote(&in_str.replace('\0', "¡NUL!")).unwrap().to_string()
+    shlex::try_quote(&in_str.replace('\0', "¡NUL!"))
+        .unwrap()
+        .to_string()
 }
 
 async fn get_all_plugin_instances(feed: &FeedRo) -> Result<Vec<PluginInstanceRo>> {
@@ -121,6 +137,10 @@ async fn get_all_plugin_instances(feed: &FeedRo) -> Result<Vec<PluginInstanceRo>
     if count > 100 {
         bail!("Feed contains over 100 plugin instances.")
     }
-    search.stream_connected().try_collect().await.map_err(eyre::Error::new)
+    search
+        .stream_connected()
+        .try_collect()
+        .await
+        .map_err(eyre::Error::new)
     // maybe a progress bar would be nice if count > 20
 }

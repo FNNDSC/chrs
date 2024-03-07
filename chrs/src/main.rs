@@ -292,7 +292,15 @@ async fn main() -> color_eyre::eyre::Result<()> {
         Commands::Cd { plugin_instance } => cd(credentials, plugin_instance).await,
         Commands::Status {
             feed_or_plugin_instance,
-            execshell
-        } => status(credentials, feed_or_plugin_instance, args.threads, execshell).await,
+            execshell,
+        } => {
+            status(
+                credentials,
+                feed_or_plugin_instance,
+                args.threads,
+                execshell,
+            )
+            .await
+        }
     }
 }

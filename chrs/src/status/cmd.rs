@@ -1,7 +1,7 @@
 use color_eyre::eyre::{Error, OptionExt, Result};
 
-use chris::{FeedRo, PluginInstanceRo};
 use chris::types::{FeedId, PluginInstanceId};
+use chris::{FeedRo, PluginInstanceRo};
 
 use crate::arg::GivenPluginInstance;
 use crate::client::{Client, Credentials};
@@ -14,7 +14,7 @@ pub async fn status(
     credentials: Credentials,
     feed_or_plugin_instance: Option<String>,
     threads: usize,
-    show_execshell: bool
+    show_execshell: bool,
 ) -> Result<()> {
     let (client, current_plinst, ui) = credentials
         .get_client(feed_or_plugin_instance.as_ref().as_slice())
@@ -121,7 +121,7 @@ async fn print_status(
     plinst: Option<PluginInstanceRo>,
     ui_url: Option<UiUrl>,
     threads: usize,
-    show_execshell: bool
+    show_execshell: bool,
 ) -> Result<()> {
     if let Some(plugin_instance) = plinst {
         if let Some(feed) = feed {

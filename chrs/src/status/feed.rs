@@ -1,10 +1,14 @@
-use std::fmt::Display;
-use chris::{FeedResponse, FeedRo};
 use crate::login::UiUrl;
 use crate::unicode;
-use dialoguer::console::{Term, style};
+use chris::{FeedResponse, FeedRo};
+use dialoguer::console::{style, Term};
+use std::fmt::Display;
+use time::format_description::well_known::Rfc2822;
 
-pub async fn only_print_feed_status(feed: &FeedRo, ui_url: Option<UiUrl>) -> color_eyre::Result<()> {
+pub async fn only_print_feed_status(
+    feed: &FeedRo,
+    ui_url: Option<UiUrl>,
+) -> color_eyre::Result<()> {
     let symbol = feed_symbol_for(&feed.object);
     let name = if feed.object.name.is_empty() {
         "(no name)"
@@ -24,8 +28,14 @@ pub async fn only_print_feed_status(feed: &FeedRo, ui_url: Option<UiUrl>) -> col
     }
     let dim_lines = [
         "".to_string(),
-        format!("   created: {}", style(&feed.object.creation_date).italic()),
-        format!("  modified: {}", style(&feed.object.modification_date).italic()),
+        format!(
+            "   created: {}",
+            style(&feed.object.creation_date.format(&Rfc2822)?).italic()
+        ),
+        format!(
+            "  modified: {}",
+            style(&feed.object.modification_date.format(&Rfc2822)?).italic()
+        ),
         "".to_string(),
         format!(
             "  finished: {}  pending: {}  running: {}  errors: {}",
@@ -33,7 +43,7 @@ pub async fn only_print_feed_status(feed: &FeedRo, ui_url: Option<UiUrl>) -> col
             feed.object.pending_jobs(),
             feed.object.running_jobs(),
             &feed.object.errored_jobs
-        )
+        ),
     ];
 
     let bar = style("  |").dim();
@@ -57,12 +67,8 @@ fn feed_symbol_for(feed: &FeedResponse) -> impl Display {
     if feed.has_errored_job() {
         style(unicode::BLACK_DOWN_POINTING_TRIANGLE).bold().red()
     } else if feed.has_unfinished_jobs() {
-        style(unicode::BLACK_UP_POINTING_TRIANGLE)
-            .bold()
-            .yellow()
+        style(unicode::BLACK_UP_POINTING_TRIANGLE).bold().yellow()
     } else {
-        style(unicode::BLACK_UP_POINTING_TRIANGLE)
-            .bold()
-            .green()
+        style(unicode::BLACK_UP_POINTING_TRIANGLE).bold().green()
     }
 }

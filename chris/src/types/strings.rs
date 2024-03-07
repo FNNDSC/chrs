@@ -36,10 +36,6 @@ pub struct PluginRepo;
 #[braid(serde)]
 pub struct ComputeResourceName;
 
-/// Date in ISO-8601 format.
-#[braid(serde)]
-pub struct DateString;
-
 /// A path which can be browsed by the file browser API, e.g. `chris/uploads`
 #[braid(serde)]
 pub struct FileBrowserPath;

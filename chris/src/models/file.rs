@@ -1,6 +1,7 @@
 use crate::models::Downloadable;
 use crate::types::*;
 use serde::Deserialize;
+use time::OffsetDateTime;
 
 #[derive(Deserialize)]
 pub struct CubeFile {
@@ -33,7 +34,8 @@ impl Downloadable for CubeFile {
 pub struct FileUploadResponse {
     pub url: ItemUrl,
     pub id: u32,
-    pub creation_date: DateString,
+    #[serde(with = "time::serde::iso8601")]
+    pub creation_date: OffsetDateTime,
     fname: FileResourceFname,
     fsize: u64,
     file_resource: FileResourceUrl,

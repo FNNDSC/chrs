@@ -2,6 +2,7 @@
 
 use crate::types::*;
 use serde::Deserialize;
+use time::{OffsetDateTime};
 
 #[derive(Deserialize)]
 pub(crate) struct BaseResponse {
@@ -49,8 +50,10 @@ pub struct PipelineResponse {
     pub category: String,
     pub description: String,
     pub owner_username: Username,
-    pub creation_date: DateString,
-    pub modification_date: DateString,
+    #[serde(with = "time::serde::iso8601")]
+    pub creation_date: OffsetDateTime,
+    #[serde(with = "time::serde::iso8601")]
+    pub modification_date: OffsetDateTime,
     pub plugins: CollectionUrl,
     pub plugin_pipings: CollectionUrl,
     pub default_parameters: CollectionUrl,
@@ -62,7 +65,8 @@ pub struct PipelineResponse {
 pub struct PluginResponse {
     pub url: ItemUrl,
     pub id: PluginId,
-    pub creation_date: String,
+    #[serde(with = "time::serde::iso8601")]
+    pub creation_date: OffsetDateTime,
     pub name: PluginName,
     pub version: PluginVersion,
     pub dock_image: DockImage,
@@ -100,8 +104,10 @@ pub struct FeedResponse {
     pub name: String,
     pub creator_username: Username,
     pub id: FeedId,
-    pub creation_date: DateString,
-    pub modification_date: DateString,
+    #[serde(with = "time::serde::iso8601")]
+    pub creation_date: OffsetDateTime,
+    #[serde(with = "time::serde::iso8601")]
+    pub modification_date: OffsetDateTime,
     pub public: bool,
     pub created_jobs: u32,
     pub waiting_jobs: u32,
@@ -165,8 +171,10 @@ pub struct PluginInstanceResponse {
     pub plugin_version: PluginVersion,
     pub plugin_type: PluginType,
     // pipeline_inst: Option<String>,
-    pub start_date: String,
-    pub end_date: String,
+    #[serde(with = "time::serde::iso8601")]
+    pub start_date: OffsetDateTime,
+    #[serde(with = "time::serde::iso8601")]
+    pub end_date: OffsetDateTime,
     pub output_path: String,
     pub status: Status,
     pub summary: String,
@@ -221,7 +229,8 @@ pub struct PluginParameter {
 pub struct WorkflowCreatedResponse {
     pub url: ItemUrl,
     pub id: WorkflowId,
-    pub creation_date: String,
+    #[serde(with = "time::serde::iso8601")]
+    pub creation_date: OffsetDateTime,
     pub pipeline_id: PipelineId,
     pub pipeline_name: String,
     pub owner_username: Username,

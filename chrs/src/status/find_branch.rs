@@ -1,5 +1,5 @@
-use chris::{PluginInstanceResponse, PluginInstanceRo};
 use chris::types::PluginType;
+use chris::{PluginInstanceResponse, PluginInstanceRo};
 
 /// For a feed like this:
 /// ```
@@ -12,7 +12,8 @@ use chris::types::PluginType;
 ///
 /// Result: `find_branch_to(4, [1, 2, 3, 4, 5]) -> [1, 3, 4]`
 pub(crate) fn find_branch_to<T: PluginInstanceLike>(id: u32, all: &[T]) -> Option<Vec<&T>> {
-    all.iter().find(|p| p.id() == id)
+    all.iter()
+        .find(|p| p.id() == id)
         .map(|leaf| loop_up_to_root(leaf, all))
 }
 
@@ -26,10 +27,10 @@ fn loop_up_to_root<'a, T: PluginInstanceLike>(leaf: &'a T, all: &'a [T]) -> Vec<
             head = previous;
             branch.push(previous);
             if previous.is_ts() {
-                break
+                break;
             }
         } else {
-            break
+            break;
         }
     }
     branch.reverse();

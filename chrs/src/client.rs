@@ -3,7 +3,9 @@ use crate::login::UiUrl;
 use chris::errors::CubeError;
 use chris::reqwest::Response;
 use chris::types::{CubeUrl, FeedId, PluginInstanceId, Username};
-use chris::{Account, AnonChrisClient, BaseChrisClient, ChrisClient, FeedRo, PluginInstanceRo, RoAccess};
+use chris::{
+    Account, AnonChrisClient, BaseChrisClient, ChrisClient, FeedRo, PluginInstanceRo, RoAccess,
+};
 use color_eyre::eyre::{bail, eyre, Context, Error, OptionExt};
 use color_eyre::owo_colors::OwoColorize;
 use futures::TryStreamExt;
@@ -73,11 +75,20 @@ impl Client {
                 // need to get both public feeds and private feeds
                 // https://github.com/FNNDSC/ChRIS_ultron_backEnd/issues/530
                 let private_query = c.feeds().name(name).page_limit(10).max_items(10);
-                let private_feeds: Vec<_> = private_query.search().stream_connected().map_ok(|f| f.into()).try_collect().await?;
+                let private_feeds: Vec<_> = private_query
+                    .search()
+                    .stream_connected()
+                    .map_ok(|f| f.into())
+                    .try_collect()
+                    .await?;
                 if private_feeds.is_empty() {
                     let public_feeds_query =
                         c.public_feeds().name(name).page_limit(10).max_items(10);
-                    public_feeds_query.search().stream_connected().try_collect().await
+                    public_feeds_query
+                        .search()
+                        .stream_connected()
+                        .try_collect()
+                        .await
                 } else {
                     Ok(private_feeds)
                 }
@@ -86,7 +97,10 @@ impl Client {
         if feeds.len() > 1 {
             bail!(
                 "More than one feed found: {}",
-                feeds.iter().map(|f| format!("feed/{}", f.object.id.0)).join(" ")
+                feeds
+                    .iter()
+                    .map(|f| format!("feed/{}", f.object.id.0))
+                    .join(" ")
             )
         }
         feeds.into_iter().next().ok_or_eyre("Feed not found")
