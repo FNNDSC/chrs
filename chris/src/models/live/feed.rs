@@ -23,7 +23,7 @@ impl<A: Access> Feed<A> {
     }
 
     /// Get the plugin instances of this feed.
-    pub async fn get_plugin_instances<'a>(&'a self) -> FeedPluginInstances<'a, A> {
+    pub fn get_plugin_instances(&self) -> FeedPluginInstances<A> {
         SearchBuilder::collection(&self.client, &self.object.plugin_instances)
     }
 }

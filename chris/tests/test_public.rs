@@ -108,6 +108,19 @@ async fn test_get_feed(chris_client: &AnonChrisClient) -> AnyResult {
     let id = FeedId(307);
     let feed = chris_client.get_feed(id).await?;
     assert_eq!(feed.object.id, id);
+
+    let actual: HashSet<_> = feed
+        .get_plugin_instances()
+        .search()
+        .stream()
+        .map_ok(|p| p.id)
+        .try_collect()
+        .await?;
+    let expected_ids = [
+        369, 368, 367, 366, 331, 327, 326, 325, 323, 321, 312, 311, 310, 307,
+    ];
+    let expected = HashSet::from_iter(expected_ids.into_iter().map(PluginInstanceId));
+    assert_eq!(actual, expected);
     Ok(())
 }
 

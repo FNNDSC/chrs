@@ -168,7 +168,7 @@ pub struct PluginInstanceResponse {
     pub start_date: String,
     pub end_date: String,
     pub output_path: String,
-    pub status: String,
+    pub status: Status,
     pub summary: String,
     pub raw: String,
     pub owner_username: Username,

@@ -11,6 +11,51 @@ pub enum PluginParameterType {
     Unextpath,
 }
 
+/// Plugin instance status
+#[derive(Serialize, Deserialize, Debug, Copy, Clone, Eq, PartialEq)]
+#[serde(rename_all = "camelCase")]
+pub enum Status {
+    Created,
+    Waiting,
+    Scheduled,
+    Started,
+    RegisteringFiles,
+    FinishedSuccessfully,
+    FinishedWithError,
+    Cancelled
+}
+
+impl Status {
+    pub fn simplify(self) -> SimplifiedStatus {
+        self.into()
+    }
+}
+
+/// Simplified variants of [Status].
+#[derive(Debug, Copy, Clone, Eq, PartialEq)]
+pub enum SimplifiedStatus {
+    Waiting,
+    Running,
+    Success,
+    Error,
+    Cancelled
+}
+
+impl From<Status> for SimplifiedStatus {
+    fn from(value: Status) -> Self {
+        match value {
+            Status::Created => Self::Waiting,
+            Status::Waiting => Self::Waiting,
+            Status::Scheduled => Self::Waiting,
+            Status::Started => Self::Running,
+            Status::RegisteringFiles => Self::Running,
+            Status::FinishedSuccessfully => Self::Success,
+            Status::FinishedWithError => Self::Error,
+            Status::Cancelled => Self::Cancelled
+        }
+    }
+}
+
 impl PluginParameterType {
     pub fn as_str(&self) -> &'static str {
         match self {

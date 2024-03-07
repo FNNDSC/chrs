@@ -1,9 +1,9 @@
 //! CUBE filebrowser API client module.
 
-use crate::search::Search;
 use crate::client::access::RoAccess;
 use crate::errors::{check, CubeError};
 use crate::models::CubeFile;
+use crate::search::Search;
 use crate::types::*;
 use serde::Deserialize;
 use serde::Serialize;
