@@ -22,12 +22,12 @@ fn loop_up_to_root<'a, T: PluginInstanceLike>(leaf: &'a T, all: &'a [T]) -> Vec<
     let mut head = leaf;
     branch.push(leaf);
     while let Some(previous_id) = head.previous() {
-        if head.is_ts() {
-            break
-        }
         if let Some(previous) = all.iter().find(|p| p.id() == previous_id) {
             head = previous;
-            branch.push(previous)
+            branch.push(previous);
+            if previous.is_ts() {
+                break
+            }
         } else {
             break
         }
