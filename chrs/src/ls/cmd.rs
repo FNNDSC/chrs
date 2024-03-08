@@ -1,8 +1,8 @@
+use crate::arg::GivenPluginInstance;
 use clap::Parser;
 use color_eyre::eyre::Result;
 use tokio::join;
 use tokio::sync::mpsc::unbounded_channel;
-use crate::arg::GivenPluginInstance;
 
 use crate::client::Credentials;
 use crate::files::decoder::MaybeChrisPathHumanCoder;
@@ -33,9 +33,9 @@ pub struct LsArgs {
     #[clap(short, long, default_value_t, value_enum)]
     pub show: WhatToPrint,
 
-    /// directory path
-    #[clap()]
-    pub path: Option<String>,
+    /// directory path or plugin instance
+    #[clap(default_value_t)]
+    pub path: GivenPluginInstance,
 }
 
 pub async fn ls(
@@ -49,11 +49,9 @@ pub async fn ls(
         path,
     }: LsArgs,
 ) -> Result<()> {
-    let (client, old_id, _) = credentials.get_client(path.as_slice()).await?;
+    let (client, old_id, _) = credentials.get_client([path.as_arg_str()]).await?;
     let level = level.unwrap_or(if tree { 4 } else { 1 });
-    let path = GivenPluginInstance::from(path.unwrap_or_else(|| ".".to_string()))
-        .get_as_path(&client, old_id)
-        .await?;
+    let path = path.get_as_path(&client, old_id).await?;
 
     let ro_client = client.into_ro();
     let coder = MaybeChrisPathHumanCoder::new(&ro_client, rename);

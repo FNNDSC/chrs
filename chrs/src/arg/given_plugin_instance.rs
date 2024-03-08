@@ -3,6 +3,7 @@ use color_eyre::eyre;
 use color_eyre::eyre::{bail, OptionExt, Result};
 use futures::TryStreamExt;
 use itertools::Itertools;
+use std::fmt::Display;
 
 use chris::types::PluginInstanceId;
 use chris::{
@@ -13,6 +14,11 @@ use crate::client::Client;
 
 /// A user-provided string which is supposed to refer to an existing plugin instance
 /// or _ChRIS_ file path.
+///
+/// ## Limitations
+///
+/// A valid absolute path like `rudolph` (which is just his username) will be misidentified as
+/// [GivenPluginInstance::Title] instead of [GivenPluginInstance::AbsolutePath].
 #[derive(Debug, PartialEq, Clone)]
 pub enum GivenPluginInstance {
     Title(String),
@@ -21,8 +27,23 @@ pub enum GivenPluginInstance {
     AbsolutePath(String),
 }
 
+impl Default for GivenPluginInstance {
+    fn default() -> Self {
+        Self::RelativePath(".".to_string())
+    }
+}
+
+impl Display for GivenPluginInstance {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(f, "{}", self.as_arg_str())
+    }
+}
+
 impl From<String> for GivenPluginInstance {
     fn from(value: String) -> Self {
+        if value.is_empty() {
+            return Default::default();
+        }
         if let Some((left, right)) = value.split_once('/') {
             if left == "pi" || left == "plugininstance" {
                 return parse_as_id_or_title(right, &value);
