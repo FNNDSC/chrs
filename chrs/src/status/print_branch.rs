@@ -41,7 +41,13 @@ pub async fn print_branch_status(
     for (i, plinst) in branch.into_iter().enumerate() {
         let is_current = plinst.object.id == selected.object.id;
         let has_next = i + 1 < branch_len;
-        println!("{} {}", symbol_for(plinst), title_of(plinst, is_current));
+        let id_part = format!("(plugininstance/{})", plinst.object.id.0.cyan());
+        println!(
+            "{} {}  {}",
+            symbol_for(plinst),
+            title_of(plinst, is_current),
+            id_part.dimmed()
+        );
         let pipe = if has_next { unicode::VERTICAL_BAR } else { " " };
         let cmd = cmd_of(plinst, show_execshell).await?;
         let mut is_first = true;

@@ -1,8 +1,9 @@
 use crate::login::UiUrl;
 use crate::unicode;
 use chris::{FeedResponse, FeedRo};
-use dialoguer::console::{style, Term};
+use dialoguer::console::Term;
 use std::fmt::Display;
+use color_eyre::owo_colors::OwoColorize;
 use time::format_description::well_known::Rfc2822;
 
 pub async fn only_print_feed_status(
@@ -16,13 +17,20 @@ pub async fn only_print_feed_status(
         feed.object.name.as_str()
     };
 
-    let styled_name = if feed.object.has_errored_job() {
-        style(name).bold().bright().red().to_string()
+    let (styled_name, styled_id) = if feed.object.has_errored_job() {
+        (
+            name.bold().bright_red().to_string(),
+            feed.object.id.0.bright_red().to_string()
+        )
     } else {
-        style(name).bold().bright().green().to_string()
+        (
+            name.bold().bright_green().to_string(),
+            feed.object.id.0.bright_green().to_string(),
+        )
     };
 
-    println!("{} {}", symbol, styled_name);
+    let id_part = format!("(feed/{})", styled_id);
+    println!("{} {}  {}", symbol, styled_name, id_part.dimmed());
     if let Some(ui) = ui_url {
         println!("  {}", ui.feed_url_of(&feed.object))
     }
@@ -30,11 +38,11 @@ pub async fn only_print_feed_status(
         "".to_string(),
         format!(
             "   created: {}",
-            style(&feed.object.creation_date.format(&Rfc2822)?).italic()
+            &feed.object.creation_date.format(&Rfc2822)?.italic()
         ),
         format!(
             "  modified: {}",
-            style(&feed.object.modification_date.format(&Rfc2822)?).italic()
+            &feed.object.modification_date.format(&Rfc2822)?.italic()
         ),
         "".to_string(),
         format!(
@@ -46,10 +54,10 @@ pub async fn only_print_feed_status(
         ),
     ];
 
-    let bar = style("  |").dim();
+    let bar = "  |".dimmed();
 
     for dim_line in dim_lines {
-        println!("{} {}", &bar, style(dim_line).dim())
+        println!("{} {}", &bar, dim_line.dimmed())
     }
 
     let note = feed.note().get().await?;
@@ -65,10 +73,10 @@ pub async fn only_print_feed_status(
 
 fn feed_symbol_for(feed: &FeedResponse) -> impl Display {
     if feed.has_errored_job() {
-        style(unicode::BLACK_DOWN_POINTING_TRIANGLE).bold().red()
+        unicode::BLACK_DOWN_POINTING_TRIANGLE.bold().red().to_string()
     } else if feed.has_unfinished_jobs() {
-        style(unicode::BLACK_UP_POINTING_TRIANGLE).bold().yellow()
+        unicode::BLACK_UP_POINTING_TRIANGLE.bold().yellow().to_string()
     } else {
-        style(unicode::BLACK_UP_POINTING_TRIANGLE).bold().green()
+        unicode::BLACK_UP_POINTING_TRIANGLE.bold().green().to_string()
     }
 }
