@@ -67,7 +67,7 @@ async fn ls_recursive(
 
     if what_to_print.should_print_folders() {
         for subfolder in entry.absolute_subfolders() {
-            print_path(coder, subfolder.take(), relative_parent).await?;
+            print_path(coder, subfolder.take(), relative_parent, true).await?;
             was.printed = true;
         }
     }
@@ -78,7 +78,7 @@ async fn ls_recursive(
         pin_mut!(files_stream);
         while let Some(file_result) = files_stream.next().await {
             let file_path: FileResourceFname = file_result?.into();
-            print_path(coder, file_path.take(), relative_parent).await?;
+            print_path(coder, file_path.take(), relative_parent, false).await?;
             was.printed = true;
         }
     }
@@ -104,6 +104,7 @@ async fn print_path(
     coder: &mut DecodeChannel,
     fnamelike: String,
     relative_parent: &Option<String>,
+    is_dir: bool,
 ) -> Result<()> {
     let relative_parent_len = relative_parent.as_ref().map(|s| s.len() + 1).unwrap_or(0);
     let ez_path = coder.decode(fnamelike).await;
@@ -114,8 +115,24 @@ async fn print_path(
             &relative_parent.as_slice()
         )
     })?;
-    println!("{}", rel_path);
+    if is_dir {
+        print_dir(rel_path)
+    } else {
+        print_file(rel_path)
+    }
     Ok(())
+}
+
+fn print_dir(path: &str) {
+    println!("{}/", path.blue())
+}
+
+fn print_file(path: &str) {
+    let colored = path
+        .rsplit_once('/')
+        .map(|(dir, file)| format!("{}/{}", dir.blue(), file))
+        .unwrap_or_else(|| path.to_string());
+    println!("{}", colored)
 }
 
 #[derive(Default, Clone, Copy)]

@@ -3,9 +3,9 @@ use serde::Serialize;
 #[derive(clap::ValueEnum, Copy, Clone, Default, Debug, Serialize)]
 #[serde(rename_all = "kebab-case")]
 pub enum WhatToPrint {
-    #[default]
     Files,
     Folders,
+    #[default]
     All,
 }
 
