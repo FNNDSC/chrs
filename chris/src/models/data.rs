@@ -240,7 +240,7 @@ pub struct PluginInstanceParameterResponse {
     pub url: ItemUrl,
     pub id: PluginInstanceParameterId,
     pub param_name: String,
-    pub value: String,
+    pub value: PluginParameterValue,
     #[serde(rename = "type")]
     pub parameter_type: PluginParameterType,
     pub plugin_inst: ItemUrl,

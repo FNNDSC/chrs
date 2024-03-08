@@ -1,4 +1,5 @@
 use serde::{Deserialize, Serialize};
+use std::fmt::Display;
 
 #[derive(Serialize, Deserialize, Debug, Copy, Clone, Eq, PartialEq)]
 #[serde(rename_all = "lowercase")]
@@ -78,6 +79,18 @@ pub enum PluginParameterValue {
 
     /// Either a `str`, `path`, or `unextpath`
     Stringish(String),
+}
+
+impl Display for PluginParameterValue {
+    fn fmt(&self, f1: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        let s = match self {
+            PluginParameterValue::Boolean(b) => b.to_string(),
+            PluginParameterValue::Integer(n) => n.to_string(),
+            PluginParameterValue::Float(f) => f.to_string(),
+            PluginParameterValue::Stringish(s) => s.to_string(),
+        };
+        write!(f1, "{}", s)
+    }
 }
 
 #[derive(Debug, Serialize, Deserialize, PartialEq, Clone)]

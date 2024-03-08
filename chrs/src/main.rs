@@ -97,7 +97,7 @@ enum Commands {
         plugin_instance: String,
     },
 
-    /// Show status of a plugin instance and its feed
+    /// Show status of a feed branch
     Status {
         /// Print plugin execshell and selfpath
         #[clap(short, long)]
@@ -301,15 +301,7 @@ async fn main() -> color_eyre::eyre::Result<()> {
         Commands::Status {
             feed_or_plugin_instance,
             execshell,
-        } => {
-            status(
-                credentials,
-                feed_or_plugin_instance,
-                args.threads,
-                execshell,
-            )
-            .await
-        }
+        } => status(credentials, feed_or_plugin_instance, execshell).await,
         Commands::Logs { plugin_instance } => logs(credentials, plugin_instance).await,
     }
 }

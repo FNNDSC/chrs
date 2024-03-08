@@ -9,8 +9,8 @@ use itertools::Itertools;
 use tokio::try_join;
 
 use chris::errors::CubeError;
-use chris::types::SimplifiedStatus;
-use chris::{FeedRo, PluginInstanceRo, PublicPlugin};
+use chris::types::{PluginParameterAction, PluginParameterValue, SimplifiedStatus};
+use chris::{FeedRo, PluginInstanceRo, PluginParameter, PublicPlugin};
 
 use crate::login::UiUrl;
 use crate::unicode;
@@ -22,7 +22,6 @@ pub async fn print_branch_status(
     feed: FeedRo,
     selected: PluginInstanceRo,
     ui_url: Option<UiUrl>,
-    threads: usize,
     show_execshell: bool,
 ) -> Result<()> {
     only_print_feed_status(&feed, ui_url).await?;
@@ -44,7 +43,7 @@ pub async fn print_branch_status(
         let has_next = i + 1 < branch_len;
         println!("{} {}", symbol_for(plinst), title_of(plinst, is_current));
         let pipe = if has_next { unicode::VERTICAL_BAR } else { " " };
-        let cmd = cmd_of(plinst, threads, show_execshell).await?;
+        let cmd = cmd_of(plinst, show_execshell).await?;
         let mut is_first = true;
         for line in textwrap::wrap(cmd.as_str(), term_cols) {
             let space = if is_first { " " } else { "     " };
@@ -61,7 +60,7 @@ pub async fn print_branch_status(
 fn symbol_for(plinst: &PluginInstanceRo) -> impl Display {
     match plinst.object.status.simplify() {
         SimplifiedStatus::Waiting => unicode::DOTTED_CIRCLE.bold().to_string(),
-        SimplifiedStatus::Running => unicode::BLACK_CIRCLE.bold().cyan().to_string(),
+        SimplifiedStatus::Running => unicode::BLACK_CIRCLE.bold().bright_blue().to_string(),
         SimplifiedStatus::Success => unicode::BLACK_CIRCLE.bold().blue().to_string(),
         SimplifiedStatus::Error => unicode::BLACK_CIRCLE.bold().bright_red().to_string(),
         SimplifiedStatus::Cancelled => unicode::WHITE_CIRCLE.dimmed().to_string(),
@@ -81,24 +80,19 @@ fn title_of(plinst: &PluginInstanceRo, is_current: bool) -> impl Display {
     }
 }
 
-async fn cmd_of(
-    plinst: &PluginInstanceRo,
-    threads: usize,
-    show_execshell: bool,
-) -> Result<String, CubeError> {
+async fn cmd_of(plinst: &PluginInstanceRo, show_execshell: bool) -> Result<String, CubeError> {
     let plinst_parameters = plinst.parameters();
     let plinst_parameters_search = plinst_parameters.search();
     let (plugin, flags): (PublicPlugin, Vec<_>) = try_join!(
         plinst.plugin().get(),
         plinst_parameters_search
             .stream_connected()
-            .map_ok(|p| async move {
+            .try_filter_map(|p| async move {
                 p.plugin_parameter()
                     .get()
                     .await
-                    .map(|pp| format!("{}={}", pp.object.flag, shlex_quote(&p.object.value)))
+                    .map(|pp| format_param(pp.object, p.object.value))
             })
-            .try_buffered(threads)
             .try_collect()
     )?;
     let joined = if show_execshell {
@@ -121,6 +115,48 @@ async fn cmd_of(
         )
     };
     Ok(joined)
+}
+
+/// Somewhat equivalent to
+/// https://github.com/FNNDSC/ChRIS_ultron_backEnd/blob/01b2928f65738d4266d210d80dc02eba3e530b20/chris_backend/plugininstances/services/manager.py#L399-L405
+fn format_param(param: PluginParameter, value: PluginParameterValue) -> Option<String> {
+    match param.action {
+        PluginParameterAction::Store => Some(format!(
+            "{}={}",
+            param.flag,
+            shlex_quote(value.to_string().as_str())
+        )),
+        PluginParameterAction::StoreTrue => {
+            if let PluginParameterValue::Boolean(b) = value {
+                if b {
+                    Some(param.flag)
+                } else {
+                    None
+                }
+            } else {
+                Some(format!(
+                    "{}={} (invalid boolean value)",
+                    param.flag,
+                    shlex_quote(value.to_string().as_str())
+                ))
+            }
+        }
+        PluginParameterAction::StoreFalse => {
+            if let PluginParameterValue::Boolean(b) = value {
+                if b {
+                    None
+                } else {
+                    Some(param.flag)
+                }
+            } else {
+                Some(format!(
+                    "{}={} (invalid boolean value)",
+                    param.flag,
+                    shlex_quote(value.to_string().as_str())
+                ))
+            }
+        }
+    }
 }
 
 /// Wrapper for [shlex::try_quote] which never fails. NUL characters are replaced.
