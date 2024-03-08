@@ -2,7 +2,6 @@
 
 use crate::types::*;
 use serde::Deserialize;
-use serde_with::serde_as;
 use time::OffsetDateTime;
 
 #[derive(Deserialize)]
@@ -157,7 +156,6 @@ impl FeedResponse {
     }
 }
 
-#[serde_as]
 #[derive(Deserialize, Debug)]
 pub struct PluginInstanceResponse {
     pub url: ItemUrl,
@@ -179,8 +177,7 @@ pub struct PluginInstanceResponse {
     pub end_date: OffsetDateTime,
     pub output_path: String,
     pub status: Status,
-    #[serde_as(as = "serde_with::json::JsonString")]
-    pub summary: PluginInstanceSummary,
+    pub summary: String,
     pub raw: String,
     pub owner_username: Username,
     pub cpu_limit: u32,
@@ -197,6 +194,17 @@ pub struct PluginInstanceResponse {
     pub files: CollectionUrl,
     pub parameters: CollectionUrl,
     pub splits: CollectionUrl,
+}
+
+impl PluginInstanceResponse {
+    pub(crate) fn logs(&self) -> String {
+        // note: summary object is empty for cancelled plugin instances
+        if let Ok(summary) = serde_json::from_str::<PluginInstanceSummary>(&self.summary) {
+            summary.compute.return_status.job_logs
+        } else {
+            "".to_string()
+        }
+    }
 }
 
 /// See https://github.com/FNNDSC/ChRIS_ultron_backEnd/blob/01b2928f65738d4266d210d80dc02eba3e530b20/chris_backend/plugininstances/services/manager.py#L862-L885

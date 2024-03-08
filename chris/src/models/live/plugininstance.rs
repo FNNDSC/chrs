@@ -24,8 +24,8 @@ impl<A: Access> LinkedModel<PluginInstanceResponse, A> {
     }
 
     /// Get the logs of this plugin instance.
-    pub fn logs(&self) -> &str {
-        &self.object.summary.compute.return_status.job_logs
+    pub fn logs(&self) -> String {
+        self.object.logs()
     }
 }
 
