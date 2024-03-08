@@ -139,7 +139,7 @@ async fn test_get_plugin_instance(chris_client: &AnonChrisClient) -> AnyResult {
         .parameters()
         .search()
         .stream()
-        .map_ok(|p| (p.param_name, p.value))
+        .map_ok(|p| (p.param_name, p.value.to_string()))
         .try_collect()
         .await?;
     let expected_values = &[
