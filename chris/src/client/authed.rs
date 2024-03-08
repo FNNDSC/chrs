@@ -228,6 +228,6 @@ impl ChrisClient {
 
 impl<A: Access> AuthedChrisClient<A> {
     pub fn plugin_instances(&self) -> PluginInstanceSearchBuilder<A> {
-        PluginInstanceSearchBuilder::collection(&self.client, &self.links.plugin_instances)
+        PluginInstanceSearchBuilder::query(&self.client, &self.links.plugin_instances)
     }
 }
