@@ -1,59 +1,77 @@
-use crate::client::Client;
+use camino::{Utf8Path, Utf8PathBuf};
+use color_eyre::eyre;
+use color_eyre::eyre::{bail, OptionExt, Result};
+use futures::TryStreamExt;
+use itertools::Itertools;
+
 use chris::types::PluginInstanceId;
 use chris::{
     Access, BaseChrisClient, ChrisClient, LinkedModel, PluginInstanceResponse, PluginInstanceRo,
 };
-use color_eyre::eyre;
-use color_eyre::eyre::{bail, OptionExt, Result};
-use color_eyre::owo_colors::OwoColorize;
-use futures::TryStreamExt;
-use itertools::Itertools;
 
-/// A user-provided string which is supposed to refer to an existing plugin instance.
+use crate::client::Client;
+
+/// A user-provided string which is supposed to refer to an existing plugin instance
+/// or _ChRIS_ file path.
 #[derive(Debug, PartialEq, Clone)]
 pub enum GivenPluginInstance {
     Title(String),
-    Id(PluginInstanceId),
-    Parent(u32),
+    Id(PluginInstanceId, String),
+    RelativePath(String),
+    AbsolutePath(String),
 }
 
 impl From<String> for GivenPluginInstance {
     fn from(value: String) -> Self {
-        if let Some(count) = parse_parent_dirs(&value) {
-            return GivenPluginInstance::Parent(count);
+        if let Some((left, right)) = value.split_once('/') {
+            if left == "pi" || left == "plugininstance" {
+                return parse_as_id_or_title(right, &value);
+            }
         }
         if let Some(id) = parse_id_from_url(&value) {
-            return GivenPluginInstance::Id(id);
+            return GivenPluginInstance::Id(id, value);
         }
-        let right_part = if let Some((left, right)) = value.split_once('/') {
-            if left == "pi" || left == "plugininstance" {
-                right
-            } else {
-                &value
-            }
-        } else {
-            value.as_str()
-        };
-        right_part
-            .parse::<u32>()
-            .map(PluginInstanceId)
-            .map(GivenPluginInstance::Id)
-            .unwrap_or_else(|_e| GivenPluginInstance::Title(right_part.to_string()))
+        if starts_with_dots(&value) {
+            return GivenPluginInstance::RelativePath(value);
+        }
+        if looks_like_well_known_absolute_path(&value) {
+            return GivenPluginInstance::AbsolutePath(value);
+        }
+        parse_as_id_or_title(&value, &value)
     }
 }
 
-fn parse_parent_dirs(value: &str) -> Option<u32> {
-    let mut count = 0;
-    for part in value.split('/') {
-        if part.is_empty() {
-            return not_zero(count);
-        }
-        if part != ".." {
-            return None;
-        }
-        count += 1;
-    }
-    not_zero(count)
+fn parse_as_id_or_title(value: &str, original: &str) -> GivenPluginInstance {
+    value
+        .parse::<u32>()
+        .map(PluginInstanceId)
+        .map(|id| GivenPluginInstance::Id(id, original.to_string()))
+        .unwrap_or_else(|_e| GivenPluginInstance::Title(value.to_string()))
+}
+
+fn starts_with_dots(value: &str) -> bool {
+    value == "."
+        || ["./", "..", "../"]
+            .into_iter()
+            .any(|s| value.starts_with(s))
+}
+
+fn looks_like_well_known_absolute_path(value: &str) -> bool {
+    value == "SERVICES"
+        || value.starts_with("SERVICES/PACS")
+        || value == "PIPELINES"
+        || value.starts_with("PIPELINES/")
+        || looks_like_feed_output_path(value)
+}
+
+fn looks_like_feed_output_path(value: &str) -> bool {
+    value
+        .split_once('/')
+        .map(|(_, r)| r)
+        .map(|folder| folder.split_once('/').map(|(l, _)| l).unwrap_or(folder))
+        .and_then(|folder| folder.strip_prefix("feed_"))
+        .map(|feed_id| feed_id.parse::<u32>().is_ok())
+        .unwrap_or(false)
 }
 
 fn parse_id_from_url(url: &str) -> Option<PluginInstanceId> {
@@ -67,29 +85,108 @@ fn parse_id_from_url(url: &str) -> Option<PluginInstanceId> {
         .map(PluginInstanceId)
 }
 
-fn not_zero(value: u32) -> Option<u32> {
-    if value == 0 {
-        None
-    } else {
-        Some(value)
-    }
-}
-
 impl GivenPluginInstance {
+    /// Get the value. In the case where the value was originally a plugin instance URL,
+    /// the URL is returned (not the parsed ID).
+    pub fn as_arg_str(&self) -> &str {
+        match self {
+            GivenPluginInstance::Title(title) => title,
+            GivenPluginInstance::Id(_, original) => original,
+            GivenPluginInstance::RelativePath(path) => path,
+            GivenPluginInstance::AbsolutePath(path) => path,
+        }
+    }
+
     pub async fn get_using(
         self,
         client: &Client,
         old: Option<PluginInstanceId>,
     ) -> Result<PluginInstanceRo> {
         match self {
-            Self::Id(id) => client
+            Self::Id(id, _) => client
                 .get_plugin_instance(id)
                 .await
                 .map_err(eyre::Error::new),
             Self::Title(title) => get_by_title(client, title, old).await,
-            Self::Parent(count) => get_parents(client, count, old).await,
+            Self::RelativePath(path) => get_relative_path_as_plinst(client, old, path).await,
+            Self::AbsolutePath(path) => get_plinst_of_path(client, &path).await,
         }
     }
+
+    pub async fn get_as_path(
+        self,
+        client: &Client,
+        old: Option<PluginInstanceId>,
+    ) -> Result<String> {
+        match self {
+            GivenPluginInstance::Id(id, _) => client
+                .get_plugin_instance(id)
+                .await
+                .map(|p| p.object.output_path)
+                .map_err(eyre::Error::new),
+            GivenPluginInstance::Title(title) => get_by_title(client, title, old)
+                .await
+                .map(|p| p.object.output_path),
+            GivenPluginInstance::RelativePath(p) => get_relative_path(client, old, &p).await,
+            GivenPluginInstance::AbsolutePath(p) => Ok(p),
+        }
+    }
+}
+
+async fn get_relative_path(
+    client: &Client,
+    old: Option<PluginInstanceId>,
+    rel_path: &str,
+) -> Result<String> {
+    if let Some(id) = old {
+        client
+            .get_plugin_instance(id)
+            .await
+            .map(|p| p.object.output_path)
+            .map(|output_path| reconcile_path(&output_path, rel_path))
+            .map_err(eyre::Error::new)
+    } else {
+        bail!("No current plugin instance context, cannot resolve relative path.")
+    }
+}
+
+async fn get_relative_path_as_plinst(
+    client: &Client,
+    old: Option<PluginInstanceId>,
+    rel_path: String,
+) -> Result<PluginInstanceRo> {
+    if let Some(id) = old {
+        let old_output_path = pwd(client, id).await?;
+        let requested_path = reconcile_path(&old_output_path, &rel_path);
+        if let Some(id) = parse_plinst_id(&requested_path) {
+            client
+                .get_plugin_instance(id)
+                .await
+                .map_err(eyre::Error::new)
+        } else {
+            bail!("The relative path {}, canonicalized as {}, is not the output path of a plugin instance.", rel_path, requested_path)
+        }
+    } else {
+        bail!("No current plugin instance context, cannot resolve relative path.")
+    }
+}
+
+async fn get_plinst_of_path(client: &Client, path: &str) -> Result<PluginInstanceRo> {
+    if let Some(id) = parse_plinst_id(&path) {
+        client
+            .get_plugin_instance(id)
+            .await
+            .map_err(eyre::Error::new)
+    } else {
+        bail!("Path could not be understood as a plugin instance.");
+    }
+}
+
+fn parse_plinst_id(path: &str) -> Option<PluginInstanceId> {
+    path.rsplit_once("/")
+        .map(|(_, r)| r)
+        .and_then(|n| n.parse().ok())
+        .map(PluginInstanceId)
 }
 
 async fn get_by_title(
@@ -164,51 +261,98 @@ fn plugin_instance_string<A: Access>(p: &LinkedModel<PluginInstanceResponse, A>)
     format!("plugininstance/{}", p.object.id.0)
 }
 
-async fn get_parents(
-    client: &Client,
-    parents: u32,
-    old: Option<PluginInstanceId>,
-) -> Result<PluginInstanceRo> {
-    let old_id = old.ok_or_eyre("No current plugin instance context, cannot get previous.")?;
-    let mut current = client.get_plugin_instance(old_id).await?;
-    for i in 0..parents {
-        if let Some(previous_id) = current.object.previous_id {
-            current = client.get_plugin_instance(previous_id).await?;
-        } else {
-            eprintln!(
-                "warning: wanted to go up {} previous plugin instances, but only found up to {}",
-                parents.bright_cyan(),
-                i.bold()
-            );
-            return Ok(current);
-        }
+async fn pwd(client: &Client, id: PluginInstanceId) -> Result<String> {
+    let output_path = client.get_plugin_instance(id).await?.object.output_path;
+    let wd = output_path
+        .strip_suffix("/data")
+        .unwrap_or(&output_path)
+        .to_string();
+    Ok(wd)
+}
+
+fn reconcile_path(wd: &str, rel_path: &str) -> String {
+    let path = Utf8Path::new(wd).to_path_buf();
+    rel_path.split('/').fold(path, reduce_path).to_string()
+}
+
+fn reduce_path(acc: Utf8PathBuf, component: &str) -> Utf8PathBuf {
+    if component == "." || component.is_empty() {
+        acc
+    } else if component == ".." {
+        acc.parent().map(|p| p.to_path_buf()).unwrap_or(acc)
+    } else {
+        acc.join(component)
     }
-    Ok(current)
 }
 
 #[cfg(test)]
 mod tests {
-
-    use super::*;
     use rstest::*;
 
+    use super::*;
+
     #[rstest]
-    #[case("hello", GivenPluginInstance::Title("hello".to_string()))]
-    #[case("pi/hello", GivenPluginInstance::Title("hello".to_string()))]
-    #[case("plugininstance/hello", GivenPluginInstance::Title("hello".to_string()))]
-    #[case("42", GivenPluginInstance::Id(PluginInstanceId(42)))]
-    #[case("pi/42", GivenPluginInstance::Id(PluginInstanceId(42)))]
-    #[case("plugininstance/42", GivenPluginInstance::Id(PluginInstanceId(42)))]
-    #[case(
-        "https://example.org/api/v1/plugins/instances/42/",
-        GivenPluginInstance::Id(PluginInstanceId(42))
-    )]
-    #[case("..", GivenPluginInstance::Parent(1))]
-    #[case("../", GivenPluginInstance::Parent(1))]
-    #[case("../..", GivenPluginInstance::Parent(2))]
-    #[case("../../", GivenPluginInstance::Parent(2))]
-    fn test_given_plugin_instance(#[case] given: &str, #[case] expected: GivenPluginInstance) {
+    #[case("hello", "hello")]
+    #[case("pi/hello", "hello")]
+    #[case("plugininstance/hello", "hello")]
+    fn test_given_plugin_instance_is_title(#[case] given: &str, #[case] expected: &str) {
         let actual: GivenPluginInstance = given.to_string().into();
+        let expected = GivenPluginInstance::Title(expected.to_string());
         assert_eq!(actual, expected)
+    }
+
+    #[rstest]
+    #[case("42", 42)]
+    #[case("pi/42", 42)]
+    #[case("plugininstance/42", 42)]
+    #[case("https://example.org/api/v1/plugins/instances/42/", 42)]
+    fn test_given_plugin_instance_is_id(#[case] given: &str, #[case] expected: u32) {
+        let actual: GivenPluginInstance = given.to_string().into();
+        let expected = GivenPluginInstance::Id(PluginInstanceId(expected), given.to_string());
+        assert_eq!(actual, expected)
+    }
+
+    #[rstest]
+    #[case(".")]
+    #[case("./")]
+    #[case("..")]
+    #[case("../")]
+    #[case("../other")]
+    #[case("../other/")]
+    #[case("../..")]
+    #[case("../../")]
+    #[case("../../")]
+    fn test_given_plugin_instance_is_output_path(#[case] given: &str) {
+        let actual: GivenPluginInstance = given.to_string().into();
+        let expected = GivenPluginInstance::RelativePath(given.to_string());
+        assert_eq!(actual, expected)
+    }
+
+    #[rstest]
+    #[case("PIPELINES/rudolph/i_am_a_pipeline.yml")]
+    #[case("PIPELINES/rudolph/i_am_also_pipeline.yml")]
+    #[case("SERVICES/PACS")]
+    #[case("SERVICES/PACS/Orthanc/00000_PatientName_000000")]
+    #[case("rudolph/feed_130")]
+    #[case("rudolph/feed_130/pl-dircopy_543")]
+    #[case("rudolph/feed_130/pl-dircopy_543/data")]
+    #[case("rudolph/feed_130/pl-dircopy_543/data/output.dat")]
+    fn test_given_plugin_instance_is_absolute_path(#[case] given: &str) {
+        let actual: GivenPluginInstance = given.to_string().into();
+        let expected = GivenPluginInstance::AbsolutePath(given.to_string());
+        assert_eq!(actual, expected)
+    }
+
+    #[rstest]
+    #[case("a/b/c", ".", "a/b/c")]
+    #[case("a/b/c", "./d", "a/b/c/d")]
+    #[case("a/b/c", "..", "a/b")]
+    #[case("a/b/c", "../", "a/b")]
+    #[case("a/b/c", "../..", "a")]
+    #[case("a/b/c", "..//..", "a")]
+    #[case("a/b/c", "..//..//.", "a")]
+    fn test_reconcile_path(#[case] wd: &str, #[case] rel_path: &str, #[case] expected: &str) {
+        let actual = reconcile_path(wd, rel_path);
+        assert_eq!(&actual, expected)
     }
 }
