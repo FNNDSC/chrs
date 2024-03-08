@@ -1,5 +1,6 @@
 use clap::{builder::NonEmptyStringValueParser, Parser, Subcommand};
 
+use crate::arg::GivenPluginInstance;
 use chris::types::{CubeUrl, Username};
 
 use crate::cd::cd;
@@ -93,8 +94,7 @@ enum Commands {
         /// The value can be a plugin instance ID or title. For a title,
         /// the title must be unique within the search space. The current
         /// feed will be searched before searching across all feeds.
-        #[clap(value_parser = NonEmptyStringValueParser::new())]
-        plugin_instance: String,
+        plugin_instance: GivenPluginInstance,
     },
 
     /// Show status of a feed branch
@@ -111,7 +111,8 @@ enum Commands {
     /// Show the logs of a plugin instance
     Logs {
         /// Plugin instance
-        plugin_instance: Option<String>,
+        #[clap(default_value_t)]
+        plugin_instance: GivenPluginInstance,
     },
     //
     // /// Get detailed information about a ChRIS object

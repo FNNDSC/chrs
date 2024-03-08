@@ -160,12 +160,9 @@ async fn get_relative_path(
     rel_path: &str,
 ) -> Result<String> {
     if let Some(id) = old {
-        client
-            .get_plugin_instance(id)
+        pwd(client, id, true)
             .await
-            .map(|p| p.object.output_path)
-            .map(|output_path| reconcile_path(&output_path, rel_path))
-            .map_err(eyre::Error::new)
+            .map(|p| reconcile_path(&p, rel_path))
     } else {
         bail!("No current plugin instance context, cannot resolve relative path.")
     }
@@ -177,7 +174,7 @@ async fn get_relative_path_as_plinst(
     rel_path: String,
 ) -> Result<PluginInstanceRo> {
     if let Some(id) = old {
-        let old_output_path = pwd(client, id).await?;
+        let old_output_path = pwd(client, id, true).await?;
         let requested_path = reconcile_path(&old_output_path, &rel_path);
         if let Some(id) = parse_plinst_id(&requested_path) {
             client
@@ -204,7 +201,7 @@ async fn get_plinst_of_path(client: &Client, path: &str) -> Result<PluginInstanc
 }
 
 fn parse_plinst_id(path: &str) -> Option<PluginInstanceId> {
-    path.rsplit_once("/")
+    path.rsplit_once("_")
         .map(|(_, r)| r)
         .and_then(|n| n.parse().ok())
         .map(PluginInstanceId)
@@ -282,10 +279,10 @@ fn plugin_instance_string<A: Access>(p: &LinkedModel<PluginInstanceResponse, A>)
     format!("plugininstance/{}", p.object.id.0)
 }
 
-async fn pwd(client: &Client, id: PluginInstanceId) -> Result<String> {
+async fn pwd(client: &Client, id: PluginInstanceId, strip_data: bool) -> Result<String> {
     let output_path = client.get_plugin_instance(id).await?.object.output_path;
     let wd = output_path
-        .strip_suffix("/data")
+        .strip_suffix(if strip_data { "/data" } else { "" })
         .unwrap_or(&output_path)
         .to_string();
     Ok(wd)
