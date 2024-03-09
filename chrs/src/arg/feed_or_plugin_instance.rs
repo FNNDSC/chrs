@@ -128,7 +128,7 @@ async fn get_plinst_and_feed(
     p: GivenPluginInstance,
     old: Option<PluginInstanceId>,
 ) -> color_eyre::Result<(FeedRo, PluginInstanceRo)> {
-    let plinst = p.get_using(client, old).await?;
+    let plinst = p.get_using_either(client, old).await?;
     let feed = plinst.feed().get().await?;
     Ok((feed, plinst))
 }

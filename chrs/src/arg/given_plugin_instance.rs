@@ -115,7 +115,7 @@ impl GivenPluginInstance {
         }
     }
 
-    pub async fn get_using(
+    pub async fn get_using_either(
         self,
         client: &EitherClient,
         old: Option<PluginInstanceId>,
@@ -139,7 +139,7 @@ impl GivenPluginInstance {
         }
     }
 
-    pub async fn get_rw(
+    pub async fn get_using_rw(
         self,
         client: &ChrisClient,
         old: Option<PluginInstanceId>,

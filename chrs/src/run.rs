@@ -4,11 +4,12 @@ use color_eyre::eyre::{eyre, OptionExt};
 use color_eyre::owo_colors::OwoColorize;
 use futures::TryStreamExt;
 
-use chris::{ChrisClient, EitherClient, PipelineRw, PluginRw};
-use chris::types::{ComputeResourceName, FeedId, PluginInstanceId};
+use chris::{BaseChrisClient, ChrisClient, EitherClient, PipelineRw, PluginRw};
+use chris::types::{ComputeResourceName, CubeUrl, FeedId, PluginInstanceId, PluginParameterValue, Username};
 
-use crate::arg::{GivenFeedOrPluginInstance, GivenRunnable, Runnable};
+use crate::arg::{GivenFeedOrPluginInstance, GivenPluginInstance, GivenRunnable, Runnable};
 use crate::client::Credentials;
+use crate::login::state::ChrsSessions;
 use crate::login::UiUrl;
 use crate::plugin_clap::clap_serialize_params;
 
@@ -45,6 +46,14 @@ pub struct RunArgs {
     /// Plugin instance title
     #[clap(short, long)]
     title: Option<String>,
+
+    /// Bypass checks of best practices
+    #[clap(short, long)]
+    force: bool,
+
+    /// Do not actually run
+    #[clap(short, long)]
+    dry_run: bool,
 
     /// Plugin or pipeline to run
     #[clap(required = true)]
@@ -89,9 +98,34 @@ async fn run_plugin(
     ui: Option<UiUrl>,
     args: RunArgs,
 ) -> eyre::Result<()> {
-    let (params, incoming) = clap_serialize_params(&plugin, &args.parameters).await?;
+    if args.title.is_none() && !args.force {
+        bail!("Please provide a value for {}. {}", "--title".bold(), "You can bypass this check using --force".dimmed())
+    }
+
+    let (mut params, incoming) = clap_serialize_params(&plugin, &args.parameters).await?;
     let previous_id = get_input(&client, old, incoming).await?;
-    Ok(())
+
+    if args.dry_run {
+        println!("Input: plugininstance/{}", previous_id.0);
+        Ok(())
+    } else {
+        if let Some(title) = args.title {
+            params.insert("title".to_string(), PluginParameterValue::Stringish(title));
+        }
+        params.insert("previous_id".to_string(), PluginParameterValue::Integer(previous_id.0 as i64));
+        let created = plugin.create_instance(&params).await?;
+        if let Some(ui) = ui {
+            let feed = created.feed().get().await?;
+            println!("{}", ui.feed_url_of(&feed.object));
+        }
+        set_cd(client.url(), client.username(), created.object.id)
+    }
+}
+
+fn set_cd(cube_url: &CubeUrl, username: &Username, id: PluginInstanceId) -> eyre::Result<()> {
+    let mut sessions = ChrsSessions::load()?;
+    sessions.set_plugin_instance(cube_url, username, id);
+    sessions.save()
 }
 
 async fn run_pipeline(
@@ -128,8 +162,8 @@ async fn get_feed_or_plinst(
             let feed_id = get_feedrw_by_name(client, name).await?;
             get_plinst_of_feed(client, feed_id).await
         }
-        GivenFeedOrPluginInstance::PluginInstance(given) => todo!(),
-        GivenFeedOrPluginInstance::Ambiguous(value) => todo!(),
+        GivenFeedOrPluginInstance::PluginInstance(given) => given.get_using_rw(client, old).await.map(|p| p.object.id),
+        GivenFeedOrPluginInstance::Ambiguous(value) => GivenPluginInstance::from(value).get_using_rw(client, old).await.map(|p| p.object.id),
     }
 }
 

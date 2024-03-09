@@ -7,7 +7,7 @@ pub async fn logs(credentials: Credentials, plugin_instance: GivenPluginInstance
     let (client, old, _) = credentials
         .get_client([plugin_instance.as_arg_str()])
         .await?;
-    let logs = plugin_instance.get_using(&client, old).await?.logs();
+    let logs = plugin_instance.get_using_either(&client, old).await?.logs();
     print!("{}", logs);
     Ok(())
 }
