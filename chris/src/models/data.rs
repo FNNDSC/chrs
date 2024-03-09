@@ -265,13 +265,22 @@ pub struct PluginParameter {
 }
 
 #[derive(Debug, Deserialize)]
-pub struct WorkflowCreatedResponse {
+pub struct WorkflowResponse {
     pub url: ItemUrl,
     pub id: WorkflowId,
+    pub title: String,
     #[serde(with = "time::serde::iso8601")]
     pub creation_date: OffsetDateTime,
     pub pipeline_id: PipelineId,
     pub pipeline_name: String,
     pub owner_username: Username,
     pub pipeline: ItemUrl,
+    pub created_jobs: u32,
+    pub waiting_jobs: u32,
+    pub scheduled_jobs: u32,
+    pub started_jobs: u32,
+    pub registering_jobs: u32,
+    pub errored_jobs: u32,
+    pub cancelled_jobs: u32,
+    pub plugin_instances: CollectionUrl
 }

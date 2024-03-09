@@ -10,7 +10,7 @@ use tokio::try_join;
 
 use chris::errors::CubeError;
 use chris::types::{PluginParameterAction, PluginParameterValue, SimplifiedStatus};
-use chris::{FeedRo, PluginInstanceRo, PluginParameter, PublicPlugin};
+use chris::{FeedRo, PluginInstanceRo, PluginParameter, PluginRo};
 
 use crate::login::UiUrl;
 use crate::shlex::shlex_quote;
@@ -90,7 +90,7 @@ fn title_of(plinst: &PluginInstanceRo, is_current: bool) -> impl Display {
 async fn cmd_of(plinst: &PluginInstanceRo, show_execshell: bool) -> Result<String, CubeError> {
     let plinst_parameters = plinst.parameters();
     let plinst_parameters_search = plinst_parameters.search();
-    let (plugin, flags): (PublicPlugin, Vec<_>) = try_join!(
+    let (plugin, flags): (PluginRo, Vec<_>) = try_join!(
         plinst.plugin().get(),
         plinst_parameters_search
             .stream_connected()

@@ -7,13 +7,16 @@ use crate::models::linked::LinkedModel;
 use crate::search::SearchBuilder;
 use crate::{Access, PluginInstanceRw};
 
-/// A ChRIS plugin. Call [Plugin::create_instance] to "run" this plugin.
-pub type Plugin = LinkedModel<PluginResponse, RwAccess>;
+/// A ChRIS plugin.
+pub type Plugin<A> = LinkedModel<PluginResponse, A>;
 
-/// A publicly accessed plugin. You cannot create plugin instances of a [PublicPlugin].
-pub type PublicPlugin = LinkedModel<PluginResponse, RoAccess>;
+/// A ChRIS plugin. Call [PluginRw::create_instance] to "run" this plugin.
+pub type PluginRw = LinkedModel<PluginResponse, RwAccess>;
 
-impl Plugin {
+/// A publicly accessed plugin. You cannot create plugin instances of a [PluginRo].
+pub type PluginRo = LinkedModel<PluginResponse, RoAccess>;
+
+impl PluginRw {
     /// Create a plugin instance (i.e. "run" a plugin)
     pub async fn create_instance<T: Serialize + ?Sized>(
         &self,
