@@ -5,7 +5,7 @@ use crate::errors::CubeError;
 use crate::models::data::{PluginParameter, PluginResponse};
 use crate::models::linked::LinkedModel;
 use crate::search::SearchBuilder;
-use crate::{Access, PluginInstanceRw};
+use crate::{Access, ComputeResourceResponse, PluginInstanceRw};
 
 /// A ChRIS plugin.
 pub type Plugin<A> = LinkedModel<PluginResponse, A>;
@@ -17,6 +17,14 @@ pub type PluginRw = LinkedModel<PluginResponse, RwAccess>;
 pub type PluginRo = LinkedModel<PluginResponse, RoAccess>;
 
 impl PluginRw {
+    /// Get compute resource this plugin can run on.
+    ///
+    /// Note: only allowed to call this if logged in.
+    /// See https://github.com/FNNDSC/ChRIS_ultron_backEnd/issues/540
+    pub fn compute_resources(&self) -> SearchBuilder<ComputeResourceResponse, RwAccess> {
+        self.get_collection(&self.object.compute_resources)
+    }
+
     /// Create a plugin instance (i.e. "run" a plugin)
     pub async fn create_instance<T: Serialize + ?Sized>(
         &self,
@@ -26,7 +34,7 @@ impl PluginRw {
     }
 }
 
-impl<A: Access> LinkedModel<PluginResponse, A> {
+impl<A: Access> Plugin<A> {
     pub fn parameters(&self) -> SearchBuilder<PluginParameter, A> {
         self.get_collection(&self.object.parameters)
     }

@@ -1,13 +1,15 @@
+use std::str::FromStr;
+
 use color_eyre::eyre;
 use color_eyre::eyre::bail;
 use color_eyre::owo_colors::OwoColorize;
 use futures::TryStreamExt;
-use std::str::FromStr;
 
-use crate::shlex::shlex_quote;
+use chris::{Access, BaseChrisClient, LinkedModel, PipelineResponse, PluginResponse};
 use chris::search::PluginSearchBuilder;
 use chris::types::{CubeUrl, PipelineId, PluginId};
-use chris::{Access, BaseChrisClient, LinkedModel, PipelineResponse, PluginResponse, RoAccess};
+
+use crate::shlex::shlex_quote;
 
 /// A `GivenRunnable` is a user-provided value representing a plugin or pipeline.
 #[derive(Debug, PartialEq, Clone)]
@@ -225,23 +227,24 @@ pub enum Runnable<A: Access> {
     Pipeline(LinkedModel<PipelineResponse, A>),
 }
 
-impl<A: Access> Runnable<A>
-where
-    LinkedModel<PluginResponse, RoAccess>: From<LinkedModel<PluginResponse, A>>,
-    LinkedModel<PipelineResponse, RoAccess>: From<LinkedModel<PipelineResponse, A>>,
-{
-    pub fn into_ro(self) -> Runnable<RoAccess> {
-        match self {
-            Runnable::Plugin(p) => Runnable::Plugin(p.into()),
-            Runnable::Pipeline(p) => Runnable::Pipeline(p.into()),
-        }
-    }
-}
+// impl<A: Access> Runnable<A>
+// where
+//     LinkedModel<PluginResponse, RoAccess>: From<LinkedModel<PluginResponse, A>>,
+//     LinkedModel<PipelineResponse, RoAccess>: From<LinkedModel<PipelineResponse, A>>,
+// {
+//     pub fn into_ro(self) -> Runnable<RoAccess> {
+//         match self {
+//             Runnable::Plugin(p) => Runnable::Plugin(p.into()),
+//             Runnable::Pipeline(p) => Runnable::Pipeline(p.into()),
+//         }
+//     }
+// }
 
 #[cfg(test)]
 mod tests {
-    use super::*;
     use rstest::*;
+
+    use super::*;
 
     #[rstest]
     fn test_given_runnable_cannot_be_empty() {

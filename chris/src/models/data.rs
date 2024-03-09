@@ -282,5 +282,21 @@ pub struct WorkflowResponse {
     pub registering_jobs: u32,
     pub errored_jobs: u32,
     pub cancelled_jobs: u32,
-    pub plugin_instances: CollectionUrl
+    pub plugin_instances: CollectionUrl,
+}
+
+#[derive(Debug, Deserialize)]
+pub struct ComputeResourceResponse {
+    pub url: ItemUrl,
+    pub id: ComputeResourceId,
+    pub name: String,
+    #[serde(with = "time::serde::iso8601")]
+    pub creation_date: OffsetDateTime,
+    #[serde(with = "time::serde::iso8601")]
+    pub modification_date: OffsetDateTime,
+    pub compute_url: String,
+    pub compute_auth_url: String,
+    pub compute_innetwork: bool,
+    pub description: String,
+    pub max_job_exec_seconds: i64,
 }

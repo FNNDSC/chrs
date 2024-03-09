@@ -31,6 +31,8 @@ mod shlex;
 mod status;
 pub mod unicode;
 mod whoami;
+mod plugin_clap;
+mod run;
 
 #[derive(Parser)]
 #[clap(
@@ -132,7 +134,9 @@ enum Commands {
     },
 
     /// Describe and get usage of a plugin or pipeline
-    Describe(DescribeArgs), //
+    Describe(DescribeArgs),
+
+
                             // /// Get detailed information about a ChRIS object
                             // ///
                             // /// An object may be a plugin, plugin instance, pipeline, feed, or file.

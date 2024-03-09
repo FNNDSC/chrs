@@ -36,3 +36,7 @@ pub struct PluginParameterId(pub u32);
 /// Workflow ID
 #[derive(Copy, Clone, Shrinkwrap, Serialize, Deserialize, Debug, Hash, Eq, PartialEq)]
 pub struct WorkflowId(pub u32);
+
+/// Compute resource ID
+#[derive(Copy, Clone, Shrinkwrap, Serialize, Deserialize, Debug, Hash, Eq, PartialEq)]
+pub struct ComputeResourceId(pub u32);
