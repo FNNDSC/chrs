@@ -5,6 +5,7 @@ use chris::types::{CubeUrl, Username};
 
 use crate::cd::cd;
 use crate::client::Credentials;
+use crate::list::{list_feeds, ListFeedArgs};
 use crate::login::cmd::{login, logout};
 use crate::login::store::Backend;
 use crate::login::switch::switch_login;
@@ -18,6 +19,7 @@ mod arg;
 mod cd;
 mod client;
 mod files;
+mod list;
 mod login;
 mod logs;
 mod ls;
@@ -79,13 +81,16 @@ enum Commands {
         #[clap(long)]
         password_stdin: bool,
     },
-    //
+
     /// Remove a user session
     Logout {},
     /// Switch user
     Switch {},
     /// Show login information
     Whoami {},
+
+    /// List feeds
+    List(ListFeedArgs),
 
     /// Change plugin instance context
     Cd {
@@ -304,5 +309,6 @@ async fn main() -> color_eyre::eyre::Result<()> {
             execshell,
         } => status(credentials, feed_or_plugin_instance, execshell).await,
         Commands::Logs { plugin_instance } => logs(credentials, plugin_instance).await,
+        Commands::List(args) => list_feeds(credentials, args).await,
     }
 }

@@ -1,9 +1,9 @@
 use crate::login::UiUrl;
 use crate::unicode;
 use chris::{FeedResponse, FeedRo};
+use color_eyre::owo_colors::OwoColorize;
 use dialoguer::console::Term;
 use std::fmt::Display;
-use color_eyre::owo_colors::OwoColorize;
 use time::format_description::well_known::Rfc2822;
 
 pub async fn only_print_feed_status(
@@ -20,7 +20,7 @@ pub async fn only_print_feed_status(
     let (styled_name, styled_id) = if feed.object.has_errored_job() {
         (
             name.bold().bright_red().to_string(),
-            feed.object.id.0.bright_red().to_string()
+            feed.object.id.0.bright_red().to_string(),
         )
     } else {
         (
@@ -73,10 +73,19 @@ pub async fn only_print_feed_status(
 
 fn feed_symbol_for(feed: &FeedResponse) -> impl Display {
     if feed.has_errored_job() {
-        unicode::BLACK_DOWN_POINTING_TRIANGLE.bold().red().to_string()
+        unicode::BLACK_DOWN_POINTING_TRIANGLE
+            .bold()
+            .red()
+            .to_string()
     } else if feed.has_unfinished_jobs() {
-        unicode::BLACK_UP_POINTING_TRIANGLE.bold().yellow().to_string()
+        unicode::BLACK_UP_POINTING_TRIANGLE
+            .bold()
+            .yellow()
+            .to_string()
     } else {
-        unicode::BLACK_UP_POINTING_TRIANGLE.bold().green().to_string()
+        unicode::BLACK_UP_POINTING_TRIANGLE
+            .bold()
+            .green()
+            .to_string()
     }
 }

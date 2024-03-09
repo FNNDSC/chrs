@@ -20,6 +20,9 @@ use reqwest_retry::{
 /// It may use authorization, in which case it is able to read private collections.
 pub type RoClient = Box<dyn BaseChrisClient<RoAccess>>;
 
+/// A dummy value to provide to [Credentials::get_client]
+pub const NO_ARGS: [&str; 0] = [];
+
 /// Either an anonymous client or a logged in user.
 pub enum Client {
     Anon(AnonChrisClient),

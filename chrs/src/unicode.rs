@@ -12,3 +12,5 @@ pub const BLACK_DOWN_POINTING_TRIANGLE: &str = "\u{25BC}";
 pub const HORIZONTAL_BAR: &str = "\u{2015}";
 
 pub const VERTICAL_BAR: &str = "\u{007C}";
+
+pub const CHECK_MARK: &str = "\u{2713}";
