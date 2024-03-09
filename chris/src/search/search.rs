@@ -37,21 +37,6 @@ pub struct ActualSearch<R: DeserializeOwned, A: Access, Q: Serialize + Sized> {
 }
 
 impl<R: DeserializeOwned, A: Access, Q: Serialize + Sized> ActualSearch<R, A, Q> {
-    /// See [Search::get_count]
-    async fn get_count(&self) -> Result<u32, CubeError> {
-        let res = self
-            .client
-            .get(&self.base_url)
-            .query(&self.query)
-            .query(&LIMIT_ZERO)
-            .send()
-            .await?;
-        let data: HasCount = check(res).await?.json().await?;
-        Ok(data.count)
-    }
-}
-
-impl<R: DeserializeOwned, A: Access, Q: Serialize + Sized> ActualSearch<R, A, Q> {
     /// Create a HTTP GET request for this search.
     fn get_search(&self) -> reqwest_middleware::RequestBuilder {
         if self.is_search {
@@ -61,6 +46,15 @@ impl<R: DeserializeOwned, A: Access, Q: Serialize + Sized> ActualSearch<R, A, Q>
             let url = self.base_url.as_str();
             self.client.get(url)
         }
+    }
+
+    /// See [Search::get_count]
+    async fn get_count(&self) -> Result<u32, CubeError> {
+        let res = self.get_search().query(&LIMIT_ONE)
+            .send()
+            .await?;
+        let data: HasCount = check(res).await?.json().await?;
+        Ok(data.count)
     }
 
     /// See [Search::get_first]
