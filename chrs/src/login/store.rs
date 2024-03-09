@@ -103,7 +103,7 @@ impl CubeState {
             cube: self.cube,
             store: token,
             current_plugin_instance_id: self.current_plugin_instance_id,
-            ui: None,
+            ui: self.ui,
         };
         Ok(saved)
     }
