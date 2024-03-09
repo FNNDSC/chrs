@@ -1,115 +1,20 @@
+use color_eyre::eyre::{Context, Error, eyre};
+use color_eyre::owo_colors::OwoColorize;
+use reqwest_middleware::Middleware;
+use reqwest_retry::{
+    policies::ExponentialBackoff, Retryable, RetryableStrategy, RetryTransientMiddleware,
+};
+
+use chris::{Account, AnonChrisClient, ChrisClient, EitherClient};
+use chris::reqwest::Response;
+use chris::types::{CubeUrl, PluginInstanceId, Username};
+
 use crate::login::state::ChrsSessions;
 use crate::login::store::CubeState;
 use crate::login::UiUrl;
-use chris::errors::CubeError;
-use chris::reqwest::Response;
-use chris::types::{CubeUrl, FeedId, PluginInstanceId, Username};
-use chris::{
-    Account, AnonChrisClient, BaseChrisClient, ChrisClient, FeedRo, PluginInstanceRo, RoAccess,
-};
-use color_eyre::eyre::{bail, eyre, Context, Error, OptionExt};
-use color_eyre::owo_colors::OwoColorize;
-use futures::TryStreamExt;
-use itertools::Itertools;
-use reqwest_middleware::Middleware;
-use reqwest_retry::{
-    policies::ExponentialBackoff, RetryTransientMiddleware, Retryable, RetryableStrategy,
-};
-
-/// A client which accesses read-only APIs only.
-/// It may use authorization, in which case it is able to read private collections.
-pub type RoClient = Box<dyn BaseChrisClient<RoAccess>>;
 
 /// A dummy value to provide to [Credentials::get_client]
 pub const NO_ARGS: [&str; 0] = [];
-
-/// Either an anonymous client or a logged in user.
-pub enum Client {
-    Anon(AnonChrisClient),
-    LoggedIn(ChrisClient),
-}
-
-impl Client {
-    /// Use this client for public read-only access only.
-    pub fn into_ro(self) -> RoClient {
-        match self {
-            Self::Anon(c) => Box::new(c),
-            Self::LoggedIn(c) => Box::new(c.into_ro()),
-        }
-    }
-
-    pub fn url(&self) -> &CubeUrl {
-        match self {
-            Self::Anon(c) => c.url(),
-            Self::LoggedIn(c) => c.url(),
-        }
-    }
-
-    pub fn username(&self) -> Username {
-        match self {
-            Self::Anon(_) => Username::from_static(""),
-            Self::LoggedIn(c) => c.username().clone(),
-        }
-    }
-
-    pub async fn get_plugin_instance(
-        &self,
-        id: PluginInstanceId,
-    ) -> Result<PluginInstanceRo, CubeError> {
-        match self {
-            Self::Anon(c) => c.get_plugin_instance(id).await,
-            Self::LoggedIn(c) => c.get_plugin_instance(id).await.map(|p| p.into()),
-        }
-    }
-
-    pub async fn get_feed(&self, id: FeedId) -> Result<FeedRo, CubeError> {
-        match self {
-            Self::Anon(c) => c.get_feed(id).await,
-            Self::LoggedIn(c) => c.get_feed(id).await.map(|f| f.into()),
-        }
-    }
-
-    pub async fn get_feed_by_name(&self, name: &str) -> color_eyre::Result<FeedRo> {
-        let feeds: Vec<_> = match self {
-            Self::Anon(c) => {
-                let query = c.public_feeds().name(name).page_limit(10).max_items(10);
-                query.search().stream_connected().try_collect().await
-            }
-            Self::LoggedIn(c) => {
-                // need to get both public feeds and private feeds
-                // https://github.com/FNNDSC/ChRIS_ultron_backEnd/issues/530
-                let private_query = c.feeds().name(name).page_limit(10).max_items(10);
-                let private_feeds: Vec<_> = private_query
-                    .search()
-                    .stream_connected()
-                    .map_ok(|f| f.into())
-                    .try_collect()
-                    .await?;
-                if private_feeds.is_empty() {
-                    let public_feeds_query =
-                        c.public_feeds().name(name).page_limit(10).max_items(10);
-                    public_feeds_query
-                        .search()
-                        .stream_connected()
-                        .try_collect()
-                        .await
-                } else {
-                    Ok(private_feeds)
-                }
-            }
-        }?;
-        if feeds.len() > 1 {
-            bail!(
-                "More than one feed found: {}",
-                feeds
-                    .iter()
-                    .map(|f| format!("feed/{}", f.object.id.0))
-                    .join(" ")
-            )
-        }
-        feeds.into_iter().next().ok_or_eyre("Feed not found")
-    }
-}
 
 /// Command-line options of `chrs` which are relevant to identifying the user session
 /// and obtaining a client object.
@@ -132,7 +37,7 @@ impl Credentials {
     pub async fn get_client(
         self,
         args: impl IntoIterator<Item = impl AsRef<str>>,
-    ) -> color_eyre::Result<(Client, Option<PluginInstanceId>, Option<UiUrl>)> {
+    ) -> color_eyre::Result<(EitherClient, Option<PluginInstanceId>, Option<UiUrl>)> {
         let Credentials {
             cube_url,
             username,
@@ -148,7 +53,7 @@ impl Credentials {
         if let Some(password) = password {
             get_client_with_password(cube_url, username, password, args, retry_middleware)
                 .await
-                .map(Client::LoggedIn)
+                .map(EitherClient::LoggedIn)
                 .map(|c| (c, None, ui))
         } else {
             get_client_from_state(cube_url, username, ui, args, retry_middleware).await
@@ -196,7 +101,7 @@ async fn get_client_from_state(
     ui: Option<UiUrl>,
     args: impl IntoIterator<Item = impl AsRef<str>>,
     retry_middleware: Option<impl Middleware>,
-) -> Result<(Client, Option<PluginInstanceId>, Option<UiUrl>), Error> {
+) -> Result<(EitherClient, Option<PluginInstanceId>, Option<UiUrl>), Error> {
     let url = cube_url.clone().or_else(|| first_cube_urllike(args));
     let login = ChrsSessions::load()?
         .get_login(url.as_ref(), username.as_ref())?
@@ -229,7 +134,7 @@ async fn get_client_from_state(
 async fn get_anon_client(
     cube_url: CubeUrl,
     retry_middleware: Option<impl Middleware>,
-) -> color_eyre::Result<Client> {
+) -> color_eyre::Result<EitherClient> {
     let client = if let Some(middleware) = retry_middleware {
         AnonChrisClient::build(cube_url)?
             .with(middleware)
@@ -238,7 +143,7 @@ async fn get_anon_client(
     } else {
         AnonChrisClient::build(cube_url)?.connect().await
     }?;
-    Ok(Client::Anon(client))
+    Ok(EitherClient::Anon(client))
 }
 
 async fn get_authed_client(
@@ -246,7 +151,7 @@ async fn get_authed_client(
     username: Username,
     token: Option<String>,
     retry_middleware: Option<impl Middleware>,
-) -> color_eyre::Result<Client> {
+) -> color_eyre::Result<EitherClient> {
     let token = token.ok_or_else(|| {
         eyre!(
             "The saved token is invalid, please run `{}`",
@@ -267,7 +172,7 @@ async fn get_authed_client(
             .connect()
             .await
     };
-    result.map(Client::LoggedIn).wrap_err_with(|| {
+    result.map(EitherClient::LoggedIn).wrap_err_with(|| {
         format!(
             "Could not log in. The saved token might have expired, please run {}",
             format!(
@@ -313,7 +218,7 @@ struct RetryStrategy;
 impl RetryableStrategy for RetryStrategy {
     fn handle(
         &self,
-        res: &std::result::Result<Response, reqwest_middleware::Error>,
+        res: &Result<Response, reqwest_middleware::Error>,
     ) -> Option<Retryable> {
         if let Ok(response) = res {
             if response.status().is_server_error() {
@@ -331,8 +236,9 @@ impl RetryableStrategy for RetryStrategy {
 
 #[cfg(test)]
 mod tests {
-    use super::*;
     use rstest::*;
+
+    use super::*;
 
     #[rstest]
     #[case([], None)]

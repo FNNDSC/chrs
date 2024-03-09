@@ -5,9 +5,9 @@ use color_eyre::eyre::bail;
 use color_eyre::owo_colors::OwoColorize;
 use futures::TryStreamExt;
 
-use chris::{Access, BaseChrisClient, LinkedModel, PipelineResponse, PluginResponse};
 use chris::search::PluginSearchBuilder;
 use chris::types::{CubeUrl, PipelineId, PluginId};
+use chris::{Access, BaseChrisClient, LinkedModel, PipelineResponse, PluginResponse};
 
 use crate::shlex::shlex_quote;
 

@@ -7,3 +7,4 @@ pub(crate) mod filebrowser;
 pub(crate) mod access;
 pub(crate) mod authed;
 pub(crate) mod base;
+pub(crate) mod either;

@@ -18,10 +18,9 @@
 #![allow(dead_code)]
 #![allow(unused_variables)]
 
-use crate::client::RoClient;
 use async_stream::stream;
 use chris::errors::CubeError;
-use chris::reqwest;
+use chris::{reqwest, RoClient};
 use chris::types::{CollectionUrl, CubeUrl, FeedId, PluginInstanceId};
 use futures::{StreamExt, TryStreamExt};
 use itertools::Itertools;
@@ -553,9 +552,8 @@ enum PluginInstanceTitleError<'a> {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::client::Client;
     use chris::types::FileResourceFname;
-    use chris::AnonChrisClient;
+    use chris::{AnonChrisClient, EitherClient};
     use rstest::*;
 
     #[rstest]
@@ -665,7 +663,7 @@ mod tests {
             .connect()
             .await
             .unwrap();
-        let client = Client::Anon(anon_client).into_ro();
+        let client = EitherClient::Anon(anon_client).into_ro();
         let mut namer = ChrisPathHumanCoder::new(&client);
 
         let example = FileResourceFname::from("chrisui/feed_310/pl-dircopy_313/pl-unstack-folders_314/pl-mri-preview_875/data/fetalmri-template-22.txt");

@@ -7,9 +7,9 @@ use color_eyre::owo_colors::OwoColorize;
 use futures::{future, future::Ready, TryStreamExt};
 
 use chris::errors::CubeError;
-use chris::{Access, BaseChrisClient, ChrisClient, FeedResponse};
+use chris::{Access, BaseChrisClient, ChrisClient, EitherClient, FeedResponse};
 
-use crate::client::{Client, Credentials, NO_ARGS};
+use crate::client::{Credentials, NO_ARGS};
 use crate::unicode;
 
 #[derive(Parser)]
@@ -34,8 +34,8 @@ pub struct ListFeedArgs {
 pub async fn list_feeds(credentials: Credentials, args: ListFeedArgs) -> Result<()> {
     let (client, _, _) = credentials.get_client(NO_ARGS).await?;
     match client {
-        Client::Anon(c) => list_feeds_anon(c, args).await,
-        Client::LoggedIn(c) => list_feeds_authed(c, args).await,
+        EitherClient::Anon(c) => list_feeds_anon(c, args).await,
+        EitherClient::LoggedIn(c) => list_feeds_authed(c, args).await,
     }
 }
 

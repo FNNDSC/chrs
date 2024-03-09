@@ -2,6 +2,8 @@ use crate::arg::GivenPluginInstance;
 use crate::client::Credentials;
 use crate::login::state::ChrsSessions;
 use color_eyre::eyre::Result;
+use chris::BaseChrisClient;
+use chris::types::Username;
 
 pub async fn cd(credentials: Credentials, given_plinst: GivenPluginInstance) -> Result<()> {
     let (client, old_plinst, _) = credentials
@@ -12,6 +14,6 @@ pub async fn cd(credentials: Credentials, given_plinst: GivenPluginInstance) -> 
     let username = client.username();
     let plinst = given_plinst.get_using(&client, old_plinst).await?;
     let mut sessions = ChrsSessions::load()?;
-    sessions.set_plugin_instance(&cube_url, &username, plinst.object.id);
+    sessions.set_plugin_instance(&cube_url, &username.cloned().unwrap_or_else(|| Username::from_static("")), plinst.object.id);
     sessions.save()
 }

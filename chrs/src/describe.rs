@@ -6,12 +6,12 @@ use futures::TryStreamExt;
 use time::format_description::well_known::Rfc2822;
 
 use chris::errors::CubeError;
-use chris::{Access, Pipeline, PipelineRw, Plugin, PluginParameter, PluginResponse, PluginRw};
+use chris::{Access, EitherClient, Pipeline, PipelineRw, Plugin, PluginParameter, PluginResponse, PluginRw};
 
 use crate::arg::{GivenRunnable, Runnable};
-use crate::client::{Client, Credentials};
+use crate::client::Credentials;
 use crate::login::{UiUrl, UiUrlRef};
-use crate::plugin_clap::{clap_params, clap_serialize_params};
+use crate::plugin_clap::clap_params;
 
 #[derive(Parser)]
 pub struct DescribeArgs {
@@ -24,11 +24,11 @@ pub async fn describe_runnable(credentials: Credentials, args: DescribeArgs) -> 
         .get_client([args.plugin_or_pipeline.as_arg_str()])
         .await?;
     match &client {
-        Client::Anon(c) => match args.plugin_or_pipeline.resolve_using(c).await? {
+        EitherClient::Anon(c) => match args.plugin_or_pipeline.resolve_using(c).await? {
             Runnable::Plugin(p) => describe_plugin_ro(&p, ui).await,
             Runnable::Pipeline(p) => describe_pipeline_ro(&p, ui).await,
         },
-        Client::LoggedIn(c) => match args.plugin_or_pipeline.resolve_using(c).await? {
+        EitherClient::LoggedIn(c) => match args.plugin_or_pipeline.resolve_using(c).await? {
             Runnable::Plugin(p) => describe_plugin_rw(&p, ui).await,
             Runnable::Pipeline(p) => {
                 describe_pipeline_ro(&p, ui).await?;

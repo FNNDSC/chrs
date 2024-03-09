@@ -1,17 +1,28 @@
 //! Helper functions for producing clap commands of ChRIS plugins.
 
 use std::collections::HashMap;
+
+use clap::builder::NonEmptyStringValueParser;
 use clap::{Arg, ArgAction, ArgMatches, Command};
 use color_eyre::eyre;
-use chris::{Access, Plugin, PluginParameter};
-use chris::types::{PluginParameterAction, PluginParameterType, PluginParameterValue};
 use futures::TryStreamExt;
+
+use chris::types::{PluginParameterAction, PluginParameterType, PluginParameterValue};
+use chris::{Access, Plugin, PluginParameter};
+
+use crate::arg::GivenFeedOrPluginInstance;
+
+/// clap arg ID for plugin input
+pub const CHRS_INCOMING: &str = "chrs-incoming-cfb8a325-fbfc-4467-b7d1-4975d1a249cf";
 
 /// Use clap to serialize user-specified `args` for a `plugin`.
 pub async fn clap_serialize_params<A: Access>(
     plugin: &Plugin<A>,
     args: &[String],
-) -> eyre::Result<HashMap<String, PluginParameterValue>> {
+) -> eyre::Result<(
+    HashMap<String, PluginParameterValue>,
+    Option<GivenFeedOrPluginInstance>,
+)> {
     let parameters = plugin.parameters();
     let ps = parameters.search();
     let parameter_info: Vec<_> = ps.stream().try_collect().await?;
@@ -21,25 +32,36 @@ pub async fn clap_serialize_params<A: Access>(
 
 pub fn clap_params(selfexec: &str, parameter_info: &[PluginParameter]) -> Command {
     let args = parameter_info.iter().map(pluginparameter2claparg);
+    let input_arg = Arg::new(CHRS_INCOMING)
+        .help("Plugin instance or feed to use as input for this plugin")
+        .value_parser(NonEmptyStringValueParser::new())
+        .value_name("incoming")
+        .action(ArgAction::Set);
     Command::new(selfexec.to_string())
         .no_binary_name(true)
         .disable_help_flag(true)
         .args(args)
+        .arg(input_arg)
 }
 
 fn parse_args_using(
     command: Command,
     parameter_info: &[PluginParameter],
     args: &[String],
-) -> eyre::Result<HashMap<String, PluginParameterValue>> {
+) -> eyre::Result<(
+    HashMap<String, PluginParameterValue>,
+    Option<GivenFeedOrPluginInstance>,
+)> {
     let matches = command.try_get_matches_from(args)?;
     let parsed_params = parameter_info
         .iter()
         .filter_map(|p| get_param_from_matches(p, &matches))
         .collect();
-    Ok(parsed_params)
+    let incoming = matches
+        .get_one::<String>(CHRS_INCOMING)
+        .map(|s| s.to_string().into());
+    Ok((parsed_params, incoming))
 }
-
 
 fn get_param_from_matches(
     param_info: &PluginParameter,
@@ -139,9 +161,11 @@ fn get_long_flag_name(long_flag: &str) -> Option<&str> {
 
 #[cfg(test)]
 mod tests {
-    use super::*;
     use rstest::*;
+
     use chris::types::PluginParameterId;
+
+    use super::*;
 
     #[rstest]
     #[case("-a", Some('a'))]
@@ -229,7 +253,7 @@ mod tests {
     }
 
     #[rstest]
-    fn test_parse_args_not_optional_param(mut command: Command, params: &[PluginParameter]) {
+    fn test_parse_args_not_optional_param(command: Command, params: &[PluginParameter]) {
         let e = parse_args_using(command, params, &["--fun".to_string()])
             .expect_err("--score should be required");
         let msg = e.to_string();

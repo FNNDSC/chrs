@@ -4,8 +4,9 @@ use crate::{
     PluginInstanceResponse, PluginParameter, PluginResponse, RoAccess, RwAccess,
 };
 
-pub type PluginInstanceRw = LinkedModel<PluginInstanceResponse, RwAccess>;
-pub type PluginInstanceRo = LinkedModel<PluginInstanceResponse, RoAccess>;
+pub type PluginInstance<A> = LinkedModel<PluginInstanceResponse, A>;
+pub type PluginInstanceRw = PluginInstance<RwAccess>;
+pub type PluginInstanceRo = PluginInstance<RoAccess>;
 
 impl<A: Access> LinkedModel<PluginInstanceResponse, A> {
     /// Feed of this plugin instance.

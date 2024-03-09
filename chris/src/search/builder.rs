@@ -1,6 +1,6 @@
 use super::Search;
 use crate::types::CollectionUrl;
-use crate::Access;
+use crate::{Access, RoAccess, RwAccess};
 use reqwest_middleware::ClientWithMiddleware;
 use serde::{de::DeserializeOwned, Serialize};
 use std::collections::HashMap;
@@ -22,6 +22,20 @@ pub struct SearchBuilder<'a, T: DeserializeOwned, A: Access> {
     phantom: PhantomData<(A, T)>,
     max_items: Option<usize>,
     is_search: bool,
+}
+
+impl<'a, T: DeserializeOwned> SearchBuilder<'a, T, RwAccess> {
+    /// Convert this [SearchBuilder] to produce [RoAccess] items.
+    pub fn into_ro(self) -> SearchBuilder<'a, T, RoAccess> {
+        SearchBuilder {
+            client: self.client,
+            url: self.url,
+            query: self.query,
+            max_items: self.max_items,
+            is_search: self.is_search,
+            phantom: Default::default(),
+        }
+    }
 }
 
 impl<'a, T: DeserializeOwned, A: Access> SearchBuilder<'a, T, A> {

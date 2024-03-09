@@ -6,11 +6,8 @@ use itertools::Itertools;
 use std::fmt::Display;
 
 use chris::types::PluginInstanceId;
-use chris::{
-    Access, BaseChrisClient, ChrisClient, LinkedModel, PluginInstanceResponse, PluginInstanceRo,
-};
+use chris::{Access, BaseChrisClient, ChrisClient, EitherClient, LinkedModel, PluginInstance, PluginInstanceResponse, PluginInstanceRo, PluginInstanceRw};
 
-use crate::client::Client;
 
 /// A user-provided string which is supposed to refer to an existing plugin instance
 /// or _ChRIS_ file path.
@@ -120,7 +117,7 @@ impl GivenPluginInstance {
 
     pub async fn get_using(
         self,
-        client: &Client,
+        client: &EitherClient,
         old: Option<PluginInstanceId>,
     ) -> Result<PluginInstanceRo> {
         match self {
@@ -128,15 +125,39 @@ impl GivenPluginInstance {
                 .get_plugin_instance(id)
                 .await
                 .map_err(eyre::Error::new),
-            Self::Title(title) => get_by_title(client, title, old).await,
-            Self::RelativePath(path) => get_relative_path_as_plinst(client, old, path).await,
-            Self::AbsolutePath(path) => get_plinst_of_path(client, &path).await,
+            Self::Title(title) => get_by_title_ro(client, title, old).await,
+            Self::RelativePath(path) => match client {
+                EitherClient::Anon(c) => get_relative_path_as_plinst(c, old, path).await,
+                EitherClient::LoggedIn(c) => get_relative_path_as_plinst(c, old, path)
+                    .await
+                    .map(|p| p.into()),
+            },
+            Self::AbsolutePath(path) => match client {
+                EitherClient::Anon(c) => get_plinst_of_path(c, &path).await,
+                EitherClient::LoggedIn(c) => get_plinst_of_path(c, &path).await.map(|p| p.into())
+            },
+        }
+    }
+
+    pub async fn get_rw(
+        self,
+        client: &ChrisClient,
+        old: Option<PluginInstanceId>,
+    ) -> Result<PluginInstanceRw> {
+        match self {
+            GivenPluginInstance::Title(title) => search_title(client, title, old).await,
+            GivenPluginInstance::Id(id, _) => client
+                .get_plugin_instance(id)
+                .await
+                .map_err(eyre::Error::new),
+            GivenPluginInstance::RelativePath(path) => get_relative_path_as_plinst(client, old, path).await,
+            GivenPluginInstance::AbsolutePath(path) => get_plinst_of_path(client, &path).await,
         }
     }
 
     pub async fn get_as_path(
         self,
-        client: &Client,
+        client: &EitherClient,
         old: Option<PluginInstanceId>,
     ) -> Result<String> {
         match self {
@@ -145,7 +166,7 @@ impl GivenPluginInstance {
                 .await
                 .map(|p| p.object.output_path)
                 .map_err(eyre::Error::new),
-            GivenPluginInstance::Title(title) => get_by_title(client, title, old)
+            GivenPluginInstance::Title(title) => get_by_title_ro(client, title, old)
                 .await
                 .map(|p| p.object.output_path),
             GivenPluginInstance::RelativePath(p) => get_relative_path(client, old, &p).await,
@@ -154,8 +175,8 @@ impl GivenPluginInstance {
     }
 }
 
-async fn get_relative_path(
-    client: &Client,
+async fn get_relative_path<A: Access, C: BaseChrisClient<A>>(
+    client: &C,
     old: Option<PluginInstanceId>,
     rel_path: &str,
 ) -> Result<String> {
@@ -168,11 +189,11 @@ async fn get_relative_path(
     }
 }
 
-async fn get_relative_path_as_plinst(
-    client: &Client,
+async fn get_relative_path_as_plinst<A: Access, C: BaseChrisClient<A>>(
+    client: &C,
     old: Option<PluginInstanceId>,
     rel_path: String,
-) -> Result<PluginInstanceRo> {
+) -> Result<PluginInstance<A>> {
     if let Some(id) = old {
         let old_output_path = pwd(client, id, true).await?;
         let requested_path = reconcile_path(&old_output_path, &rel_path);
@@ -189,7 +210,7 @@ async fn get_relative_path_as_plinst(
     }
 }
 
-async fn get_plinst_of_path(client: &Client, path: &str) -> Result<PluginInstanceRo> {
+async fn get_plinst_of_path<A: Access, C: BaseChrisClient<A>>(client: &C, path: &str) -> Result<PluginInstance<A>> {
     if let Some(id) = parse_plinst_id(path) {
         client
             .get_plugin_instance(id)
@@ -207,13 +228,13 @@ fn parse_plinst_id(path: &str) -> Option<PluginInstanceId> {
         .map(PluginInstanceId)
 }
 
-async fn get_by_title(
-    client: &Client,
+async fn get_by_title_ro(
+    client: &EitherClient,
     name: String,
     old: Option<PluginInstanceId>,
 ) -> Result<PluginInstanceRo> {
-    if let Client::LoggedIn(chris) = client {
-        search_title(chris, name, old).await
+    if let EitherClient::LoggedIn(chris) = client {
+        search_title(chris, name, old).await.map(|p| p.into())
     } else {
         bail!("Cannot search for plugin instances without a user account. Please tell Jorge to fix https://github.com/FNNDSC/ChRIS_ultron_backEnd/issues/530")
     }
@@ -223,7 +244,7 @@ async fn search_title(
     chris: &ChrisClient,
     title: String,
     old: Option<PluginInstanceId>,
-) -> Result<PluginInstanceRo> {
+) -> Result<PluginInstanceRw> {
     if let Some(old) = old {
         if let Some(res) = search_title_within_feed(chris, title.clone(), old).await? {
             return Ok(res);
@@ -236,7 +257,7 @@ async fn search_title_within_feed(
     chris: &ChrisClient,
     title: String,
     old: PluginInstanceId,
-) -> Result<Option<PluginInstanceRo>> {
+) -> Result<Option<PluginInstanceRw>> {
     let old = chris.get_plugin_instance(old).await?;
     let query = chris
         .plugin_instances()
@@ -244,12 +265,7 @@ async fn search_title_within_feed(
         .title(title)
         .page_limit(10)
         .max_items(10);
-    let items: Vec<PluginInstanceRo> = query
-        .search()
-        .stream_connected()
-        .map_ok(|p| p.into())
-        .try_collect()
-        .await?;
+    let items: Vec<_> = query.search().stream_connected().try_collect().await?;
     if items.len() > 1 {
         bail!(
             "Multiple plugin instances found. Please specify: {}",
@@ -259,7 +275,7 @@ async fn search_title_within_feed(
     Ok(items.into_iter().next())
 }
 
-async fn search_title_any_feed(chris: &ChrisClient, title: String) -> Result<PluginInstanceRo> {
+async fn search_title_any_feed(chris: &ChrisClient, title: String) -> Result<PluginInstanceRw> {
     let query = chris.plugin_instances().title(title);
     let items: Vec<_> = query.search().stream_connected().try_collect().await?;
     if items.len() > 1 {
@@ -271,7 +287,6 @@ async fn search_title_any_feed(chris: &ChrisClient, title: String) -> Result<Plu
     items
         .into_iter()
         .next()
-        .map(|p| p.into())
         .ok_or_eyre("Plugin instance not found")
 }
 
@@ -279,7 +294,7 @@ fn plugin_instance_string<A: Access>(p: &LinkedModel<PluginInstanceResponse, A>)
     format!("plugininstance/{}", p.object.id.0)
 }
 
-async fn pwd(client: &Client, id: PluginInstanceId, strip_data: bool) -> Result<String> {
+async fn pwd<A: Access, C: BaseChrisClient<A>>(client: &C, id: PluginInstanceId, strip_data: bool) -> Result<String> {
     let output_path = client.get_plugin_instance(id).await?.object.output_path;
     let wd = output_path
         .strip_suffix(if strip_data { "/data" } else { "" })

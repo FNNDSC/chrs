@@ -1,9 +1,8 @@
 use super::coder_channel::DecodeChannel;
-use crate::client::RoClient;
 use crate::ls::options::WhatToPrint;
 use async_recursion::async_recursion;
 use chris::types::{FileBrowserPath, FileResourceFname};
-use chris::FileBrowser;
+use chris::{FileBrowser, RoClient};
 use color_eyre::eyre::{eyre, Result};
 use color_eyre::owo_colors::OwoColorize;
 use futures::{pin_mut, StreamExt};
