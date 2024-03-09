@@ -13,6 +13,7 @@ use chris::types::{PluginParameterAction, PluginParameterValue, SimplifiedStatus
 use chris::{FeedRo, PluginInstanceRo, PluginParameter, PublicPlugin};
 
 use crate::login::UiUrl;
+use crate::shlex::shlex_quote;
 use crate::unicode;
 
 use super::feed::only_print_feed_status;
@@ -163,13 +164,6 @@ fn format_param(param: PluginParameter, value: PluginParameterValue) -> Option<S
             }
         }
     }
-}
-
-/// Wrapper for [shlex::try_quote] which never fails. NUL characters are replaced.
-fn shlex_quote(in_str: &str) -> String {
-    shlex::try_quote(&in_str.replace('\0', "¡NUL!"))
-        .unwrap()
-        .to_string()
 }
 
 async fn get_all_plugin_instances(feed: &FeedRo) -> Result<Vec<PluginInstanceRo>> {

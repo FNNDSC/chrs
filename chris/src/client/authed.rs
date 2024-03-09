@@ -2,7 +2,10 @@ use super::access::RoAccess;
 use super::base::fetch_id;
 use crate::errors::{check, CubeError, FileIOError};
 use crate::models::{BaseResponse, CubeLinks, FileUploadResponse};
-use crate::search::{FeedSearchBuilder, PluginInstanceSearchBuilder, PluginSearchBuilder, SearchBuilder, LIMIT_ZERO, PipelineSearchBuilder};
+use crate::search::{
+    FeedSearchBuilder, PipelineSearchBuilder, PluginInstanceSearchBuilder, PluginSearchBuilder,
+    SearchBuilder, LIMIT_ZERO,
+};
 use crate::types::*;
 use crate::{
     Access, BaseChrisClient, FeedResponse, FileBrowser, LinkedModel, PluginInstanceResponse,

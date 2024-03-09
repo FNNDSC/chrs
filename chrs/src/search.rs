@@ -1,18 +1,18 @@
-use clap::Parser;
-use color_eyre::eyre;
 use crate::client::{Credentials, NO_ARGS};
-use color_eyre::eyre::Result;
-use color_eyre::owo_colors::OwoColorize;
-use futures::{future, TryStreamExt};
-use futures::future::Ready;
 use chris::errors::CubeError;
 use chris::{PipelineResponse, PluginResponse};
+use clap::Parser;
+use color_eyre::eyre;
+use color_eyre::eyre::Result;
+use color_eyre::owo_colors::OwoColorize;
+use futures::future::Ready;
+use futures::{future, TryStreamExt};
 
 #[derive(Parser)]
 pub struct SearchArgs {
     /// Name to filter by
     #[clap(default_value = "")]
-    name: String
+    name: String,
 }
 
 pub async fn search_runnable(credentials: Credentials, args: SearchArgs) -> Result<()> {
@@ -28,12 +28,21 @@ pub async fn search_runnable(credentials: Credentials, args: SearchArgs) -> Resu
     let pipelines = pipeline_search.stream().map_ok(format_pipeline);
 
     let stream = tokio_stream::StreamExt::merge(plugins, pipelines);
-    stream.try_for_each(print_string).await.map_err(eyre::Error::new)
+    stream
+        .try_for_each(print_string)
+        .await
+        .map_err(eyre::Error::new)
 }
 
 fn format_plugin(p: PluginResponse) -> String {
     let id = format!("{}/{}", "plugin".dimmed(), p.id.0);
-    format!("{:<22}{}{}{}", id.magenta(), p.name, "@".dimmed(), p.version.dimmed())
+    format!(
+        "{:<22}{}{}{}",
+        id.magenta(),
+        p.name,
+        "@".dimmed(),
+        p.version.dimmed()
+    )
 }
 
 fn format_pipeline(p: PipelineResponse) -> String {

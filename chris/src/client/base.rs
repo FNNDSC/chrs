@@ -2,8 +2,8 @@ use super::access::{Access, RoAccess};
 use super::filebrowser::FileBrowser;
 use crate::errors::{check, CubeError};
 use crate::search::*;
-use crate::types::{CubeUrl, FeedId, PluginInstanceId};
-use crate::{FeedResponse, LinkedModel, PluginInstanceResponse};
+use crate::types::{CubeUrl, FeedId, PipelineId, PluginId, PluginInstanceId};
+use crate::{FeedResponse, LinkedModel, PipelineResponse, PluginInstanceResponse, PluginResponse};
 use async_trait::async_trait;
 use reqwest_middleware::ClientWithMiddleware;
 use serde::de::DeserializeOwned;
@@ -27,6 +27,12 @@ pub trait BaseChrisClient<A: Access> {
     /// Search for public feeds.
     fn public_feeds(&self) -> FeedSearchBuilder<RoAccess>;
 
+    // Note: get_feed and get_plugin_instance must be implemented manually,
+    // whereas we can use a SearchBuilder for get_plugin and get_pipeline because
+    // feeds and plugin instances are affected by the feature incompleteness of
+    // public feeds.
+    // See https://github.com/FNNDSC/ChRIS_ultron_backEnd/issues/530
+
     /// Get a feed (directly).
     async fn get_feed(&self, id: FeedId) -> Result<LinkedModel<FeedResponse, A>, CubeError>;
 
@@ -35,6 +41,26 @@ pub trait BaseChrisClient<A: Access> {
         &self,
         id: PluginInstanceId,
     ) -> Result<LinkedModel<PluginInstanceResponse, A>, CubeError>;
+
+    /// Get a plugin by ID
+    async fn get_plugin(
+        &self,
+        id: PluginId,
+    ) -> Result<LinkedModel<PluginResponse, A>, GetOnlyError> {
+        let query = self.plugin().id(id).page_limit(1).max_items(1);
+        let search = query.search();
+        search.get_only().await
+    }
+
+    /// Get a pipeline by ID
+    async fn get_pipeline(
+        &self,
+        id: PipelineId,
+    ) -> Result<LinkedModel<PipelineResponse, A>, GetOnlyError> {
+        let query = self.pipeline().id(id).page_limit(1).max_items(1);
+        let search = query.search();
+        search.get_only().await
+    }
 }
 
 pub(crate) async fn fetch_id<A: Access, T: DeserializeOwned>(

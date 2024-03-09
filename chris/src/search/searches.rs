@@ -1,11 +1,16 @@
 use super::builder::SearchBuilder;
-use crate::types::{FeedId, PluginInstanceId};
+use crate::types::{FeedId, PipelineId, PluginId, PluginInstanceId};
 use crate::{Access, FeedResponse, PipelineResponse, PluginInstanceResponse, PluginResponse};
 
 /// Plugin search query
 pub type PluginSearchBuilder<'a, A> = SearchBuilder<'a, PluginResponse, A>;
 
 impl<A: Access> PluginSearchBuilder<'_, A> {
+    /// Search for plugin by ID
+    pub fn id(self, id: PluginId) -> Self {
+        self.add_u32("id", id.0)
+    }
+
     /// Search for plugin by name
     pub fn name(self, name: impl Into<String>) -> Self {
         self.add_string("name", name)
@@ -72,7 +77,7 @@ pub type PipelineSearchBuilder<'a, A> = SearchBuilder<'a, PipelineResponse, A>;
 
 impl<A: Access> PipelineSearchBuilder<'_, A> {
     /// Search for pipeline by ID
-    pub fn id(self, id: PluginInstanceId) -> Self {
+    pub fn id(self, id: PipelineId) -> Self {
         self.add_u32("id", id.0)
     }
 

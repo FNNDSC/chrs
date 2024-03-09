@@ -1,15 +1,15 @@
 use async_trait::async_trait;
-use reqwest::header::{ACCEPT, HeaderMap};
+use reqwest::header::{HeaderMap, ACCEPT};
 
-use crate::{FeedResponse, LinkedModel, PluginInstanceResponse};
 use crate::errors::{check, CubeError};
 use crate::models::{BaseResponse, CubeLinks};
-use crate::search::{FeedSearchBuilder, LIMIT_ZERO, PipelineSearchBuilder, PluginSearchBuilder};
+use crate::search::{FeedSearchBuilder, PipelineSearchBuilder, PluginSearchBuilder, LIMIT_ZERO};
 use crate::types::*;
+use crate::{FeedResponse, LinkedModel, PluginInstanceResponse};
 
 use super::access::RoAccess;
-use super::base::BaseChrisClient;
 use super::base::fetch_id;
+use super::base::BaseChrisClient;
 use super::filebrowser::FileBrowser;
 
 /// Anonymous ChRIS client.
