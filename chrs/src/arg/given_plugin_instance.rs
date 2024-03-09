@@ -190,7 +190,7 @@ async fn get_relative_path_as_plinst(
 }
 
 async fn get_plinst_of_path(client: &Client, path: &str) -> Result<PluginInstanceRo> {
-    if let Some(id) = parse_plinst_id(&path) {
+    if let Some(id) = parse_plinst_id(path) {
         client
             .get_plugin_instance(id)
             .await
@@ -201,7 +201,7 @@ async fn get_plinst_of_path(client: &Client, path: &str) -> Result<PluginInstanc
 }
 
 fn parse_plinst_id(path: &str) -> Option<PluginInstanceId> {
-    path.rsplit_once("_")
+    path.rsplit_once('_')
         .map(|(_, r)| r)
         .and_then(|n| n.parse().ok())
         .map(PluginInstanceId)
