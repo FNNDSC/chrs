@@ -2,9 +2,7 @@ use super::access::RoAccess;
 use super::base::fetch_id;
 use crate::errors::{check, CubeError, FileIOError};
 use crate::models::{BaseResponse, CubeLinks, FileUploadResponse};
-use crate::search::{
-    FeedSearchBuilder, PluginInstanceSearchBuilder, PluginSearchBuilder, SearchBuilder, LIMIT_ZERO,
-};
+use crate::search::{FeedSearchBuilder, PluginInstanceSearchBuilder, PluginSearchBuilder, SearchBuilder, LIMIT_ZERO, PipelineSearchBuilder};
 use crate::types::*;
 use crate::{
     Access, BaseChrisClient, FeedResponse, FileBrowser, LinkedModel, PluginInstanceResponse,
@@ -194,6 +192,10 @@ impl<A: Access> BaseChrisClient<A> for AuthedChrisClient<A> {
 
     fn plugin(&self) -> PluginSearchBuilder<A> {
         SearchBuilder::query(&self.client, &self.links.plugins)
+    }
+
+    fn pipeline(&self) -> PipelineSearchBuilder<A> {
+        PipelineSearchBuilder::query(&self.client, &self.links.pipelines)
     }
 
     fn public_feeds(&self) -> FeedSearchBuilder<RoAccess> {

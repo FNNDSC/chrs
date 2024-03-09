@@ -1,6 +1,6 @@
 use super::builder::SearchBuilder;
 use crate::types::{FeedId, PluginInstanceId};
-use crate::{Access, FeedResponse, PluginInstanceResponse, PluginResponse};
+use crate::{Access, FeedResponse, PipelineResponse, PluginInstanceResponse, PluginResponse};
 
 /// Plugin search query
 pub type PluginSearchBuilder<'a, A> = SearchBuilder<'a, PluginResponse, A>;
@@ -19,6 +19,11 @@ impl<A: Access> PluginSearchBuilder<'_, A> {
     /// Search for plugin by version
     pub fn version(self, version: impl Into<String>) -> Self {
         self.add_string("version", version)
+    }
+
+    /// Search by plugin by name, title, or category
+    pub fn name_title_category(self, name_title_category: impl Into<String>) -> Self {
+        self.add_string("name_title_category", name_title_category)
     }
 }
 
@@ -59,5 +64,25 @@ impl<A: Access> PluginInstanceSearchBuilder<'_, A> {
     /// Search for plugin instance by feed_id
     pub fn feed_id(self, feed_id: FeedId) -> Self {
         self.add_u32("feed_id", feed_id.0)
+    }
+}
+
+/// Pipeline search query
+pub type PipelineSearchBuilder<'a, A> = SearchBuilder<'a, PipelineResponse, A>;
+
+impl<A: Access> PipelineSearchBuilder<'_, A> {
+    /// Search for pipeline by ID
+    pub fn id(self, id: PluginInstanceId) -> Self {
+        self.add_u32("id", id.0)
+    }
+
+    /// Search for pipeline by name
+    pub fn name(self, name: impl Into<String>) -> Self {
+        self.add_string("name", name)
+    }
+
+    /// Search for pipeline by description
+    pub fn description(self, description: impl Into<String>) -> Self {
+        self.add_string("description", description)
     }
 }

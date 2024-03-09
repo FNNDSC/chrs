@@ -12,6 +12,7 @@ use crate::login::switch::switch_login;
 use crate::login::UiUrl;
 use crate::logs::logs;
 use crate::ls::{ls, LsArgs};
+use crate::search::{search_runnable, SearchArgs};
 use crate::status::cmd::status;
 use crate::whoami::whoami;
 
@@ -26,6 +27,7 @@ mod ls;
 mod status;
 pub mod unicode;
 mod whoami;
+mod search;
 
 #[derive(Parser)]
 #[clap(
@@ -89,8 +91,14 @@ enum Commands {
     /// Show login information
     Whoami {},
 
+    /// List files
+    Ls(LsArgs),
+
     /// List feeds
     List(ListFeedArgs),
+
+    /// Search for plugins and pipelines
+    Search(SearchArgs),
 
     /// Change plugin instance context
     Cd {
@@ -195,8 +203,6 @@ enum Commands {
     //         dst: Option<PathBuf>,
     //     },
     //
-    /// List files
-    Ls(LsArgs),
     //
     //     //
     //     // /// Search for plugins and pipelines
@@ -310,5 +316,6 @@ async fn main() -> color_eyre::eyre::Result<()> {
         } => status(credentials, feed_or_plugin_instance, execshell).await,
         Commands::Logs { plugin_instance } => logs(credentials, plugin_instance).await,
         Commands::List(args) => list_feeds(credentials, args).await,
+        Commands::Search(args) => search_runnable(credentials, args).await
     }
 }

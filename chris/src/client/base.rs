@@ -1,7 +1,7 @@
 use super::access::{Access, RoAccess};
 use super::filebrowser::FileBrowser;
 use crate::errors::{check, CubeError};
-use crate::search::{FeedSearchBuilder, PluginSearchBuilder};
+use crate::search::*;
 use crate::types::{CubeUrl, FeedId, PluginInstanceId};
 use crate::{FeedResponse, LinkedModel, PluginInstanceResponse};
 use async_trait::async_trait;
@@ -20,6 +20,9 @@ pub trait BaseChrisClient<A: Access> {
 
     /// Search for ChRIS plugins.
     fn plugin(&self) -> PluginSearchBuilder<A>;
+
+    /// Search for pipeines.
+    fn pipeline(&self) -> PipelineSearchBuilder<A>;
 
     /// Search for public feeds.
     fn public_feeds(&self) -> FeedSearchBuilder<RoAccess>;
