@@ -99,8 +99,7 @@ async fn get_feed_by_name(client: &EitherClient, name: &str) -> color_eyre::Resu
                 .try_collect()
                 .await?;
             if private_feeds.is_empty() {
-                let public_feeds_query =
-                    c.public_feeds().name(name).page_limit(10).max_items(10);
+                let public_feeds_query = c.public_feeds().name(name).page_limit(10).max_items(10);
                 public_feeds_query
                     .search()
                     .stream_connected()

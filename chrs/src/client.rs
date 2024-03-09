@@ -1,13 +1,13 @@
-use color_eyre::eyre::{Context, Error, eyre};
+use color_eyre::eyre::{eyre, Context, Error};
 use color_eyre::owo_colors::OwoColorize;
 use reqwest_middleware::Middleware;
 use reqwest_retry::{
-    policies::ExponentialBackoff, Retryable, RetryableStrategy, RetryTransientMiddleware,
+    policies::ExponentialBackoff, RetryTransientMiddleware, Retryable, RetryableStrategy,
 };
 
-use chris::{Account, AnonChrisClient, ChrisClient, EitherClient};
 use chris::reqwest::Response;
 use chris::types::{CubeUrl, PluginInstanceId, Username};
+use chris::{Account, AnonChrisClient, ChrisClient, EitherClient};
 
 use crate::login::state::ChrsSessions;
 use crate::login::store::CubeState;
@@ -216,10 +216,7 @@ fn retry_strategy(retries: u32) -> impl reqwest_middleware::Middleware {
 /// - Everything else can be retried
 struct RetryStrategy;
 impl RetryableStrategy for RetryStrategy {
-    fn handle(
-        &self,
-        res: &Result<Response, reqwest_middleware::Error>,
-    ) -> Option<Retryable> {
+    fn handle(&self, res: &Result<Response, reqwest_middleware::Error>) -> Option<Retryable> {
         if let Ok(response) = res {
             if response.status().is_server_error() {
                 Some(Retryable::Transient)

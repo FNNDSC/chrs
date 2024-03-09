@@ -50,9 +50,7 @@ impl<R: DeserializeOwned, A: Access, Q: Serialize + Sized> ActualSearch<R, A, Q>
 
     /// See [Search::get_count]
     async fn get_count(&self) -> Result<u32, CubeError> {
-        let res = self.get_search().query(&LIMIT_ONE)
-            .send()
-            .await?;
+        let res = self.get_search().query(&LIMIT_ONE).send().await?;
         let data: HasCount = check(res).await?.json().await?;
         Ok(data.count)
     }

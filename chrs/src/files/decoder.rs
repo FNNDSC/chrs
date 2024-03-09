@@ -20,8 +20,8 @@
 
 use async_stream::stream;
 use chris::errors::CubeError;
-use chris::{reqwest, RoClient};
 use chris::types::{CollectionUrl, CubeUrl, FeedId, PluginInstanceId};
+use chris::{reqwest, RoClient};
 use futures::{StreamExt, TryStreamExt};
 use itertools::Itertools;
 use std::collections::HashMap;

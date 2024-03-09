@@ -1,11 +1,17 @@
 use clap::Parser;
-use color_eyre::{eyre, eyre::bail};
 use color_eyre::eyre::{eyre, OptionExt};
 use color_eyre::owo_colors::OwoColorize;
+use color_eyre::{eyre, eyre::bail};
 use futures::TryStreamExt;
 
-use chris::{BaseChrisClient, ChrisClient, EitherClient, PipelineRw, PluginRw};
-use chris::types::{ComputeResourceName, CubeUrl, FeedId, PluginInstanceId, PluginParameterValue, Username};
+use chris::errors::CubeError;
+use chris::types::{
+    ComputeResourceName, CubeUrl, FeedId, PluginInstanceId, PluginParameterValue, Username,
+};
+use chris::{
+    BaseChrisClient, ChrisClient, EitherClient, PipelineRw, PluginInstanceResponse,
+    PluginInstanceRw, PluginRw,
+};
 
 use crate::arg::{GivenFeedOrPluginInstance, GivenPluginInstance, GivenRunnable, Runnable};
 use crate::client::Credentials;
@@ -98,21 +104,36 @@ async fn run_plugin(
     ui: Option<UiUrl>,
     args: RunArgs,
 ) -> eyre::Result<()> {
-    if args.title.is_none() && !args.force {
-        bail!("Please provide a value for {}. {}", "--title".bold(), "You can bypass this check using --force".dimmed())
-    }
-
     let (mut params, incoming) = clap_serialize_params(&plugin, &args.parameters).await?;
-    let previous_id = get_input(&client, old, incoming).await?;
-
+    let previous = get_input(&client, old, incoming).await?;
+    let previous_id = previous.object.id.0;
+    if !args.force {
+        if let Some(title) = &args.title {
+            if title_is_not_unique(&client, &previous.object, title).await? {
+                bail!(
+                    "Title is not unique within the feed. {}",
+                    "You can bypass this check using --force".dimmed()
+                );
+            }
+        } else {
+            bail!(
+                "Please provide a value for {}. {}",
+                "--title".bold(),
+                "You can bypass this check using --force".dimmed()
+            )
+        }
+    }
     if args.dry_run {
-        println!("Input: plugininstance/{}", previous_id.0);
+        println!("Input: plugininstance/{}", previous_id);
         Ok(())
     } else {
         if let Some(title) = args.title {
             params.insert("title".to_string(), PluginParameterValue::Stringish(title));
         }
-        params.insert("previous_id".to_string(), PluginParameterValue::Integer(previous_id.0 as i64));
+        params.insert(
+            "previous_id".to_string(),
+            PluginParameterValue::Integer(previous_id as i64),
+        );
         let created = plugin.create_instance(&params).await?;
         if let Some(ui) = ui {
             let feed = created.feed().get().await?;
@@ -128,6 +149,20 @@ fn set_cd(cube_url: &CubeUrl, username: &Username, id: PluginInstanceId) -> eyre
     sessions.save()
 }
 
+async fn title_is_not_unique(
+    client: &ChrisClient,
+    plinst: &PluginInstanceResponse,
+    title: &str,
+) -> Result<bool, CubeError> {
+    let feed_id = plinst.feed_id;
+    let query = client
+        .plugin_instances()
+        .feed_id(feed_id)
+        .title(title.to_string());
+    let search = query.search();
+    search.get_count().await.map(|count| count > 0)
+}
+
 async fn run_pipeline(
     client: ChrisClient,
     plugin: PipelineRw,
@@ -141,11 +176,14 @@ async fn get_input(
     client: &ChrisClient,
     old: Option<PluginInstanceId>,
     given: Option<GivenFeedOrPluginInstance>,
-) -> eyre::Result<PluginInstanceId> {
+) -> eyre::Result<PluginInstanceRw> {
     if let Some(feed_or_plinst) = given {
         get_feed_or_plinst(client, old, feed_or_plinst).await
     } else if let Some(id) = old {
-        Ok(id)
+        client
+            .get_plugin_instance(id)
+            .await
+            .map_err(eyre::Error::new)
     } else {
         bail!("Input plugin instance or feed not specified.")
     }
@@ -155,15 +193,19 @@ async fn get_feed_or_plinst(
     client: &ChrisClient,
     old: Option<PluginInstanceId>,
     feed_or_plinst: GivenFeedOrPluginInstance,
-) -> eyre::Result<PluginInstanceId> {
+) -> eyre::Result<PluginInstanceRw> {
     match feed_or_plinst {
         GivenFeedOrPluginInstance::FeedId(id) => get_plinst_of_feed(client, id).await,
         GivenFeedOrPluginInstance::FeedName(name) => {
             let feed_id = get_feedrw_by_name(client, name).await?;
             get_plinst_of_feed(client, feed_id).await
         }
-        GivenFeedOrPluginInstance::PluginInstance(given) => given.get_using_rw(client, old).await.map(|p| p.object.id),
-        GivenFeedOrPluginInstance::Ambiguous(value) => GivenPluginInstance::from(value).get_using_rw(client, old).await.map(|p| p.object.id),
+        GivenFeedOrPluginInstance::PluginInstance(given) => given.get_using_rw(client, old).await,
+        GivenFeedOrPluginInstance::Ambiguous(value) => {
+            GivenPluginInstance::from(value)
+                .get_using_rw(client, old)
+                .await
+        }
     }
 }
 
@@ -173,23 +215,19 @@ async fn get_feed_or_plinst(
 async fn get_plinst_of_feed(
     client: &ChrisClient,
     feed_id: FeedId,
-) -> eyre::Result<PluginInstanceId> {
+) -> eyre::Result<PluginInstanceRw> {
     let query = client
         .plugin_instances()
         .feed_id(feed_id)
         .page_limit(1)
         .max_items(1);
     let search = query.search();
-    search
-        .get_first()
-        .await?
-        .map(|p| p.object.id)
-        .ok_or_else(|| {
-            eyre!(
-                "feed/{} does not contain plugin instances. This is a CUBE bug.",
-                feed_id.0
-            )
-        })
+    search.get_first().await?.ok_or_else(|| {
+        eyre!(
+            "feed/{} does not contain plugin instances. This is a CUBE bug.",
+            feed_id.0
+        )
+    })
 }
 
 async fn get_feedrw_by_name(client: &ChrisClient, name: String) -> color_eyre::Result<FeedId> {

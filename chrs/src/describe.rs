@@ -6,7 +6,9 @@ use futures::TryStreamExt;
 use time::format_description::well_known::Rfc2822;
 
 use chris::errors::CubeError;
-use chris::{Access, EitherClient, Pipeline, PipelineRw, Plugin, PluginParameter, PluginResponse, PluginRw};
+use chris::{
+    Access, EitherClient, Pipeline, PipelineRw, Plugin, PluginParameter, PluginResponse, PluginRw,
+};
 
 use crate::arg::{GivenRunnable, Runnable};
 use crate::client::Credentials;

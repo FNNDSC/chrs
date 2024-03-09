@@ -1,8 +1,11 @@
-use async_trait::async_trait;
-use crate::{AnonChrisClient, BaseChrisClient, ChrisClient, FeedResponse, FileBrowser, LinkedModel, PluginInstanceResponse, RoAccess};
 use crate::errors::CubeError;
 use crate::search::{FeedSearchBuilder, PipelineSearchBuilder, PluginSearchBuilder};
 use crate::types::{CubeUrl, FeedId, PluginInstanceId, Username};
+use crate::{
+    AnonChrisClient, BaseChrisClient, ChrisClient, FeedResponse, FileBrowser, LinkedModel,
+    PluginInstanceResponse, RoAccess,
+};
+use async_trait::async_trait;
 
 /// Either an anonymous client or a logged in user. A shoddy workaround for combining how enums
 /// work and how [AccessRw] and [AccessRo] could be represented using an enum.
@@ -70,17 +73,23 @@ impl BaseChrisClient<RoAccess> for EitherClient {
         }
     }
 
-    async fn get_feed<'a>(&'a self, id: FeedId) -> Result<LinkedModel<FeedResponse, RoAccess>, CubeError> {
+    async fn get_feed<'a>(
+        &'a self,
+        id: FeedId,
+    ) -> Result<LinkedModel<FeedResponse, RoAccess>, CubeError> {
         match self {
             Self::Anon(c) => c.get_feed(id).await,
-            Self::LoggedIn(c) => c.get_feed(id).await.map(|f| f.into())
+            Self::LoggedIn(c) => c.get_feed(id).await.map(|f| f.into()),
         }
     }
 
-    async fn get_plugin_instance(&self, id: PluginInstanceId) -> Result<LinkedModel<PluginInstanceResponse, RoAccess>, CubeError> {
+    async fn get_plugin_instance(
+        &self,
+        id: PluginInstanceId,
+    ) -> Result<LinkedModel<PluginInstanceResponse, RoAccess>, CubeError> {
         match self {
             Self::Anon(c) => c.get_plugin_instance(id).await,
-            Self::LoggedIn(c) => c.get_plugin_instance(id).await.map(|p| p.into())
+            Self::LoggedIn(c) => c.get_plugin_instance(id).await.map(|p| p.into()),
         }
     }
 }

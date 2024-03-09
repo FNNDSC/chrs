@@ -6,8 +6,10 @@ use itertools::Itertools;
 use std::fmt::Display;
 
 use chris::types::PluginInstanceId;
-use chris::{Access, BaseChrisClient, ChrisClient, EitherClient, LinkedModel, PluginInstance, PluginInstanceResponse, PluginInstanceRo, PluginInstanceRw};
-
+use chris::{
+    Access, BaseChrisClient, ChrisClient, EitherClient, LinkedModel, PluginInstance,
+    PluginInstanceResponse, PluginInstanceRo, PluginInstanceRw,
+};
 
 /// A user-provided string which is supposed to refer to an existing plugin instance
 /// or _ChRIS_ file path.
@@ -134,7 +136,7 @@ impl GivenPluginInstance {
             },
             Self::AbsolutePath(path) => match client {
                 EitherClient::Anon(c) => get_plinst_of_path(c, &path).await,
-                EitherClient::LoggedIn(c) => get_plinst_of_path(c, &path).await.map(|p| p.into())
+                EitherClient::LoggedIn(c) => get_plinst_of_path(c, &path).await.map(|p| p.into()),
             },
         }
     }
@@ -150,7 +152,9 @@ impl GivenPluginInstance {
                 .get_plugin_instance(id)
                 .await
                 .map_err(eyre::Error::new),
-            GivenPluginInstance::RelativePath(path) => get_relative_path_as_plinst(client, old, path).await,
+            GivenPluginInstance::RelativePath(path) => {
+                get_relative_path_as_plinst(client, old, path).await
+            }
             GivenPluginInstance::AbsolutePath(path) => get_plinst_of_path(client, &path).await,
         }
     }
@@ -210,7 +214,10 @@ async fn get_relative_path_as_plinst<A: Access, C: BaseChrisClient<A>>(
     }
 }
 
-async fn get_plinst_of_path<A: Access, C: BaseChrisClient<A>>(client: &C, path: &str) -> Result<PluginInstance<A>> {
+async fn get_plinst_of_path<A: Access, C: BaseChrisClient<A>>(
+    client: &C,
+    path: &str,
+) -> Result<PluginInstance<A>> {
     if let Some(id) = parse_plinst_id(path) {
         client
             .get_plugin_instance(id)
@@ -294,7 +301,11 @@ fn plugin_instance_string<A: Access>(p: &LinkedModel<PluginInstanceResponse, A>)
     format!("plugininstance/{}", p.object.id.0)
 }
 
-async fn pwd<A: Access, C: BaseChrisClient<A>>(client: &C, id: PluginInstanceId, strip_data: bool) -> Result<String> {
+async fn pwd<A: Access, C: BaseChrisClient<A>>(
+    client: &C,
+    id: PluginInstanceId,
+    strip_data: bool,
+) -> Result<String> {
     let output_path = client.get_plugin_instance(id).await?.object.output_path;
     let wd = output_path
         .strip_suffix(if strip_data { "/data" } else { "" })
