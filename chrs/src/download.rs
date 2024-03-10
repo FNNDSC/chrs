@@ -42,5 +42,9 @@ pub struct DownloadArgs {
 }
 
 pub async fn download(credentials: Credentials, args: DownloadArgs) -> eyre::Result<()> {
-    todo!()
+    let (client, old, _) = credentials.get_client([args.src.as_arg_str()]).await?;
+    let src_path = args.src.into_path(&client, old).await?;
+
+
+    Ok(())
 }

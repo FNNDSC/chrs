@@ -5,10 +5,7 @@ use futures::TryStreamExt;
 use itertools::Itertools;
 
 use chris::types::{FeedId, PluginInstanceId};
-use chris::{
-    Access, BaseChrisClient, ChrisClient, EitherClient, FeedRo, PluginInstance, PluginInstanceRo,
-    PluginInstanceRw,
-};
+use chris::{Access, BaseChrisClient, ChrisClient, EitherClient, Feed, FeedRo, PluginInstance, PluginInstanceRo, PluginInstanceRw, RoAccess};
 
 use crate::arg::GivenPluginInstanceOrPath;
 use crate::error_messages::CANNOT_ANONYMOUSLY_SEARCH;
@@ -20,6 +17,12 @@ pub enum GivenDataNode {
     FeedName(String),
     PluginInstanceOrPath(GivenPluginInstanceOrPath),
     Ambiguous(String),
+}
+
+/// Union type of [Feed] and [PluginInstance]
+pub enum FeedOrPluginInstance<A: Access> {
+    Feed(Feed<A>),
+    PluginInstance(PluginInstance<A>)
 }
 
 impl From<String> for GivenDataNode {
@@ -98,25 +101,24 @@ impl GivenDataNode {
     }
 
     /// Get the CUBE object.
-    pub async fn into_andor(
+    pub async fn into_or(
         self,
         client: &EitherClient,
         old: Option<PluginInstanceId>,
-    ) -> eyre::Result<(Option<FeedRo>, Option<PluginInstanceRo>)> {
+    ) -> eyre::Result<FeedOrPluginInstance<RoAccess>> {
         match self {
             GivenDataNode::FeedId { id, .. } => client
                 .get_feed(id)
                 .await
-                .map(|f| (Some(f), None))
+                .map(FeedOrPluginInstance::Feed)
                 .map_err(Error::new),
             GivenDataNode::FeedName(name) => get_feedro_by_name(client, &name)
                 .await
-                .map(|f| (Some(f), None)),
-            GivenDataNode::PluginInstanceOrPath(p) => get_plinst_and_feed(client, p, old)
-                .await
-                .map(|(f, p)| (Some(f), Some(p))),
+                .map(FeedOrPluginInstance::Feed),
+            GivenDataNode::PluginInstanceOrPath(p) => p.get_using_either(client, old).await
+                .map(FeedOrPluginInstance::PluginInstance),
             GivenDataNode::Ambiguous(_) => Err(Error::msg(
-                "Operand is ambiguous, resolution not implemented",
+                "Operand is ambiguous, cannot differentiate between feed name or plugin instance title",
             )),
         }
     }
@@ -288,14 +290,4 @@ async fn get_feedro_by_name(client: &EitherClient, name: &str) -> color_eyre::Re
         )
     }
     feeds.into_iter().next().ok_or_eyre("Feed not found")
-}
-
-async fn get_plinst_and_feed(
-    client: &EitherClient,
-    p: GivenPluginInstanceOrPath,
-    old: Option<PluginInstanceId>,
-) -> color_eyre::Result<(FeedRo, PluginInstanceRo)> {
-    let plinst = p.get_using_either(client, old).await?;
-    let feed = plinst.feed().get().await?;
-    Ok((feed, plinst))
 }

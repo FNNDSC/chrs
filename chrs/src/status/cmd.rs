@@ -2,7 +2,7 @@ use color_eyre::eyre::{OptionExt, Result};
 
 use chris::{FeedRo, PluginInstanceRo};
 
-use crate::arg::GivenDataNode;
+use crate::arg::{FeedOrPluginInstance, GivenDataNode};
 use crate::credentials::Credentials;
 use crate::login::UiUrl;
 
@@ -18,7 +18,13 @@ pub async fn status(
         .get_client(given.as_ref().map(|g| g.as_arg_str()).as_slice())
         .await?;
     let given = given.or_else(|| old.map(|id| id.into())).ok_or_eyre("missing operand")?;
-    let (feed, plinst) = given.into_andor(&client, old).await?;
+    let (feed, plinst) = match given.into_or(&client, old).await? {
+        FeedOrPluginInstance::Feed(feed) => (Some(feed), None),
+        FeedOrPluginInstance::PluginInstance(p) => {
+            let feed = p.feed().get().await?;
+            (Some(feed), Some(p))
+        }
+    };
     print_status(feed, plinst, ui, show_execshell).await
 }
 
