@@ -1,5 +1,5 @@
 use super::state::ChrsSessions;
-use crate::client::Credentials;
+use crate::credentials::Credentials;
 use chris::types::{CubeUrl, Username};
 use color_eyre::eyre::{Error, Result};
 use color_eyre::owo_colors::OwoColorize;
@@ -13,10 +13,13 @@ use dialoguer::{theme::ColorfulTheme, Select};
 /// presses arrow keys to make a selection.
 pub(crate) fn switch_login(
     Credentials {
-        cube_url, username, ..
+        cube_url,
+        username,
+        config_path,
+        ..
     }: Credentials,
 ) -> Result<()> {
-    let mut logins = ChrsSessions::load()?;
+    let mut logins = ChrsSessions::load(config_path.as_deref())?;
 
     if logins.sessions.len() == 1 {
         let login = &logins.sessions[0];
@@ -40,7 +43,7 @@ pub(crate) fn switch_login(
     };
     if let Some(selected) = selection {
         logins.set_last(selected);
-        logins.save()?;
+        logins.save(config_path)?;
     }
     Ok(())
 }

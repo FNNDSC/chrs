@@ -3,7 +3,7 @@ use color_eyre::eyre::{OptionExt, Result};
 use chris::{FeedRo, PluginInstanceRo};
 
 use crate::arg::GivenFeedOrPluginInstance;
-use crate::client::Credentials;
+use crate::credentials::Credentials;
 use crate::login::UiUrl;
 
 use super::feed::only_print_feed_status;

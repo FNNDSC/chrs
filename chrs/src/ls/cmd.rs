@@ -4,7 +4,7 @@ use color_eyre::eyre::Result;
 use tokio::join;
 use tokio::sync::mpsc::unbounded_channel;
 
-use crate::client::Credentials;
+use crate::credentials::Credentials;
 use crate::files::decoder::MaybeChrisPathHumanCoder;
 use crate::ls::options::WhatToPrint;
 

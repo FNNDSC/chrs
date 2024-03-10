@@ -9,7 +9,7 @@ use futures::{future, future::Ready, TryStreamExt};
 use chris::errors::CubeError;
 use chris::{Access, BaseChrisClient, ChrisClient, EitherClient, FeedResponse};
 
-use crate::client::{Credentials, NO_ARGS};
+use crate::credentials::{Credentials, NO_ARGS};
 use crate::unicode;
 
 #[derive(Parser)]

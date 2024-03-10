@@ -1,5 +1,5 @@
 use crate::arg::GivenPluginInstance;
-use crate::client::Credentials;
+use crate::credentials::Credentials;
 use crate::login::state::ChrsSessions;
 use chris::types::Username;
 use chris::BaseChrisClient;
@@ -13,7 +13,7 @@ pub async fn cd(credentials: Credentials, given_plinst: GivenPluginInstance) -> 
     let cube_url = client.url().clone();
     let username = client.username();
     let plinst = given_plinst.get_using_either(&client, old_plinst).await?;
-    let mut sessions = ChrsSessions::load()?;
+    let mut sessions = ChrsSessions::load(credentials.config_path.as_deref())?;
     sessions.set_plugin_instance(
         &cube_url,
         &username
@@ -21,5 +21,5 @@ pub async fn cd(credentials: Credentials, given_plinst: GivenPluginInstance) -> 
             .unwrap_or_else(|| Username::from_static("")),
         plinst.object.id,
     );
-    sessions.save()
+    sessions.save(credentials.config_path)
 }

@@ -1,7 +1,7 @@
 use super::prompt::{prompt_if_missing, prompt_if_missing_password};
 use super::state::ChrsSessions;
 use super::store;
-use crate::client::Credentials;
+use crate::credentials::Credentials;
 use chris::{
     types::{CubeUrl, Username},
     Account, AnonChrisClient, ChrisClient,
@@ -16,6 +16,7 @@ pub async fn login(
         password,
         token,
         ui,
+        config_path,
         ..
     }: Credentials,
     backend: store::Backend,
@@ -29,7 +30,7 @@ pub async fn login(
         );
     }
 
-    let mut config = ChrsSessions::load()?;
+    let mut config = ChrsSessions::load(config_path.as_deref())?;
     let cube = prompt_if_missing(cube_url, "ChRIS API address")?;
     let username = prompt_if_missing(username, "username")?;
 
@@ -51,7 +52,7 @@ pub async fn login(
     };
 
     config.add(login, backend)?;
-    config.save()
+    config.save(config_path.as_deref())
 }
 
 /// Contact CUBE just to make sure CUBE is reachable.
@@ -92,10 +93,13 @@ async fn login_with_token(
 
 pub fn logout(
     Credentials {
-        cube_url, username, ..
+        cube_url,
+        username,
+        config_path,
+        ..
     }: Credentials,
 ) -> Result<()> {
-    let mut config = ChrsSessions::load()?;
+    let mut config = ChrsSessions::load(config_path.as_deref())?;
     if let Some(url) = cube_url {
         let removed = match username {
             Some(u) => config.remove(&url, Some(&u)),
@@ -107,5 +111,5 @@ pub fn logout(
     } else if !config.clear() {
         bail!("Not logged in.");
     }
-    config.save()
+    config.save(config_path.as_deref())
 }

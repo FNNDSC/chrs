@@ -1,7 +1,7 @@
 use color_eyre::eyre::Result;
 
 use crate::arg::GivenPluginInstance;
-use crate::client::Credentials;
+use crate::credentials::Credentials;
 
 pub async fn logs(credentials: Credentials, plugin_instance: GivenPluginInstance) -> Result<()> {
     let (client, old, _) = credentials

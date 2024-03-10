@@ -1,4 +1,5 @@
 use std::collections::HashMap;
+use std::path::PathBuf;
 
 use clap::Parser;
 use color_eyre::eyre::{eyre, OptionExt};
@@ -11,12 +12,11 @@ use chris::types::{
     ComputeResourceName, CubeUrl, FeedId, PluginInstanceId, PluginParameterValue, Username,
 };
 use chris::{
-    BaseChrisClient, ChrisClient, EitherClient, PipelineRw, PluginInstanceResponse,
-    PluginInstanceRw, PluginRw,
+    BaseChrisClient, ChrisClient, EitherClient, PluginInstanceResponse, PluginInstanceRw, PluginRw,
 };
 
 use crate::arg::{GivenFeedOrPluginInstance, GivenPluginInstance, GivenRunnable, Runnable};
-use crate::client::Credentials;
+use crate::credentials::Credentials;
 use crate::login::state::ChrsSessions;
 use crate::login::UiUrl;
 use crate::plugin_clap::clap_serialize_params;
@@ -73,55 +73,60 @@ pub struct RunArgs {
 
 pub async fn run_command(credentials: Credentials, args: RunArgs) -> eyre::Result<()> {
     let (client, old, ui) = credentials
+        .clone()
         .get_client([args.plugin_or_pipeline.as_arg_str()])
         .await?;
-    if let EitherClient::LoggedIn(c) = client {
-        run(c, old, ui, args).await
+    let client = if let EitherClient::LoggedIn(logged_in_client) = client {
+        Ok(logged_in_client)
     } else {
-        bail!("You are not logged in.")
+        Err(eyre!("You are not logged in."))
+    }?;
+    if let Some(id) = run(&client, old, ui, args).await? {
+        set_cd(client.url(), client.username(), id, credentials.config_path)?;
     }
+    Ok(())
 }
 
 async fn run(
-    client: ChrisClient,
+    client: &ChrisClient,
     old: Option<PluginInstanceId>,
     ui: Option<UiUrl>,
     args: RunArgs,
-) -> eyre::Result<()> {
+) -> eyre::Result<Option<PluginInstanceId>> {
     let runnable = args
         .plugin_or_pipeline
         .clone()
-        .resolve_using(&client)
+        .resolve_using(client)
         .await?;
     match runnable {
         Runnable::Plugin(p) => run_plugin(client, p, old, ui, args).await,
-        Runnable::Pipeline(p) => run_pipeline(client, p, ui, args).await,
+        Runnable::Pipeline(_p) => todo!(),
     }
 }
 
 async fn run_plugin(
-    client: ChrisClient,
+    client: &ChrisClient,
     plugin: PluginRw,
     old: Option<PluginInstanceId>,
     ui: Option<UiUrl>,
     args: RunArgs,
-) -> eyre::Result<()> {
+) -> eyre::Result<Option<PluginInstanceId>> {
     let (params, incoming) = clap_serialize_params(&plugin, &args.parameters).await?;
-    let previous = get_input(&client, old, incoming).await?;
+    let previous = get_input(client, old, incoming).await?;
     let previous_id = previous.as_ref().map(|previous| previous.object.id.0);
     if !args.force {
-        check_title(&client, previous.as_ref(), args.title.as_deref()).await?;
+        check_title(client, previous.as_ref(), args.title.as_deref()).await?;
     }
     if args.dry_run {
         println!("Input: plugininstance/{:?}", previous_id);
-        Ok(())
+        Ok(None)
     } else {
         let created = create_plugin_instance(&plugin, params, previous_id, args).await?;
         if let Some(ui) = ui {
             let feed = created.feed().get().await?;
             println!("{}", ui.feed_url_of(&feed.object));
         }
-        set_cd(client.url(), client.username(), created.object.id)
+        Ok(Some(created.object.id))
     }
 }
 
@@ -226,10 +231,15 @@ async fn check_title(
     Ok(())
 }
 
-fn set_cd(cube_url: &CubeUrl, username: &Username, id: PluginInstanceId) -> eyre::Result<()> {
-    let mut sessions = ChrsSessions::load()?;
+fn set_cd(
+    cube_url: &CubeUrl,
+    username: &Username,
+    id: PluginInstanceId,
+    config_path: Option<PathBuf>,
+) -> eyre::Result<()> {
+    let mut sessions = ChrsSessions::load(config_path.as_deref())?;
     if sessions.set_plugin_instance(cube_url, username, id) {
-        sessions.save()?;
+        sessions.save(config_path.as_deref())?;
     }
     Ok(())
 }
@@ -323,15 +333,6 @@ async fn get_feedrw_by_name(client: &ChrisClient, name: String) -> color_eyre::R
         bail!("Multiple feeds found, please be more specific.\nHint: run `{}` and specify feed by feed/{}", "chrs list".bold(), "ID".bold().green())
     }
     items.into_iter().next().ok_or_eyre("Feed not found")
-}
-
-async fn run_pipeline(
-    client: ChrisClient,
-    plugin: PipelineRw,
-    ui: Option<UiUrl>,
-    args: RunArgs,
-) -> eyre::Result<()> {
-    todo!()
 }
 
 #[cfg(test)]

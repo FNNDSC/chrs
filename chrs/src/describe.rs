@@ -11,7 +11,7 @@ use chris::{
 };
 
 use crate::arg::{GivenRunnable, Runnable};
-use crate::client::Credentials;
+use crate::credentials::Credentials;
 use crate::login::{UiUrl, UiUrlRef};
 use crate::plugin_clap::clap_params;
 

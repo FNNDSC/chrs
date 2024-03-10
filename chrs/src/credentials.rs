@@ -5,6 +5,7 @@ use reqwest_middleware::Middleware;
 use reqwest_retry::{
     policies::ExponentialBackoff, RetryTransientMiddleware, Retryable, RetryableStrategy,
 };
+use std::path::PathBuf;
 
 use chris::reqwest::Response;
 use chris::types::{CubeUrl, PluginInstanceId, Username};
@@ -27,6 +28,11 @@ pub struct Credentials {
     pub token: Option<String>,
     pub retries: Option<u32>,
     pub ui: Option<UiUrl>,
+    /// Name of configuration file.
+    ///
+    /// - `None`: use default configuration file (for main use)
+    /// - `Some(_)`: custom configuration file (for testing purposes only)
+    pub config_path: Option<PathBuf>,
 }
 
 impl Credentials {
@@ -46,6 +52,7 @@ impl Credentials {
             token,
             retries,
             ui,
+            config_path: config_name,
         } = self;
         let retry_middleware = retries.map(retry_strategy);
         if let (Some(url), Some(token), Some(username)) =
@@ -70,7 +77,7 @@ impl Credentials {
                 .map(EitherClient::LoggedIn)
                 .map(|c| (c, None, ui))
         } else {
-            get_client_from_state(cube_url, username, ui, args, retry_middleware).await
+            get_client_from_state(cube_url, username, ui, args, retry_middleware, config_name).await
         }
     }
 }
@@ -115,9 +122,10 @@ async fn get_client_from_state(
     ui: Option<UiUrl>,
     args: impl IntoIterator<Item = impl AsRef<str>>,
     retry_middleware: Option<impl Middleware>,
+    config_path: Option<PathBuf>,
 ) -> eyre::Result<(EitherClient, Option<PluginInstanceId>, Option<UiUrl>)> {
     let url = cube_url.clone().or_else(|| first_cube_urllike(args));
-    let login = ChrsSessions::load()?
+    let login = ChrsSessions::load(config_path)?
         .get_login(url.as_ref(), username.as_ref())?
         .or_else(|| {
             // If --cube is not given, no matching login found, but a URL is found from the

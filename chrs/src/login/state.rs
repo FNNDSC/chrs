@@ -3,6 +3,7 @@ use chris::types::{CubeUrl, PluginInstanceId, Username};
 use color_eyre::eyre::{Result, WrapErr};
 use color_eyre::owo_colors::OwoColorize;
 use serde::{Deserialize, Serialize};
+use std::path::Path;
 
 const SERVICE: &str = "org.chrisproject.chrs";
 const APP_NAME: &str = "chrs";
@@ -106,15 +107,23 @@ impl ChrsSessions {
     }
 
     /// Load config from file.
-    pub fn load() -> Result<Self> {
-        let c: Self = confy::load(APP_NAME, None)
-            .wrap_err_with(|| format!("Could not load config file. If chrs was upgraded from an old version, please run `{}`", "rm -rf ~/.config/chrs".bold()))?;
-        Ok(c)
+    pub fn load<P: AsRef<Path>>(config_path: Option<P>) -> Result<Self> {
+        let result = if let Some(path) = config_path {
+            confy::load_path(path)
+        } else {
+            confy::load(APP_NAME, None)
+        };
+        result.wrap_err_with(|| format!("Could not load config file. If chrs was upgraded from an old version, please run `{}`", "rm -rf ~/.config/chrs".bold()))
     }
 
     /// Write config to file.
-    pub fn save(&self) -> Result<()> {
-        confy::store(APP_NAME, None, self).wrap_err("Couldn't write config file")
+    pub fn save<P: AsRef<Path>>(&self, config_path: Option<P>) -> Result<()> {
+        let result = if let Some(path) = config_path {
+            confy::store_path(path, self)
+        } else {
+            confy::store(APP_NAME, None, self)
+        };
+        result.wrap_err("Couldn't write config file")
     }
 
     /// Set the plugin instance of a session.

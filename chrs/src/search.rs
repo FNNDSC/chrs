@@ -1,4 +1,4 @@
-use crate::client::{Credentials, NO_ARGS};
+use crate::credentials::{Credentials, NO_ARGS};
 use chris::errors::CubeError;
 use chris::{PipelineResponse, PluginResponse};
 use clap::Parser;

@@ -4,7 +4,7 @@ use crate::arg::GivenPluginInstance;
 use chris::types::{CubeUrl, Username};
 
 use crate::cd::cd;
-use crate::client::Credentials;
+use crate::credentials::Credentials;
 use crate::describe::{describe_runnable, DescribeArgs};
 use crate::list::{list_feeds, ListFeedArgs};
 use crate::login::cmd::{login, logout};
@@ -20,7 +20,7 @@ use crate::whoami::whoami;
 
 mod arg;
 mod cd;
-mod client;
+mod credentials;
 mod describe;
 mod files;
 mod list;
@@ -256,6 +256,7 @@ async fn main() -> color_eyre::eyre::Result<()> {
         token: args.token,
         retries: args.retries,
         ui: args.ui,
+        config_path: None,
     };
 
     match args.command {
