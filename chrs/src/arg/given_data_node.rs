@@ -1,16 +1,17 @@
 use color_eyre::eyre;
-use color_eyre::eyre::{bail, Error, eyre, OptionExt};
+use color_eyre::eyre::{bail, eyre, Error, OptionExt};
 use color_eyre::owo_colors::OwoColorize;
 use futures::TryStreamExt;
 use itertools::Itertools;
 
+use chris::types::{FeedId, PluginInstanceId};
 use chris::{
-    BaseChrisClient, ChrisClient, EitherClient, FeedRo, PluginInstanceRo,
+    Access, BaseChrisClient, ChrisClient, EitherClient, FeedRo, PluginInstance, PluginInstanceRo,
     PluginInstanceRw,
 };
-use chris::types::{FeedId, PluginInstanceId};
 
 use crate::arg::GivenPluginInstanceOrPath;
+use crate::error_messages::CANNOT_ANONYMOUSLY_SEARCH;
 
 /// A user-provided string resolved as either a feed, plugin instance, or _ChRIS_ filesystem path.
 #[derive(Debug, Clone)]
@@ -149,9 +150,41 @@ impl GivenDataNode {
         self,
         client: &EitherClient,
         old: Option<PluginInstanceId>,
-    ) -> eyre::Result<()> {
-        todo!()
+    ) -> eyre::Result<String> {
+        if let Some(logged_in) = client.logged_in_ref() {
+            // if logged in, this works similar to into_plinst_rw
+            match self {
+                GivenDataNode::FeedId { id, .. } => {
+                    return get_plinst_of_feed(logged_in, id).await.map(plinst_path);
+                }
+                GivenDataNode::FeedName(name) => {
+                    let feed_id = get_feedid_by_name(logged_in, name).await?;
+                    return get_plinst_of_feed(logged_in, feed_id)
+                        .await
+                        .map(plinst_path);
+                }
+                _ => (),
+            }
+        }
+        match self {
+            GivenDataNode::FeedId { .. } => Err(eyre!(CANNOT_ANONYMOUSLY_SEARCH)),
+            GivenDataNode::FeedName(_) => Err(eyre!(CANNOT_ANONYMOUSLY_SEARCH)),
+            GivenDataNode::PluginInstanceOrPath(given) => given.into_path(client, old).await,
+            GivenDataNode::Ambiguous(given) => {
+                GivenPluginInstanceOrPath::from(given)
+                    .into_path(client, old)
+                    .await
+            }
+        }
     }
+}
+
+fn plinst_path<A: Access>(p: PluginInstance<A>) -> String {
+    p.object
+        .output_path
+        .strip_suffix("/data")
+        .map(|p| p.to_string())
+        .unwrap_or(p.object.output_path)
 }
 
 /// Get the first plugin instance of a feed returned from CUBE's API,
@@ -177,10 +210,7 @@ async fn get_plinst_of_feed(
         })
 }
 
-async fn get_feedid_by_name(
-    client: &ChrisClient,
-    name: String,
-) -> eyre::Result<FeedId> {
+async fn get_feedid_by_name(client: &ChrisClient, name: String) -> eyre::Result<FeedId> {
     let query = client.feeds().name_exact(name).page_limit(2).max_items(2);
     let search = query.search();
     let items: Vec<_> = search.stream().map_ok(|f| f.id).try_collect().await?;

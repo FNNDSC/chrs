@@ -2,20 +2,19 @@ use std::collections::HashMap;
 use std::path::PathBuf;
 
 use clap::Parser;
-use color_eyre::eyre::{eyre, OptionExt};
+use color_eyre::eyre::eyre;
 use color_eyre::owo_colors::OwoColorize;
 use color_eyre::{eyre, eyre::bail};
-use futures::TryStreamExt;
 
 use chris::errors::CubeError;
 use chris::types::{
-    ComputeResourceName, CubeUrl, FeedId, PluginInstanceId, PluginParameterValue, Username,
+    ComputeResourceName, CubeUrl, PluginInstanceId, PluginParameterValue, Username,
 };
 use chris::{
     BaseChrisClient, ChrisClient, EitherClient, PluginInstanceResponse, PluginInstanceRw, PluginRw,
 };
 
-use crate::arg::{GivenDataNode, GivenPluginInstanceOrPath, GivenRunnable, Runnable};
+use crate::arg::{GivenDataNode, GivenRunnable, Runnable};
 use crate::credentials::Credentials;
 use crate::login::state::ChrsSessions;
 use crate::login::UiUrl;
@@ -79,7 +78,10 @@ pub async fn run_command(credentials: Credentials, args: RunArgs) -> eyre::Resul
     let client = if let EitherClient::LoggedIn(logged_in_client) = client {
         Ok(logged_in_client)
     } else {
-        Err(eyre!("You are not logged in."))
+        Err(eyre!(
+            "This command is only available for authenticated users. Try running `{}` with a username first.",
+            "chrs login".bold()
+        ))
     }?;
     if let Some(id) = run(&client, dbg!(old), ui, args).await? {
         set_cd(client.url(), client.username(), id, credentials.config_path)?;
@@ -271,10 +273,7 @@ async fn get_input(
     given: Option<GivenDataNode>,
 ) -> eyre::Result<Option<PluginInstanceRw>> {
     if let Some(feed_or_plinst) = given {
-        feed_or_plinst
-            .into_plinst_rw(client, old)
-            .await
-            .map(Some)
+        feed_or_plinst.into_plinst_rw(client, old).await.map(Some)
     } else if let Some(id) = old {
         client
             .get_plugin_instance(id)
@@ -292,9 +291,10 @@ mod tests {
     use rstest::*;
     use tempfile::TempDir;
 
+    use chris::Account;
+
     use crate::credentials::NO_ARGS;
     use crate::login::store::{SavedCubeState, StoredToken};
-    use chris::Account;
 
     use super::*;
 

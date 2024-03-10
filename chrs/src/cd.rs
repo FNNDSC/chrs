@@ -1,25 +1,23 @@
-use crate::arg::GivenPluginInstanceOrPath;
+use color_eyre::eyre::{eyre, Result};
+use color_eyre::owo_colors::OwoColorize;
+
+use chris::BaseChrisClient;
+
+use crate::arg::GivenDataNode;
 use crate::credentials::Credentials;
 use crate::login::state::ChrsSessions;
-use chris::types::Username;
-use chris::BaseChrisClient;
-use color_eyre::eyre::Result;
 
-pub async fn cd(credentials: Credentials, given_plinst: GivenPluginInstanceOrPath) -> Result<()> {
-    let (client, old_plinst, _) = credentials
-        .clone()
-        .get_client([given_plinst.as_arg_str()])
-        .await?;
-    let cube_url = client.url().clone();
-    let username = client.username();
-    let plinst = given_plinst.get_using_either(&client, old_plinst).await?;
-    let mut sessions = ChrsSessions::load(credentials.config_path.as_deref())?;
-    sessions.set_plugin_instance(
-        &cube_url,
-        &username
-            .cloned()
-            .unwrap_or_else(|| Username::from_static("")),
-        plinst.object.id,
-    );
-    sessions.save(credentials.config_path)
+pub async fn cd(credentials: Credentials, given: GivenDataNode) -> Result<()> {
+    let (client, old_plinst, _) = credentials.clone().get_client([given.as_arg_str()]).await?;
+    if let Some(client) = client.logged_in() {
+        let plinst = given.into_plinst_rw(&client, old_plinst).await?;
+        let mut sessions = ChrsSessions::load(credentials.config_path.as_deref())?;
+        sessions.set_plugin_instance(client.url(), client.username(), plinst.object.id);
+        sessions.save(credentials.config_path)
+    } else {
+        Err(eyre!(
+            "This command is only available for authenticated users. Try running `{}` with a username first.",
+            "chrs login".bold()
+        ))
+    }
 }

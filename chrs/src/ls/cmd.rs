@@ -51,7 +51,7 @@ pub async fn ls(
 ) -> Result<()> {
     let (client, old_id, _) = credentials.get_client([path.as_arg_str()]).await?;
     let level = level.unwrap_or(if tree { 4 } else { 1 });
-    let path = path.get_as_path(&client, old_id).await?;
+    let path = path.into_path(&client, old_id).await?;
 
     let ro_client = client.into_ro();
     let coder = MaybeChrisPathHumanCoder::new(&ro_client, show_names);

@@ -1,6 +1,6 @@
 use clap::{builder::NonEmptyStringValueParser, Parser, Subcommand};
 
-use crate::arg::GivenPluginInstanceOrPath;
+use crate::arg::{GivenDataNode, GivenPluginInstanceOrPath};
 use chris::types::{CubeUrl, Username};
 
 use crate::cd::cd;
@@ -22,6 +22,7 @@ mod arg;
 mod cd;
 mod credentials;
 mod describe;
+mod error_messages;
 mod files;
 mod list;
 mod login;
@@ -113,7 +114,7 @@ enum Commands {
         /// The value can be a plugin instance ID or title. For a title,
         /// the title must be unique within the search space. The current
         /// feed will be searched before searching across all feeds.
-        plugin_instance: GivenPluginInstanceOrPath,
+        plugin_instance: GivenDataNode,
     },
 
     /// Show status of a feed branch

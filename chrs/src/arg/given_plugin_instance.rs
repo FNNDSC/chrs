@@ -5,6 +5,7 @@ use futures::TryStreamExt;
 use itertools::Itertools;
 use std::fmt::Display;
 
+use crate::error_messages::CANNOT_ANONYMOUSLY_SEARCH;
 use chris::types::PluginInstanceId;
 use chris::{
     Access, BaseChrisClient, ChrisClient, EitherClient, LinkedModel, PluginInstance,
@@ -160,7 +161,7 @@ impl GivenPluginInstanceOrPath {
         }
     }
 
-    pub async fn get_as_path(
+    pub async fn into_path(
         self,
         client: &EitherClient,
         old: Option<PluginInstanceId>,
@@ -244,7 +245,7 @@ async fn get_by_title_ro(
     if let EitherClient::LoggedIn(chris) = client {
         search_title(chris, name, old).await.map(|p| p.into())
     } else {
-        bail!("Cannot search for plugin instances without a user account. Please tell Jorge to fix https://github.com/FNNDSC/ChRIS_ultron_backEnd/issues/530")
+        bail!(CANNOT_ANONYMOUSLY_SEARCH)
     }
 }
 

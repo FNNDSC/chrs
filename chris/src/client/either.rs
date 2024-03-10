@@ -42,6 +42,14 @@ impl EitherClient {
             _ => None,
         }
     }
+
+    /// Get the client if this is logged in.
+    pub fn logged_in_ref(&self) -> Option<&ChrisClient> {
+        match self {
+            Self::LoggedIn(c) => Some(c),
+            _ => None
+        }
+    }
 }
 
 #[async_trait]
