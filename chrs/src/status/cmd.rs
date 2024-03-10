@@ -17,7 +17,9 @@ pub async fn status(
     let (client, old, ui) = credentials
         .get_client(given.as_ref().map(|g| g.as_arg_str()).as_slice())
         .await?;
-    let given = given.or_else(|| old.map(|id| id.into())).ok_or_eyre("missing operand")?;
+    let given = given
+        .or_else(|| old.map(|id| id.into()))
+        .ok_or_eyre("missing operand")?;
     let (feed, plinst) = match given.into_or(&client, old).await? {
         FeedOrPluginInstance::Feed(feed) => (Some(feed), None),
         FeedOrPluginInstance::PluginInstance(p) => {

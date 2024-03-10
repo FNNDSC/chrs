@@ -23,6 +23,7 @@ mod arg;
 mod cd;
 mod credentials;
 mod describe;
+mod download;
 mod error_messages;
 mod files;
 mod list;
@@ -30,14 +31,13 @@ mod login;
 mod logs;
 mod ls;
 mod plugin_clap;
+mod progress;
 mod run;
 mod search;
 mod shlex;
 mod status;
 pub mod unicode;
 mod whoami;
-mod download;
-mod progress;
 
 #[derive(Parser)]
 #[clap(
@@ -144,7 +144,6 @@ enum Commands {
 
     /// Download files from ChRIS
     Download(DownloadArgs),
-
     // /// Get detailed information about a ChRIS object
     // ///
     // /// An object may be a plugin, plugin instance, pipeline, feed, or file.
@@ -222,6 +221,6 @@ async fn main() -> color_eyre::eyre::Result<()> {
         Commands::Search(args) => search_runnable(credentials, args).await,
         Commands::Describe(args) => describe_runnable(credentials, args).await,
         Commands::Run(args) => run_command(credentials, args).await,
-        Commands::Download(args) => download(credentials, args).await
+        Commands::Download(args) => download(credentials, args).await,
     }
 }

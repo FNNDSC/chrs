@@ -5,7 +5,10 @@ use futures::TryStreamExt;
 use itertools::Itertools;
 
 use chris::types::{FeedId, PluginInstanceId};
-use chris::{Access, BaseChrisClient, ChrisClient, EitherClient, Feed, FeedRo, PluginInstance, PluginInstanceRo, PluginInstanceRw, RoAccess};
+use chris::{
+    Access, BaseChrisClient, ChrisClient, EitherClient, Feed, FeedRo, PluginInstance,
+    PluginInstanceRo, PluginInstanceRw, RoAccess,
+};
 
 use crate::arg::GivenPluginInstanceOrPath;
 use crate::error_messages::CANNOT_ANONYMOUSLY_SEARCH;
@@ -22,7 +25,7 @@ pub enum GivenDataNode {
 /// Union type of [Feed] and [PluginInstance]
 pub enum FeedOrPluginInstance<A: Access> {
     Feed(Feed<A>),
-    PluginInstance(PluginInstance<A>)
+    PluginInstance(PluginInstance<A>),
 }
 
 impl From<String> for GivenDataNode {
@@ -150,7 +153,11 @@ impl GivenDataNode {
     }
 
     /// Get the CUBE object interpreted as a plugin instance.
-    pub async fn into_plinst_either(self, client: &EitherClient, old: Option<PluginInstanceId>) -> eyre::Result<PluginInstanceRo> {
+    pub async fn into_plinst_either(
+        self,
+        client: &EitherClient,
+        old: Option<PluginInstanceId>,
+    ) -> eyre::Result<PluginInstanceRo> {
         if let Some(logged_in) = client.logged_in_ref() {
             match self {
                 GivenDataNode::FeedId { id, .. } => {
@@ -169,7 +176,11 @@ impl GivenDataNode {
             GivenDataNode::FeedId { .. } => Err(eyre!(CANNOT_ANONYMOUSLY_SEARCH)),
             GivenDataNode::FeedName(_) => Err(eyre!(CANNOT_ANONYMOUSLY_SEARCH)),
             GivenDataNode::PluginInstanceOrPath(given) => given.get_using_either(client, old).await,
-            GivenDataNode::Ambiguous(given) => GivenPluginInstanceOrPath::from(given).get_using_either(client, old).await,
+            GivenDataNode::Ambiguous(given) => {
+                GivenPluginInstanceOrPath::from(given)
+                    .get_using_either(client, old)
+                    .await
+            }
         }
     }
 
@@ -252,25 +263,40 @@ async fn get_feedid_by_name(client: &ChrisClient, name: String) -> eyre::Result<
     items.into_iter().next().ok_or_eyre("Feed not found")
 }
 
+/// Gets a feed by name.
+///
+/// In the case of anonymous access, it's trivial.
+///
+/// For authenticated client, it is necessary to search both public feeds and private feeds separately.
+/// See https://github.com/FNNDSC/ChRIS_ultron_backEnd/issues/530
 async fn get_feedro_by_name(client: &EitherClient, name: &str) -> color_eyre::Result<FeedRo> {
     let feeds: Vec<_> = match client {
         EitherClient::Anon(c) => {
-            let query = c.public_feeds().name(name).page_limit(10).max_items(10);
-            query.search().stream_connected().try_collect().await
+            c.public_feeds()
+                .name(name)
+                .page_limit(10)
+                .max_items(10)
+                .search()
+                .stream_connected()
+                .try_collect()
+                .await
         }
         EitherClient::LoggedIn(c) => {
-            // need to get both public feeds and private feeds
-            // https://github.com/FNNDSC/ChRIS_ultron_backEnd/issues/530
-            let private_query = c.feeds().name(name).page_limit(10).max_items(10);
-            let private_feeds: Vec<_> = private_query
+            let private_feeds: Vec<_> = c
+                .feeds()
+                .name(name)
+                .page_limit(10)
+                .max_items(10)
                 .search()
                 .stream_connected()
                 .map_ok(|f| f.into())
                 .try_collect()
                 .await?;
             if private_feeds.is_empty() {
-                let public_feeds_query = c.public_feeds().name(name).page_limit(10).max_items(10);
-                public_feeds_query
+                c.public_feeds()
+                    .name(name)
+                    .page_limit(10)
+                    .max_items(10)
                     .search()
                     .stream_connected()
                     .try_collect()

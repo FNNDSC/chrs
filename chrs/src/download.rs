@@ -1,8 +1,8 @@
+use crate::arg::GivenDataNode;
+use crate::credentials::Credentials;
 use camino::Utf8PathBuf;
 use clap::Parser;
 use color_eyre::eyre;
-use crate::arg::GivenDataNode;
-use crate::credentials::Credentials;
 
 #[derive(Parser)]
 pub struct DownloadArgs {
@@ -44,7 +44,6 @@ pub struct DownloadArgs {
 pub async fn download(credentials: Credentials, args: DownloadArgs) -> eyre::Result<()> {
     let (client, old, _) = credentials.get_client([args.src.as_arg_str()]).await?;
     let src_path = args.src.into_path(&client, old).await?;
-
 
     Ok(())
 }
