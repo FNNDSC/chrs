@@ -2,7 +2,7 @@ use color_eyre::eyre::{OptionExt, Result};
 
 use chris::{FeedRo, PluginInstanceRo};
 
-use crate::arg::GivenFeedOrPluginInstance;
+use crate::arg::GivenDataNode;
 use crate::credentials::Credentials;
 use crate::login::UiUrl;
 
@@ -24,7 +24,7 @@ pub async fn status(
                 .map(|i| format!("plugininstance/{}", i.0))
         })
         .ok_or_eyre("missing operand")?;
-    let given = GivenFeedOrPluginInstance::from(fopi);
+    let given = GivenDataNode::from(fopi);
     let (feed, plinst) = given.resolve_using(&client, current_plinst).await?;
     print_status(feed, plinst, ui, show_execshell).await
 }

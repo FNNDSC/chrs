@@ -15,7 +15,7 @@ use chris::{
     BaseChrisClient, ChrisClient, EitherClient, PluginInstanceResponse, PluginInstanceRw, PluginRw,
 };
 
-use crate::arg::{GivenFeedOrPluginInstance, GivenPluginInstance, GivenRunnable, Runnable};
+use crate::arg::{GivenDataNode, GivenPluginInstanceOrPath, GivenRunnable, Runnable};
 use crate::credentials::Credentials;
 use crate::login::state::ChrsSessions;
 use crate::login::UiUrl;
@@ -268,10 +268,11 @@ async fn feed_name_is_not_unique(client: &ChrisClient, name: &str) -> Result<boo
 async fn get_input(
     client: &ChrisClient,
     old: Option<PluginInstanceId>,
-    given: Option<GivenFeedOrPluginInstance>,
+    given: Option<GivenDataNode>,
 ) -> eyre::Result<Option<PluginInstanceRw>> {
     if let Some(feed_or_plinst) = given {
-        get_feed_or_plinst(client, old, feed_or_plinst)
+        feed_or_plinst
+            .into_plinst_rw(client, old)
             .await
             .map(Some)
     } else if let Some(id) = old {
@@ -283,57 +284,6 @@ async fn get_input(
     } else {
         Ok(None)
     }
-}
-
-async fn get_feed_or_plinst(
-    client: &ChrisClient,
-    old: Option<PluginInstanceId>,
-    feed_or_plinst: GivenFeedOrPluginInstance,
-) -> eyre::Result<PluginInstanceRw> {
-    match feed_or_plinst {
-        GivenFeedOrPluginInstance::FeedId(id) => get_plinst_of_feed(client, id).await,
-        GivenFeedOrPluginInstance::FeedName(name) => {
-            let feed_id = get_feedrw_by_name(client, name).await?;
-            get_plinst_of_feed(client, feed_id).await
-        }
-        GivenFeedOrPluginInstance::PluginInstance(given) => given.get_using_rw(client, old).await,
-        GivenFeedOrPluginInstance::Ambiguous(value) => {
-            GivenPluginInstance::from(value)
-                .get_using_rw(client, old)
-                .await
-        }
-    }
-}
-
-/// Get the first plugin instance of a feed returned from CUBE's API,
-/// which we assume to be the most recently created plugin instance
-/// of that feed.
-async fn get_plinst_of_feed(
-    client: &ChrisClient,
-    feed_id: FeedId,
-) -> eyre::Result<PluginInstanceRw> {
-    let query = client
-        .plugin_instances()
-        .feed_id(feed_id)
-        .page_limit(1)
-        .max_items(1);
-    let search = query.search();
-    search.get_first().await?.ok_or_else(|| {
-        eyre!(
-            "feed/{} does not contain plugin instances. This is a CUBE bug.",
-            feed_id.0
-        )
-    })
-}
-
-async fn get_feedrw_by_name(client: &ChrisClient, name: String) -> color_eyre::Result<FeedId> {
-    let query = client.feeds().name_exact(name).page_limit(2).max_items(2);
-    let search = query.search();
-    let items: Vec<_> = search.stream().map_ok(|f| f.id).try_collect().await?;
-    if items.len() > 1 {
-        bail!("Multiple feeds found, please be more specific.\nHint: run `{}` and specify feed by feed/{}", "chrs list".bold(), "ID".bold().green())
-    }
-    items.into_iter().next().ok_or_eyre("Feed not found")
 }
 
 #[cfg(test)]

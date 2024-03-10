@@ -1,4 +1,4 @@
-use crate::arg::GivenPluginInstance;
+use crate::arg::GivenPluginInstanceOrPath;
 use clap::Parser;
 use color_eyre::eyre::Result;
 use tokio::join;
@@ -35,7 +35,7 @@ pub struct LsArgs {
 
     /// directory path or plugin instance
     #[clap(default_value_t)]
-    pub path: GivenPluginInstance,
+    pub path: GivenPluginInstanceOrPath,
 }
 
 pub async fn ls(

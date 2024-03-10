@@ -11,34 +11,33 @@ use chris::{
     PluginInstanceResponse, PluginInstanceRo, PluginInstanceRw,
 };
 
-/// A user-provided string which is supposed to refer to an existing plugin instance
-/// or _ChRIS_ file path.
+/// A user-provided string identified as an existing plugin instance or _ChRIS_ file path.
 ///
 /// ## Limitations
 ///
 /// A valid absolute path like `rudolph` (which is just his username) will be misidentified as
-/// [GivenPluginInstance::Title] instead of [GivenPluginInstance::AbsolutePath].
+/// [GivenPluginInstanceOrPath::Title] instead of [GivenPluginInstanceOrPath::AbsolutePath].
 #[derive(Debug, PartialEq, Clone)]
-pub enum GivenPluginInstance {
+pub enum GivenPluginInstanceOrPath {
     Title(String),
     Id(PluginInstanceId, String),
     RelativePath(String),
     AbsolutePath(String),
 }
 
-impl Default for GivenPluginInstance {
+impl Default for GivenPluginInstanceOrPath {
     fn default() -> Self {
         Self::RelativePath(".".to_string())
     }
 }
 
-impl Display for GivenPluginInstance {
+impl Display for GivenPluginInstanceOrPath {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         write!(f, "{}", self.as_arg_str())
     }
 }
 
-impl From<String> for GivenPluginInstance {
+impl From<String> for GivenPluginInstanceOrPath {
     fn from(value: String) -> Self {
         if value.is_empty() {
             return Default::default();
@@ -49,24 +48,24 @@ impl From<String> for GivenPluginInstance {
             }
         }
         if let Some(id) = parse_id_from_url(&value) {
-            return GivenPluginInstance::Id(id, value);
+            return GivenPluginInstanceOrPath::Id(id, value);
         }
         if starts_with_dots(&value) {
-            return GivenPluginInstance::RelativePath(value);
+            return GivenPluginInstanceOrPath::RelativePath(value);
         }
         if looks_like_well_known_absolute_path(&value) {
-            return GivenPluginInstance::AbsolutePath(value);
+            return GivenPluginInstanceOrPath::AbsolutePath(value);
         }
         parse_as_id_or_title(&value, &value)
     }
 }
 
-fn parse_as_id_or_title(value: &str, original: &str) -> GivenPluginInstance {
+fn parse_as_id_or_title(value: &str, original: &str) -> GivenPluginInstanceOrPath {
     value
         .parse::<u32>()
         .map(PluginInstanceId)
-        .map(|id| GivenPluginInstance::Id(id, original.to_string()))
-        .unwrap_or_else(|_e| GivenPluginInstance::Title(value.to_string()))
+        .map(|id| GivenPluginInstanceOrPath::Id(id, original.to_string()))
+        .unwrap_or_else(|_e| GivenPluginInstanceOrPath::Title(value.to_string()))
 }
 
 fn starts_with_dots(value: &str) -> bool {
@@ -105,15 +104,15 @@ fn parse_id_from_url(url: &str) -> Option<PluginInstanceId> {
         .map(PluginInstanceId)
 }
 
-impl GivenPluginInstance {
+impl GivenPluginInstanceOrPath {
     /// Get the value. In the case where the value was originally a plugin instance URL,
     /// the URL is returned (not the parsed ID).
     pub fn as_arg_str(&self) -> &str {
         match self {
-            GivenPluginInstance::Title(title) => title,
-            GivenPluginInstance::Id(_, original) => original,
-            GivenPluginInstance::RelativePath(path) => path,
-            GivenPluginInstance::AbsolutePath(path) => path,
+            GivenPluginInstanceOrPath::Title(title) => title,
+            GivenPluginInstanceOrPath::Id(_, original) => original,
+            GivenPluginInstanceOrPath::RelativePath(path) => path,
+            GivenPluginInstanceOrPath::AbsolutePath(path) => path,
         }
     }
 
@@ -147,15 +146,17 @@ impl GivenPluginInstance {
         old: Option<PluginInstanceId>,
     ) -> Result<PluginInstanceRw> {
         match self {
-            GivenPluginInstance::Title(title) => search_title(client, title, old).await,
-            GivenPluginInstance::Id(id, _) => client
+            GivenPluginInstanceOrPath::Title(title) => search_title(client, title, old).await,
+            GivenPluginInstanceOrPath::Id(id, _) => client
                 .get_plugin_instance(id)
                 .await
                 .map_err(eyre::Error::new),
-            GivenPluginInstance::RelativePath(path) => {
+            GivenPluginInstanceOrPath::RelativePath(path) => {
                 get_relative_path_as_plinst(client, old, path).await
             }
-            GivenPluginInstance::AbsolutePath(path) => get_plinst_of_path(client, &path).await,
+            GivenPluginInstanceOrPath::AbsolutePath(path) => {
+                get_plinst_of_path(client, &path).await
+            }
         }
     }
 
@@ -165,16 +166,16 @@ impl GivenPluginInstance {
         old: Option<PluginInstanceId>,
     ) -> Result<String> {
         match self {
-            GivenPluginInstance::Id(id, _) => client
+            GivenPluginInstanceOrPath::Id(id, _) => client
                 .get_plugin_instance(id)
                 .await
                 .map(|p| p.object.output_path)
                 .map_err(eyre::Error::new),
-            GivenPluginInstance::Title(title) => get_by_title_ro(client, title, old)
+            GivenPluginInstanceOrPath::Title(title) => get_by_title_ro(client, title, old)
                 .await
                 .map(|p| p.object.output_path),
-            GivenPluginInstance::RelativePath(p) => get_relative_path(client, old, &p).await,
-            GivenPluginInstance::AbsolutePath(p) => Ok(p),
+            GivenPluginInstanceOrPath::RelativePath(p) => get_relative_path(client, old, &p).await,
+            GivenPluginInstanceOrPath::AbsolutePath(p) => Ok(p),
         }
     }
 }
@@ -340,8 +341,8 @@ mod tests {
     #[case("pi/hello", "hello")]
     #[case("plugininstance/hello", "hello")]
     fn test_given_plugin_instance_is_title(#[case] given: &str, #[case] expected: &str) {
-        let actual: GivenPluginInstance = given.to_string().into();
-        let expected = GivenPluginInstance::Title(expected.to_string());
+        let actual: GivenPluginInstanceOrPath = given.to_string().into();
+        let expected = GivenPluginInstanceOrPath::Title(expected.to_string());
         assert_eq!(actual, expected)
     }
 
@@ -351,8 +352,8 @@ mod tests {
     #[case("plugininstance/42", 42)]
     #[case("https://example.org/api/v1/plugins/instances/42/", 42)]
     fn test_given_plugin_instance_is_id(#[case] given: &str, #[case] expected: u32) {
-        let actual: GivenPluginInstance = given.to_string().into();
-        let expected = GivenPluginInstance::Id(PluginInstanceId(expected), given.to_string());
+        let actual: GivenPluginInstanceOrPath = given.to_string().into();
+        let expected = GivenPluginInstanceOrPath::Id(PluginInstanceId(expected), given.to_string());
         assert_eq!(actual, expected)
     }
 
@@ -367,8 +368,8 @@ mod tests {
     #[case("../../")]
     #[case("../../")]
     fn test_given_plugin_instance_is_output_path(#[case] given: &str) {
-        let actual: GivenPluginInstance = given.to_string().into();
-        let expected = GivenPluginInstance::RelativePath(given.to_string());
+        let actual: GivenPluginInstanceOrPath = given.to_string().into();
+        let expected = GivenPluginInstanceOrPath::RelativePath(given.to_string());
         assert_eq!(actual, expected)
     }
 
@@ -382,8 +383,8 @@ mod tests {
     #[case("rudolph/feed_130/pl-dircopy_543/data")]
     #[case("rudolph/feed_130/pl-dircopy_543/data/output.dat")]
     fn test_given_plugin_instance_is_absolute_path(#[case] given: &str) {
-        let actual: GivenPluginInstance = given.to_string().into();
-        let expected = GivenPluginInstance::AbsolutePath(given.to_string());
+        let actual: GivenPluginInstanceOrPath = given.to_string().into();
+        let expected = GivenPluginInstanceOrPath::AbsolutePath(given.to_string());
         assert_eq!(actual, expected)
     }
 

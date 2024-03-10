@@ -10,7 +10,7 @@ use futures::TryStreamExt;
 use chris::types::{PluginParameterAction, PluginParameterType, PluginParameterValue};
 use chris::{Access, Plugin, PluginParameter};
 
-use crate::arg::GivenFeedOrPluginInstance;
+use crate::arg::GivenDataNode;
 
 /// clap arg ID for plugin input
 pub const CHRS_INCOMING: &str = "chrs-incoming-cfb8a325-fbfc-4467-b7d1-4975d1a249cf";
@@ -19,10 +19,7 @@ pub const CHRS_INCOMING: &str = "chrs-incoming-cfb8a325-fbfc-4467-b7d1-4975d1a24
 pub async fn clap_serialize_params<A: Access>(
     plugin: &Plugin<A>,
     args: &[String],
-) -> eyre::Result<(
-    HashMap<String, PluginParameterValue>,
-    Option<GivenFeedOrPluginInstance>,
-)> {
+) -> eyre::Result<(HashMap<String, PluginParameterValue>, Option<GivenDataNode>)> {
     let parameters = plugin.parameters();
     let ps = parameters.search();
     let parameter_info: Vec<_> = ps.stream().try_collect().await?;
@@ -48,10 +45,7 @@ fn parse_args_using(
     command: Command,
     parameter_info: &[PluginParameter],
     args: &[String],
-) -> eyre::Result<(
-    HashMap<String, PluginParameterValue>,
-    Option<GivenFeedOrPluginInstance>,
-)> {
+) -> eyre::Result<(HashMap<String, PluginParameterValue>, Option<GivenDataNode>)> {
     let matches = command.try_get_matches_from(args)?;
     let parsed_params = parameter_info
         .iter()

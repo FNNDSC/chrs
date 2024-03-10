@@ -1,11 +1,11 @@
-use crate::arg::GivenPluginInstance;
+use crate::arg::GivenPluginInstanceOrPath;
 use crate::credentials::Credentials;
 use crate::login::state::ChrsSessions;
 use chris::types::Username;
 use chris::BaseChrisClient;
 use color_eyre::eyre::Result;
 
-pub async fn cd(credentials: Credentials, given_plinst: GivenPluginInstance) -> Result<()> {
+pub async fn cd(credentials: Credentials, given_plinst: GivenPluginInstanceOrPath) -> Result<()> {
     let (client, old_plinst, _) = credentials
         .clone()
         .get_client([given_plinst.as_arg_str()])

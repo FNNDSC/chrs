@@ -1,6 +1,6 @@
 use clap::{builder::NonEmptyStringValueParser, Parser, Subcommand};
 
-use crate::arg::GivenPluginInstance;
+use crate::arg::GivenPluginInstanceOrPath;
 use chris::types::{CubeUrl, Username};
 
 use crate::cd::cd;
@@ -113,7 +113,7 @@ enum Commands {
         /// The value can be a plugin instance ID or title. For a title,
         /// the title must be unique within the search space. The current
         /// feed will be searched before searching across all feeds.
-        plugin_instance: GivenPluginInstance,
+        plugin_instance: GivenPluginInstanceOrPath,
     },
 
     /// Show status of a feed branch
@@ -131,7 +131,7 @@ enum Commands {
     Logs {
         /// Plugin instance
         #[clap(default_value_t)]
-        plugin_instance: GivenPluginInstance,
+        plugin_instance: GivenPluginInstanceOrPath,
     },
 
     /// Describe and get usage of a plugin or pipeline
