@@ -6,6 +6,7 @@ use crate::arg::GivenDataNode;
 use crate::cd::cd;
 use crate::credentials::Credentials;
 use crate::describe::{describe_runnable, DescribeArgs};
+use crate::download::{download, DownloadArgs};
 use crate::list::{list_feeds, ListFeedArgs};
 use crate::login::cmd::{login, logout};
 use crate::login::store::Backend;
@@ -35,6 +36,8 @@ mod shlex;
 mod status;
 pub mod unicode;
 mod whoami;
+mod download;
+mod progress;
 
 #[derive(Parser)]
 #[clap(
@@ -138,6 +141,10 @@ enum Commands {
 
     /// Run a plugin or pipeline
     Run(RunArgs),
+
+    /// Download files from ChRIS
+    Download(DownloadArgs),
+
     // /// Get detailed information about a ChRIS object
     // ///
     // /// An object may be a plugin, plugin instance, pipeline, feed, or file.
@@ -152,14 +159,6 @@ enum Commands {
     // /// Set name or title of a feed or plugin instance
     // Set {},
 
-    //
-    //     /// List or search feeds
-    //     Feeds {
-    //         /// Number of feeds to get
-    //         #[clap(short, long, default_value_t = 10)]
-    //         limit: u32,
-    //     },
-    //
     //     /// Upload files and run workflows
     //     Upload {
     //         /// Path prefix, i.e. subdir of <username>/uploads to upload to
@@ -179,68 +178,6 @@ enum Commands {
     //         files: Vec<PathBuf>,
     //     },
     //
-    //     /// Download files from ChRIS
-    //     Download {
-    //         /// Save files from under plugin instances' "data" subdirectory at
-    //         /// the top-level, instead of under the nested parent directory.
-    //         ///
-    //         /// May be repeated to handle cases where the `data` subdirectory
-    //         /// is deeply nested under parent `data` subdirectoies, e.g. `-sssss`.
-    //         #[clap(short, long, action = clap::ArgAction::Count)]
-    //         shorten: u8,
-    //
-    //         /// Do not rename folders with feed names and plugin instance titles
-    //         #[clap(short, long)]
-    //         raw: bool,
-    //
-    //         /// Join contents of all "data" folders to the same output directory.
-    //         ///
-    //         /// Useful when trying to download sibling plugin instance outputs.
-    //         #[clap(short, long, hide = true)]
-    //         flatten: bool,
-    //
-    //         /// Skip downloading of files which already exist on the filesystem,
-    //         /// and where their file sizes match what is expected.
-    //         #[clap(short = 'S', long)]
-    //         skip_present: bool,
-    //
-    //         /// What to download. Can either be a ChRIS Library files path or
-    //         /// a files resource URL (such as a files search query or a feed
-    //         /// files URL).
-    //         src: String,
-    //
-    //         /// Directory where to download
-    //         dst: Option<PathBuf>,
-    //     },
-    //
-    //
-    //     //
-    //     // /// Search for plugins and pipelines
-    //     // Search {},
-    //     //
-    //     //
-    //     /// Create a plugin instance by name.
-    //     #[command(group(
-    //     ArgGroup::new("cpu_request").required(false).args(["cpu", "cpu_limit"]),
-    //     ))]
-
-    //
-    //     /// Make an authenticated HTTP GET request
-    //     #[clap(
-    //         long_about = "Make an authenticated HTTP GET request (for debugging and advanced users)
-    //
-    // The output of this subcommand can be piped into `jq`, e.g.
-    //
-    //     chrs get https://cube.chrisproject.org/api/v1/ | jq"
-    //     )]
-    //     Get {
-    //         /// CUBE resource URL
-    //         url: String,
-    //     },
-    //
-    //     /// Work with file-representation of pipelines
-    //     #[clap(subcommand)]
-    //     PipelineFile(PipelineFile),
 }
 
 #[tokio::main]
@@ -285,5 +222,6 @@ async fn main() -> color_eyre::eyre::Result<()> {
         Commands::Search(args) => search_runnable(credentials, args).await,
         Commands::Describe(args) => describe_runnable(credentials, args).await,
         Commands::Run(args) => run_command(credentials, args).await,
+        Commands::Download(args) => download(credentials, args).await
     }
 }

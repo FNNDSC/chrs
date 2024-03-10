@@ -25,9 +25,9 @@ pub struct LsArgs {
     #[clap(short, long)]
     pub full: bool,
 
-    /// Show folders with feed names and plugin instance titles
-    #[clap(short = 'n', long)]
-    pub show_names: bool,
+    /// Show canonical folder names instead of renaming them to feed names or plugin instance titles
+    #[clap(short, long)]
+    pub no_titles: bool,
 
     /// What to print
     #[clap(short, long, default_value_t, value_enum)]
@@ -44,7 +44,7 @@ pub async fn ls(
         tree,
         level,
         full,
-        show_names,
+        no_titles,
         show,
         path,
     }: LsArgs,
@@ -54,7 +54,7 @@ pub async fn ls(
     let path = path.into_path(&client, old_id).await?;
 
     let ro_client = client.into_ro();
-    let coder = MaybeChrisPathHumanCoder::new(&ro_client, show_names);
+    let coder = MaybeChrisPathHumanCoder::new(&ro_client, !no_titles);
     let (tx_fname, rx_fname) = unbounded_channel();
     let (tx_decoded, rx_decoded) = unbounded_channel();
     let decode_channel = DecodeChannel::new(tx_fname, rx_decoded);
