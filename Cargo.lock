@@ -456,11 +456,13 @@ dependencies = [
  "color-eyre",
  "confy",
  "dialoguer",
+ "fake",
  "fs-err",
  "futures",
  "indicatif",
  "itertools 0.12.1",
  "keyring",
+ "log",
  "pathdiff",
  "reqwest-middleware",
  "reqwest-retry",
@@ -478,6 +480,7 @@ dependencies = [
  "tokio-stream",
  "tokio-util",
  "url",
+ "uuid",
 ]
 
 [[package]]

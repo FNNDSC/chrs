@@ -81,7 +81,7 @@ fn parse_plugin_id_from_url(original: &str) -> Option<GivenRunnable> {
         .and_then(|(left, right)| CubeUrl::from_str(left).ok().map(|_| right))
         .and_then(|right| right.strip_suffix('/'))
         .and_then(|part| part.parse().ok())
-        .map(|num| PluginId(num))
+        .map(PluginId)
         .map(|id| GivenRunnable::PluginId {
             id,
             original: original.to_string(),
@@ -94,7 +94,7 @@ fn parse_pipeline_id_from_url(original: &str) -> Option<GivenRunnable> {
         .and_then(|(left, right)| CubeUrl::from_str(left).ok().map(|_| right))
         .and_then(|right| right.strip_suffix('/'))
         .and_then(|part| part.parse().ok())
-        .map(|num| PipelineId(num))
+        .map(PipelineId)
         .map(|id| GivenRunnable::PipelineId {
             id,
             original: original.to_string(),

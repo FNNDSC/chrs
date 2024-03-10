@@ -118,6 +118,7 @@ impl ChrsSessions {
     }
 
     /// Set the plugin instance of a session.
+    /// Returns true if state was modified.
     pub fn set_plugin_instance(
         &mut self,
         cube_url: &CubeUrl,

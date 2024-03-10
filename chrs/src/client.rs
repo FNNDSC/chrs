@@ -1,4 +1,5 @@
-use color_eyre::eyre::{eyre, Context, Error};
+use color_eyre::eyre;
+use color_eyre::eyre::{eyre, Context};
 use color_eyre::owo_colors::OwoColorize;
 use reqwest_middleware::Middleware;
 use reqwest_retry::{
@@ -37,7 +38,7 @@ impl Credentials {
     pub async fn get_client(
         self,
         args: impl IntoIterator<Item = impl AsRef<str>>,
-    ) -> color_eyre::Result<(EitherClient, Option<PluginInstanceId>, Option<UiUrl>)> {
+    ) -> eyre::Result<(EitherClient, Option<PluginInstanceId>, Option<UiUrl>)> {
         let Credentials {
             cube_url,
             username,
@@ -46,10 +47,23 @@ impl Credentials {
             retries,
             ui,
         } = self;
-        if token.is_some() {
-            eprintln!("{}", "warning: --token was ignored".dimmed());
-        }
         let retry_middleware = retries.map(retry_strategy);
+        if let (Some(url), Some(token), Some(username)) =
+            (cube_url.as_ref(), token, username.as_ref())
+        {
+            let builder = ChrisClient::build(url.clone(), username.clone(), token)?;
+            let builder = if let Some(middleware) = retry_middleware {
+                builder.with(middleware)
+            } else {
+                builder
+            };
+            return builder
+                .connect()
+                .await
+                .map(EitherClient::LoggedIn)
+                .map(|c| (c, None, ui))
+                .map_err(eyre::Error::new);
+        }
         if let Some(password) = password {
             get_client_with_password(cube_url, username, password, args, retry_middleware)
                 .await
@@ -68,11 +82,11 @@ async fn get_client_with_password(
     password: String,
     args: impl IntoIterator<Item = impl AsRef<str>>,
     retry_middleware: Option<impl Middleware>,
-) -> std::result::Result<ChrisClient, Error> {
+) -> eyre::Result<ChrisClient> {
     let url = cube_url
         .or_else(|| first_cube_urllike(args))
-        .ok_or_else(|| Error::msg("--cube is required"))?;
-    let username = username.ok_or_else(|| Error::msg("--username is required"))?;
+        .ok_or_else(|| eyre!("--cube is required"))?;
+    let username = username.ok_or_else(|| eyre!("--username is required"))?;
     let account = Account {
         client: Default::default(),
         url: &url,
@@ -101,7 +115,7 @@ async fn get_client_from_state(
     ui: Option<UiUrl>,
     args: impl IntoIterator<Item = impl AsRef<str>>,
     retry_middleware: Option<impl Middleware>,
-) -> Result<(EitherClient, Option<PluginInstanceId>, Option<UiUrl>), Error> {
+) -> eyre::Result<(EitherClient, Option<PluginInstanceId>, Option<UiUrl>)> {
     let url = cube_url.clone().or_else(|| first_cube_urllike(args));
     let login = ChrsSessions::load()?
         .get_login(url.as_ref(), username.as_ref())?
@@ -117,11 +131,11 @@ async fn get_client_from_state(
             })
         })
         .ok_or_else(|| {
-            Error::msg(format!(
+            eyre!(
                 "Not logged in. Either use the {} option, or run `{}`",
                 "--cube".bold(),
                 "chrs login".bold()
-            ))
+            )
         })?;
     let client = if login.username.as_str().is_empty() {
         get_anon_client(login.cube, retry_middleware).await
@@ -184,15 +198,15 @@ async fn get_authed_client(
     })
 }
 
-fn handle_error(error: chris::reqwest::Error, url: &CubeUrl) -> Error {
+fn handle_error(error: chris::reqwest::Error, url: &CubeUrl) -> eyre::Error {
     if let Some(code) = error.status() {
         if code == chris::reqwest::StatusCode::UNAUTHORIZED {
-            Error::msg("Incorrect login")
+            eyre::Error::msg("Incorrect login")
         } else {
-            Error::msg(format!("HTTP status code: {code}"))
+            eyre::Error::msg(format!("HTTP status code: {code}"))
         }
     } else {
-        Error::msg(format!("Failed HTTP request to {url}"))
+        eyre::Error::msg(format!("Failed HTTP request to {url}"))
     }
 }
 
