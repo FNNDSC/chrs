@@ -4,6 +4,7 @@ use crate::search::SearchBuilder;
 use crate::{
     Access, LazyLinkedModel, LinkedModel, NoteResponse, PluginInstanceResponse, RoAccess, RwAccess,
 };
+use serde_with::serde_derive::Serialize;
 
 /// ChRIS feed note.
 pub type Note<A> = LinkedModel<NoteResponse, A>;
@@ -38,11 +39,30 @@ pub type FeedRw = LinkedModel<FeedResponse, RwAccess>;
 /// A feed which you can read but not edit.
 pub type FeedRo = LinkedModel<FeedResponse, RoAccess>;
 
+/// A lazy feed object.
+pub type LazyFeed<'a, A> = LazyLinkedModel<'a, FeedResponse, A>;
+
+/// A lazy feed object you can edit.
+pub type LazyFeedRw<'a> = LazyFeed<'a, RwAccess>;
+
 impl FeedRw {
     /// Set the name of a feed.
-    pub async fn set_name(&self, name: String) -> Result<Self, CubeError> {
-        self.put(&self.object.url, &[("name", &name)]).await
+    pub async fn set_name(&self, name: &str) -> Result<Self, CubeError> {
+        self.put(&self.object.url, &Name { name }).await
     }
 }
 
+impl<'a> LazyFeedRw<'a> {
+    /// Set the name of a feed.
+    pub async fn set_name(&self, name: &str) -> Result<FeedRw, CubeError> {
+        self.put(&Name { name }).await
+    }
+}
+
+#[derive(Serialize)]
+struct Name<'a> {
+    name: &'a str,
+}
+
+/// A query for the plugin instances of a feed.
 type FeedPluginInstances<'a, A> = SearchBuilder<'a, PluginInstanceResponse, A>;

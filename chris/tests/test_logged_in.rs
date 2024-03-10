@@ -1,15 +1,14 @@
 use camino::Utf8PathBuf;
-use chris::errors::FileIOError;
-use chris::{Account, BaseChrisClient, ChrisClient, Downloadable, FileUploadResponse};
 use fake::Fake;
 use futures::{StreamExt, TryStreamExt};
 use rstest::*;
 
+use chris::errors::FileIOError;
 use chris::types::{CubeUrl, FileBrowserPath, Username};
-
-mod helpers;
+use chris::{Account, BaseChrisClient, ChrisClient, Downloadable, FileUploadResponse, PluginRw};
 use helpers::{AnyResult, TESTING_URL};
 
+mod helpers;
 // ========================================
 //            SAMPLE FILE HELPERS
 // ========================================
@@ -129,4 +128,37 @@ async fn test_filebrowser_browse_uploads(
         .filter(|f| f.fname().as_str().ends_with("logo_chris.png"));
     assert!(found.next().is_some());
     Ok(())
+}
+
+#[fixture]
+#[once]
+fn pl_mri10yr(chris_client: &ChrisClient) -> PluginRw {
+    let query = chris_client
+        .plugin()
+        .name_exact("pl-mri10yr06mo01da_normal")
+        .version("1.1.4");
+    let search = query.search();
+    futures::executor::block_on(search.get_only()).unwrap()
+}
+
+#[rstest]
+#[tokio::test(flavor = "multi_thread")]
+async fn test_count_and_lazy_feed_set_name(
+    chris_client: &ChrisClient,
+    pl_mri10yr: &PluginRw,
+) -> AnyResult {
+    let feed_name = uuid::Uuid::new_v4().hyphenated().to_string();
+    assert_eq!(count_feeds_with_name(chris_client, &feed_name).await, 0);
+    let plinst = pl_mri10yr.create_instance::<[&str]>(&[]).await.unwrap();
+    let lazy_feed = plinst.feed();
+    let changed_feed = lazy_feed.set_name(&feed_name).await.unwrap();
+    assert_eq!(plinst.object.feed_id, changed_feed.object.id);
+    assert_eq!(count_feeds_with_name(chris_client, &feed_name).await, 1);
+    Ok(())
+}
+
+async fn count_feeds_with_name(client: &ChrisClient, name: &str) -> u32 {
+    let query = client.feeds().name_exact(name);
+    let search = query.search();
+    search.get_count().await.unwrap()
 }

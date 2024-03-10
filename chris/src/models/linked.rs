@@ -62,7 +62,12 @@ impl<T: DeserializeOwned, A: Access> LinkedModel<T, A> {
         url: &CollectionUrl,
         data: &S,
     ) -> Result<LinkedModel<R, A>, CubeError> {
-        let res = self.client.post(url.as_str()).json(data).send().await?;
+        let res = if std::mem::size_of_val(data) == 0 {
+            // workaround for https://github.com/FNNDSC/ChRIS_ultron_backEnd/issues/382
+            self.client.post(url.as_str()).send().await
+        } else {
+            self.client.post(url.as_str()).json(data).send().await
+        }?;
         let data = check(res).await?.json().await?;
         Ok(LinkedModel {
             client: self.client.clone(),
@@ -98,6 +103,20 @@ impl<T: DeserializeOwned, A: Access> LazyLinkedModel<'_, T, A> {
         Ok(LinkedModel {
             object: data,
             client: self.client.clone(),
+            phantom: Default::default(),
+        })
+    }
+
+    /// HTTP put request
+    pub(crate) async fn put<S: Serialize + ?Sized>(
+        &self,
+        data: &S,
+    ) -> Result<LinkedModel<T, A>, CubeError> {
+        let res = self.client.put(self.url.as_str()).json(data).send().await?;
+        let data = check(res).await?.json().await?;
+        Ok(LinkedModel {
+            client: self.client.clone(),
+            object: data,
             phantom: Default::default(),
         })
     }
