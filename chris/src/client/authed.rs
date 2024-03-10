@@ -91,6 +91,54 @@ impl ChrisClientBuilder {
     }
 }
 
+fn token2header(token: &str) -> HeaderMap {
+    let mut headers = HeaderMap::new();
+    let auth_data = format!("token {}", token);
+    let mut value: HeaderValue = auth_data.parse().unwrap();
+    value.set_sensitive(true);
+    headers.insert(AUTHORIZATION, value);
+    headers.insert(ACCEPT, "application/json".parse().unwrap());
+    headers
+}
+
+#[async_trait]
+impl<A: Access> BaseChrisClient<A> for AuthedChrisClient<A> {
+    fn filebrowser(&self) -> FileBrowser {
+        FileBrowser::new(self.client.clone(), &self.links.filebrowser)
+    }
+
+    fn url(&self) -> &CubeUrl {
+        &self.url
+    }
+
+    fn plugin(&self) -> PluginSearchBuilder<A> {
+        self.query(&self.links.plugins)
+    }
+
+    fn pipeline(&self) -> PipelineSearchBuilder<A> {
+        self.query(&self.links.pipelines)
+    }
+
+    fn public_feeds(&self) -> FeedSearchBuilder<RoAccess> {
+        FeedSearchBuilder::query(self.client.clone(), self.feeds_url.clone())
+    }
+
+    async fn get_feed(&self, id: FeedId) -> Result<LinkedModel<FeedResponse, A>, CubeError> {
+        fetch_id(&self.client, self.url(), id.0).await
+    }
+
+    async fn get_plugin_instance(
+        &self,
+        id: PluginInstanceId,
+    ) -> Result<LinkedModel<PluginInstanceResponse, A>, CubeError> {
+        fetch_id(&self.client, &self.links.plugin_instances, id.0).await
+    }
+}
+
+// --------------------------------------------------------------------------------
+// Functions available only to authorized users
+// --------------------------------------------------------------------------------
+
 impl<A: Access> AuthedChrisClient<A> {
     /// Create a client builder.
     pub fn build(
@@ -114,10 +162,6 @@ impl<A: Access> AuthedChrisClient<A> {
     /// Search for plugin instances
     pub fn plugin_instances(&self) -> PluginInstanceSearchBuilder<A> {
         self.query(&self.links.plugin_instances)
-    }
-
-    fn query<T: DeserializeOwned>(&self, url: &CollectionUrl) -> SearchBuilder<T, A> {
-        SearchBuilder::query(self.client.clone(), url.clone())
     }
 
     // ==================================================
@@ -181,51 +225,16 @@ impl<A: Access> AuthedChrisClient<A> {
         self.upload_stream(stream, filename, path, content_length)
             .await
     }
-}
 
-fn token2header(token: &str) -> HeaderMap {
-    let mut headers = HeaderMap::new();
-    let auth_data = format!("token {}", token);
-    let mut value: HeaderValue = auth_data.parse().unwrap();
-    value.set_sensitive(true);
-    headers.insert(AUTHORIZATION, value);
-    headers.insert(ACCEPT, "application/json".parse().unwrap());
-    headers
-}
+    // ==================================================
+    //                 HELPER METHODS
+    // ==================================================
 
-#[async_trait]
-impl<A: Access> BaseChrisClient<A> for AuthedChrisClient<A> {
-    fn filebrowser(&self) -> FileBrowser {
-        FileBrowser::new(self.client.clone(), &self.links.filebrowser)
-    }
-
-    fn url(&self) -> &CubeUrl {
-        &self.url
-    }
-
-    fn plugin(&self) -> PluginSearchBuilder<A> {
-        self.query(&self.links.plugins)
-    }
-
-    fn pipeline(&self) -> PipelineSearchBuilder<A> {
-        self.query(&self.links.pipelines)
-    }
-
-    fn public_feeds(&self) -> FeedSearchBuilder<RoAccess> {
-        FeedSearchBuilder::query(self.client.clone(), self.feeds_url.clone())
-    }
-
-    async fn get_feed(&self, id: FeedId) -> Result<LinkedModel<FeedResponse, A>, CubeError> {
-        fetch_id(&self.client, self.url(), id.0).await
-    }
-
-    async fn get_plugin_instance(
-        &self,
-        id: PluginInstanceId,
-    ) -> Result<LinkedModel<PluginInstanceResponse, A>, CubeError> {
-        fetch_id(&self.client, &self.links.plugin_instances, id.0).await
+    fn query<T: DeserializeOwned>(&self, url: &CollectionUrl) -> SearchBuilder<T, A> {
+        SearchBuilder::query(self.client.clone(), url.clone())
     }
 }
+
 
 impl ChrisClient {
     /// Convert to a [RoAccess] client.
