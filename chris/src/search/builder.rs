@@ -6,7 +6,7 @@ use serde::{de::DeserializeOwned, Serialize};
 use std::collections::HashMap;
 use std::marker::PhantomData;
 
-#[derive(Serialize)]
+#[derive(Serialize, Clone)]
 #[serde(untagged)]
 pub enum QueryValue {
     U32(u32),
@@ -15,18 +15,19 @@ pub enum QueryValue {
 
 /// A `SearchBuilder` builds a request for a search API, e.g. `api/v1/plugins/search/`,
 /// or a request to a collection API, e.g. `api/v1/plugins/`.
-pub struct SearchBuilder<'a, T: DeserializeOwned, A: Access> {
-    pub(crate) client: &'a ClientWithMiddleware,
-    pub(crate) url: &'a CollectionUrl,
+#[derive(Clone)]
+pub struct SearchBuilder<T: DeserializeOwned, A: Access> {
+    pub(crate) client: ClientWithMiddleware,
+    pub(crate) url: CollectionUrl,
     query: HashMap<&'static str, QueryValue>,
     phantom: PhantomData<(A, T)>,
     max_items: Option<usize>,
     is_search: bool,
 }
 
-impl<'a, T: DeserializeOwned> SearchBuilder<'a, T, RwAccess> {
+impl<T: DeserializeOwned> SearchBuilder<T, RwAccess> {
     /// Convert this [SearchBuilder] to produce [RoAccess] items.
-    pub fn into_ro(self) -> SearchBuilder<'a, T, RoAccess> {
+    pub fn into_ro(self) -> SearchBuilder<T, RoAccess> {
         SearchBuilder {
             client: self.client,
             url: self.url,
@@ -38,9 +39,9 @@ impl<'a, T: DeserializeOwned> SearchBuilder<'a, T, RwAccess> {
     }
 }
 
-impl<'a, T: DeserializeOwned, A: Access> SearchBuilder<'a, T, A> {
+impl<T: DeserializeOwned, A: Access> SearchBuilder<T, A> {
     /// Create a search query
-    pub(crate) fn query(client: &'a ClientWithMiddleware, url: &'a CollectionUrl) -> Self {
+    pub(crate) fn query(client: ClientWithMiddleware, url: CollectionUrl) -> Self {
         Self {
             client,
             url,
@@ -52,7 +53,7 @@ impl<'a, T: DeserializeOwned, A: Access> SearchBuilder<'a, T, A> {
     }
 
     /// Create a request to fetch a collection (without search query terms).
-    pub(crate) fn collection(client: &'a ClientWithMiddleware, url: &'a CollectionUrl) -> Self {
+    pub(crate) fn collection(client: ClientWithMiddleware, url: CollectionUrl) -> Self {
         Self {
             client,
             url,
@@ -64,11 +65,11 @@ impl<'a, T: DeserializeOwned, A: Access> SearchBuilder<'a, T, A> {
     }
 
     /// Complete the search query
-    pub fn search(&self) -> Search<T, A, &HashMap<&'static str, QueryValue>> {
+    pub fn search(self) -> Search<T, A, HashMap<&'static str, QueryValue>> {
         if self.is_search {
-            Search::search(self.client, self.url, &self.query, self.max_items)
+            Search::search(self.client, self.url, self.query, self.max_items)
         } else {
-            Search::collection(self.client, self.url, &self.query, self.max_items)
+            Search::collection(self.client, self.url, self.query, self.max_items)
         }
     }
 

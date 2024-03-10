@@ -34,11 +34,11 @@ impl<T: DeserializeOwned, A: Access> LinkedModel<T, A> {
     }
 
     /// Get items in a collection
-    pub(crate) fn get_collection<'a, R: DeserializeOwned>(
-        &'a self,
-        url: &'a CollectionUrl,
+    pub(crate) fn get_collection<R: DeserializeOwned>(
+        &self,
+        url: &CollectionUrl,
     ) -> SearchBuilder<R, A> {
-        SearchBuilder::collection(&self.client, url)
+        SearchBuilder::collection(self.client.clone(), url.clone())
     }
 
     /// HTTP put request

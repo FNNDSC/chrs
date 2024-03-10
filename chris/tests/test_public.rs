@@ -94,10 +94,13 @@ async fn test_get_plugin_parameters(chris_client: &AnonChrisClient) -> AnyResult
 #[rstest]
 #[tokio::test(flavor = "multi_thread")]
 async fn test_search_public_feeds(chris_client: &AnonChrisClient) -> AnyResult {
-    let query = chris_client
+    let feed = chris_client
         .public_feeds()
-        .name_exact("Fetal Brain Atlases");
-    let feed = query.search().get_first().await?.expect("Feed not found");
+        .name_exact("Fetal Brain Atlases")
+        .search()
+        .get_first()
+        .await?
+        .expect("Feed not found");
     assert_eq!(&feed.object.name, "Fetal Brain Atlases");
     Ok(())
 }
@@ -160,8 +163,13 @@ async fn test_get_plugin_instance(chris_client: &AnonChrisClient) -> AnyResult {
 #[case(5)]
 #[tokio::test(flavor = "multi_thread")]
 async fn test_search_max_items(chris_client: &AnonChrisClient, #[case] count: usize) -> AnyResult {
-    let query = chris_client.plugin().max_items(count);
-    let items: Vec<_> = query.search().stream().try_collect().await?;
+    let items: Vec<_> = chris_client
+        .plugin()
+        .max_items(count)
+        .search()
+        .stream()
+        .try_collect()
+        .await?;
     assert_eq!(items.len(), count);
     Ok(())
 }

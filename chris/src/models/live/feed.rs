@@ -65,4 +65,4 @@ struct Name<'a> {
 }
 
 /// A query for the plugin instances of a feed.
-type FeedPluginInstances<'a, A> = SearchBuilder<'a, PluginInstanceResponse, A>;
+type FeedPluginInstances<'a, A> = SearchBuilder<PluginInstanceResponse, A>;

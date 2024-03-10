@@ -126,15 +126,15 @@ impl<R: DeserializeOwned, A: Access, Q: Serialize + Sized> ActualSearch<R, A, Q>
 
 impl<R: DeserializeOwned, A: Access, Q: Serialize + Sized> Search<R, A, Q> {
     fn new(
-        client: &reqwest_middleware::ClientWithMiddleware,
-        base_url: &CollectionUrl,
+        client: ClientWithMiddleware,
+        base_url: CollectionUrl,
         query: Q,
         max_items: Option<usize>,
         is_search: bool,
     ) -> Self {
         let s = ActualSearch {
-            client: client.clone(),
-            base_url: base_url.to_string(),
+            client,
+            base_url: base_url.take(),
             query,
             is_search,
             max_items,
@@ -146,8 +146,8 @@ impl<R: DeserializeOwned, A: Access, Q: Serialize + Sized> Search<R, A, Q> {
     /// Create a search query.
     #[allow(clippy::self_named_constructors)]
     pub(crate) fn search(
-        client: &ClientWithMiddleware,
-        base_url: &CollectionUrl,
+        client: ClientWithMiddleware,
+        base_url: CollectionUrl,
         query: Q,
         max_items: Option<usize>,
     ) -> Self {
@@ -157,8 +157,8 @@ impl<R: DeserializeOwned, A: Access, Q: Serialize + Sized> Search<R, A, Q> {
     /// Constructor for retrieving items from the given `base_url` itself
     /// (instead of `{base_url}search/`), without any query parameters.
     pub(crate) fn collection(
-        client: &ClientWithMiddleware,
-        base_url: &CollectionUrl,
+        client: ClientWithMiddleware,
+        base_url: CollectionUrl,
         query: Q,
         max_items: Option<usize>,
     ) -> Self {

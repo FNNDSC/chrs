@@ -19,6 +19,7 @@ use futures::TryStream;
 use reqwest::header::{HeaderMap, HeaderValue, ACCEPT, AUTHORIZATION};
 use reqwest::multipart::{Form, Part};
 use reqwest::Body;
+use serde::de::DeserializeOwned;
 use std::borrow::Cow;
 use std::marker::PhantomData;
 use tokio_util::codec::{BytesCodec, FramedRead};
@@ -107,7 +108,16 @@ impl<A: Access> AuthedChrisClient<A> {
 
     /// Search for feeds
     pub fn feeds(&self) -> FeedSearchBuilder<A> {
-        FeedSearchBuilder::query(&self.client, &self.feeds_url)
+        self.query(&self.feeds_url)
+    }
+
+    /// Search for plugin instances
+    pub fn plugin_instances(&self) -> PluginInstanceSearchBuilder<A> {
+        self.query(&self.links.plugin_instances)
+    }
+
+    fn query<T: DeserializeOwned>(&self, url: &CollectionUrl) -> SearchBuilder<T, A> {
+        SearchBuilder::query(self.client.clone(), url.clone())
     }
 
     // ==================================================
@@ -194,15 +204,15 @@ impl<A: Access> BaseChrisClient<A> for AuthedChrisClient<A> {
     }
 
     fn plugin(&self) -> PluginSearchBuilder<A> {
-        SearchBuilder::query(&self.client, &self.links.plugins)
+        self.query(&self.links.plugins)
     }
 
     fn pipeline(&self) -> PipelineSearchBuilder<A> {
-        PipelineSearchBuilder::query(&self.client, &self.links.pipelines)
+        self.query(&self.links.pipelines)
     }
 
     fn public_feeds(&self) -> FeedSearchBuilder<RoAccess> {
-        FeedSearchBuilder::query(&self.client, &self.links.public_feeds)
+        FeedSearchBuilder::query(self.client.clone(), self.feeds_url.clone())
     }
 
     async fn get_feed(&self, id: FeedId) -> Result<LinkedModel<FeedResponse, A>, CubeError> {
@@ -228,11 +238,5 @@ impl ChrisClient {
             phantom: Default::default(),
             feeds_url: self.feeds_url,
         }
-    }
-}
-
-impl<A: Access> AuthedChrisClient<A> {
-    pub fn plugin_instances(&self) -> PluginInstanceSearchBuilder<A> {
-        PluginInstanceSearchBuilder::query(&self.client, &self.links.plugin_instances)
     }
 }

@@ -1,9 +1,12 @@
 use async_trait::async_trait;
 use reqwest::header::{HeaderMap, ACCEPT};
+use serde::de::DeserializeOwned;
 
 use crate::errors::{check, CubeError};
 use crate::models::{BaseResponse, CubeLinks};
-use crate::search::{FeedSearchBuilder, PipelineSearchBuilder, PluginSearchBuilder, LIMIT_ZERO};
+use crate::search::{
+    FeedSearchBuilder, PipelineSearchBuilder, PluginSearchBuilder, SearchBuilder, LIMIT_ZERO,
+};
 use crate::types::*;
 use crate::{FeedResponse, LinkedModel, PluginInstanceResponse};
 
@@ -69,6 +72,12 @@ fn accept_json() -> HeaderMap {
     HeaderMap::from_iter([(ACCEPT, "application/json".parse().unwrap())])
 }
 
+impl AnonChrisClient {
+    fn query<T: DeserializeOwned>(&self, url: &CollectionUrl) -> SearchBuilder<T, RoAccess> {
+        SearchBuilder::query(self.client.clone(), url.clone())
+    }
+}
+
 #[async_trait]
 impl BaseChrisClient<RoAccess> for AnonChrisClient {
     fn filebrowser(&self) -> FileBrowser {
@@ -80,15 +89,15 @@ impl BaseChrisClient<RoAccess> for AnonChrisClient {
     }
 
     fn plugin(&self) -> PluginSearchBuilder<RoAccess> {
-        PluginSearchBuilder::query(&self.client, &self.links.plugins)
+        self.query(&self.links.plugins)
     }
 
     fn pipeline(&self) -> PipelineSearchBuilder<RoAccess> {
-        PipelineSearchBuilder::query(&self.client, &self.links.pipelines)
+        self.query(&self.links.pipelines)
     }
 
     fn public_feeds(&self) -> FeedSearchBuilder<RoAccess> {
-        FeedSearchBuilder::query(&self.client, &self.links.public_feeds)
+        self.query(&self.links.public_feeds)
     }
 
     async fn get_feed(&self, id: FeedId) -> Result<LinkedModel<FeedResponse, RoAccess>, CubeError> {

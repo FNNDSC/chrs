@@ -3,9 +3,9 @@ use crate::types::{FeedId, PipelineId, PluginId, PluginInstanceId};
 use crate::{Access, FeedResponse, PipelineResponse, PluginInstanceResponse, PluginResponse};
 
 /// Plugin search query
-pub type PluginSearchBuilder<'a, A> = SearchBuilder<'a, PluginResponse, A>;
+pub type PluginSearchBuilder<A> = SearchBuilder<PluginResponse, A>;
 
-impl<A: Access> PluginSearchBuilder<'_, A> {
+impl<A: Access> PluginSearchBuilder<A> {
     /// Search for plugin by ID
     pub fn id(self, id: PluginId) -> Self {
         self.add_u32("id", id.0)
@@ -33,9 +33,9 @@ impl<A: Access> PluginSearchBuilder<'_, A> {
 }
 
 /// Plugin search query
-pub type FeedSearchBuilder<'a, A> = SearchBuilder<'a, FeedResponse, A>;
+pub type FeedSearchBuilder<A> = SearchBuilder<FeedResponse, A>;
 
-impl<A: Access> FeedSearchBuilder<'_, A> {
+impl<A: Access> FeedSearchBuilder<A> {
     /// Search for feed by name
     pub fn name(self, name: impl Into<String>) -> Self {
         self.add_string("name", name)
@@ -48,9 +48,9 @@ impl<A: Access> FeedSearchBuilder<'_, A> {
 }
 
 /// Plugin instance search query
-pub type PluginInstanceSearchBuilder<'a, A> = SearchBuilder<'a, PluginInstanceResponse, A>;
+pub type PluginInstanceSearchBuilder<A> = SearchBuilder<PluginInstanceResponse, A>;
 
-impl<A: Access> PluginInstanceSearchBuilder<'_, A> {
+impl<A: Access> PluginInstanceSearchBuilder<A> {
     /// Search for plugin instance by ID
     pub fn id(self, id: PluginInstanceId) -> Self {
         self.add_u32("id", id.0)
@@ -62,7 +62,7 @@ impl<A: Access> PluginInstanceSearchBuilder<'_, A> {
     }
 
     /// Search for plugin instance by title
-    pub fn title(self, title: String) -> Self {
+    pub fn title(self, title: impl Into<String>) -> Self {
         self.add_string("title", title)
     }
 
@@ -73,9 +73,9 @@ impl<A: Access> PluginInstanceSearchBuilder<'_, A> {
 }
 
 /// Pipeline search query
-pub type PipelineSearchBuilder<'a, A> = SearchBuilder<'a, PipelineResponse, A>;
+pub type PipelineSearchBuilder<A> = SearchBuilder<PipelineResponse, A>;
 
-impl<A: Access> PipelineSearchBuilder<'_, A> {
+impl<A: Access> PipelineSearchBuilder<A> {
     /// Search for pipeline by ID
     pub fn id(self, id: PipelineId) -> Self {
         self.add_u32("id", id.0)

@@ -180,11 +180,11 @@ async fn get_one_plugin_by_name<A: Access, C: BaseChrisClient<A> + Sync>(
 }
 
 /// Create a plugin search query returning one result with `name_exact` and maybe `version`.
-fn plugin_search_query<'a, A: Access, C: BaseChrisClient<A> + Sync>(
-    client: &'a C,
-    name: &'a str,
-    version: Option<&'a str>,
-) -> PluginSearchBuilder<'a, A> {
+fn plugin_search_query<A: Access, C: BaseChrisClient<A> + Sync>(
+    client: &C,
+    name: &str,
+    version: Option<&str>,
+) -> PluginSearchBuilder<A> {
     let name_query = client.plugin().name_exact(name).page_limit(1).max_items(1);
     if let Some(version) = version {
         name_query.version(version)

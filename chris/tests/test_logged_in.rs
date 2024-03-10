@@ -62,7 +62,7 @@ impl FileToUpload<'_> {
 
 #[fixture]
 fn cube_url() -> CubeUrl {
-    TESTING_URL.to_string().parse().unwrap()
+    CubeUrl::from_static(TESTING_URL)
 }
 
 #[fixture]
@@ -133,11 +133,11 @@ async fn test_filebrowser_browse_uploads(
 #[fixture]
 #[once]
 fn pl_mri10yr(chris_client: &ChrisClient) -> PluginRw {
-    let query = chris_client
+    let search = chris_client
         .plugin()
         .name_exact("pl-mri10yr06mo01da_normal")
-        .version("1.1.4");
-    let search = query.search();
+        .version("1.1.4")
+        .search();
     futures::executor::block_on(search.get_only()).unwrap()
 }
 
@@ -158,7 +158,11 @@ async fn test_count_and_lazy_feed_set_name(
 }
 
 async fn count_feeds_with_name(client: &ChrisClient, name: &str) -> u32 {
-    let query = client.feeds().name_exact(name);
-    let search = query.search();
-    search.get_count().await.unwrap()
+    client
+        .feeds()
+        .name_exact(name)
+        .search()
+        .get_count()
+        .await
+        .unwrap()
 }

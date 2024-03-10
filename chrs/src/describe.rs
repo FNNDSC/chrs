@@ -54,7 +54,7 @@ fn print_plugin_title(plugin: &PluginResponse, ui: Option<&UiUrlRef>) {
     }
 }
 
-fn get_plugin_attributes<'a>(plugin: &'a PluginResponse) -> Vec<(&'static str, &'a str)> {
+fn get_plugin_attributes(plugin: &PluginResponse) -> Vec<(&'static str, &str)> {
     let mut attributes = vec![
         ("Version", plugin.version.as_str()),
         ("Image", plugin.dock_image.as_str()),
