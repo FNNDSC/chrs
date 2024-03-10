@@ -288,6 +288,7 @@ async fn get_input(
 #[cfg(test)]
 mod tests {
     use fake::Fake;
+    use futures::TryStreamExt;
     use rstest::*;
     use tempfile::TempDir;
 
