@@ -34,6 +34,14 @@ impl EitherClient {
             Self::LoggedIn(c) => Some(c.username()),
         }
     }
+
+    /// Get the client if this is logged in.
+    pub fn logged_in(self) -> Option<ChrisClient> {
+        match self {
+            Self::LoggedIn(c) => Some(c),
+            _ => None,
+        }
+    }
 }
 
 #[async_trait]

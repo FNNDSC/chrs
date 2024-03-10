@@ -81,7 +81,7 @@ pub async fn run_command(credentials: Credentials, args: RunArgs) -> eyre::Resul
     } else {
         Err(eyre!("You are not logged in."))
     }?;
-    if let Some(id) = run(&client, old, ui, args).await? {
+    if let Some(id) = run(&client, dbg!(old), ui, args).await? {
         set_cd(client.url(), client.username(), id, credentials.config_path)?;
     }
     Ok(())
@@ -238,7 +238,8 @@ fn set_cd(
     config_path: Option<PathBuf>,
 ) -> eyre::Result<()> {
     let mut sessions = ChrsSessions::load(config_path.as_deref())?;
-    if sessions.set_plugin_instance(cube_url, username, id) {
+    dbg!(&sessions.sessions);
+    if dbg!(sessions.set_plugin_instance(cube_url, username, id)) {
         sessions.save(config_path.as_deref())?;
     }
     Ok(())
@@ -339,7 +340,10 @@ async fn get_feedrw_by_name(client: &ChrisClient, name: String) -> color_eyre::R
 mod tests {
     use fake::Fake;
     use rstest::*;
+    use tempfile::TempDir;
 
+    use crate::credentials::NO_ARGS;
+    use crate::login::store::{SavedCubeState, StoredToken};
     use chris::Account;
 
     use super::*;
@@ -351,7 +355,20 @@ mod tests {
 
     #[fixture]
     #[once]
-    fn credentials(cube_url: CubeUrl) -> Credentials {
+    fn tmp_dir() -> TempDir {
+        TempDir::new().unwrap()
+    }
+
+    #[fixture]
+    #[once]
+    fn config_path(tmp_dir: &TempDir) -> Option<PathBuf> {
+        let u = uuid::Uuid::new_v4().hyphenated().to_string();
+        Some(tmp_dir.path().join(format!("{u}.ron")))
+    }
+
+    #[fixture]
+    #[once]
+    fn credentials(cube_url: CubeUrl, config_path: &Option<PathBuf>) -> Credentials {
         let username: String = fake::faker::internet::en::Username().fake();
         let email: String = fake::faker::internet::en::SafeEmail().fake();
         let password = format!("{}1234", &username.chars().rev().collect::<String>());
@@ -361,13 +378,25 @@ mod tests {
             account_creator.create_account(&email).await.unwrap();
             account_creator.get_token().await.unwrap()
         });
+        let sessions = ChrsSessions {
+            sessions: vec![SavedCubeState {
+                cube: cube_url.clone(),
+                username: username.clone(),
+                store: StoredToken::Text(token),
+                current_plugin_instance_id: None,
+                ui: None,
+            }],
+        };
+        // save token to storage
+        sessions.save(config_path.as_deref()).unwrap();
         Credentials {
             cube_url: Some(cube_url),
             username: Some(username),
             password: None,
-            token: Some(token),
+            token: None, // token will be looked up from storage
             retries: None,
             ui: None,
+            config_path: config_path.clone(),
         }
     }
 
@@ -389,12 +418,15 @@ mod tests {
     #[rstest]
     #[tokio::test(flavor = "multi_thread")]
     async fn test_everything(credentials: &Credentials) {
-        let c = credentials.clone();
-        let client = ChrisClient::build(c.cube_url.unwrap(), c.username.unwrap(), c.token.unwrap())
-            .unwrap()
-            .connect()
+        let client = credentials
+            .clone()
+            .get_client(NO_ARGS)
             .await
+            .unwrap()
+            .0
+            .logged_in()
             .unwrap();
+
         let title = uuid_name("first title");
         run_command(
             credentials.clone(),
@@ -493,6 +525,49 @@ mod tests {
         assert_eq!(
             third_plinst.object.memory_limit, 1234,
             "Memory limit was specified"
+        );
+
+        let fourth_title = uuid_name("fourth title");
+        run_command(
+            credentials.clone(),
+            create_args(
+                Some(fourth_title.clone()),
+                "pl-simpledsapp@2.0.2",
+                &["--dummyFloat", "35.6"],
+            ),
+        )
+        .await
+        .unwrap();
+        let fourth_plinst = client
+            .plugin_instances()
+            .title(&fourth_title)
+            .search()
+            .get_only()
+            .await
+            .unwrap();
+        assert_eq!(fourth_plinst.object.previous_id.unwrap(), third_plinst.object.id, "Running another plugin instance without specifying input should use last plugin instance as input");
+
+        let fifth_title = uuid_name("fifth title");
+        run_command(
+            credentials.clone(),
+            create_args(
+                Some(fifth_title.clone()),
+                "pl-simpledsapp@2.0.2",
+                &["--dummyInt", "108", ".."],
+            ),
+        )
+        .await
+        .unwrap();
+        let fifth_plinst = client
+            .plugin_instances()
+            .title(&fifth_title)
+            .search()
+            .get_only()
+            .await
+            .unwrap();
+        assert_eq!(
+            fifth_plinst.object.previous_id, fourth_plinst.object.previous_id,
+            "Specifying previous as \"..\" should create sibling plugin instance"
         );
     }
 
