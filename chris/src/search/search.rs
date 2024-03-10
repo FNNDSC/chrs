@@ -8,6 +8,7 @@ use async_stream::{stream, try_stream};
 use futures::Stream;
 use reqwest_middleware::ClientWithMiddleware;
 use serde::{de::DeserializeOwned, Deserialize, Serialize};
+use std::collections::HashMap;
 use std::marker::PhantomData;
 
 /// An abstraction over collection APIs, i.e. paginated API endpoints which return a `results` list.
@@ -15,18 +16,25 @@ use std::marker::PhantomData;
 /// This is homologus to the Python implementation in aiochris:
 ///
 /// <https://github.com/FNNDSC/aiochris/blob/adaff5bbc1d4d886ec2ca8155d82d266fa81d093/chris/util/search.py>
-pub enum Search<R: DeserializeOwned, A: Access, Q: Serialize + Sized> {
+pub enum Search<R: DeserializeOwned, A: Access> {
     /// A search to CUBE, possibly containing [0, n) items.
-    Search(ActualSearch<R, A, Q>),
+    Search(ActualSearch<R, A>),
     /// A search which cannot possibly contain items. It does not make requests to CUBE.
     Empty,
 }
 
+#[derive(Serialize, Clone)]
+#[serde(untagged)]
+pub enum QueryValue {
+    U32(u32),
+    String(String),
+}
+
 /// The "some" variant of [Search].
-pub struct ActualSearch<R: DeserializeOwned, A: Access, Q: Serialize + Sized> {
+pub struct ActualSearch<R: DeserializeOwned, A: Access> {
     client: ClientWithMiddleware,
-    base_url: String,
-    query: Q,
+    base_url: CollectionUrl,
+    query: HashMap<&'static str, QueryValue>,
     phantom: PhantomData<(R, A)>,
 
     /// Maximum number of items to produce
@@ -36,7 +44,7 @@ pub struct ActualSearch<R: DeserializeOwned, A: Access, Q: Serialize + Sized> {
     is_search: bool,
 }
 
-impl<R: DeserializeOwned, A: Access, Q: Serialize + Sized> ActualSearch<R, A, Q> {
+impl<R: DeserializeOwned, A: Access> ActualSearch<R, A> {
     /// Create a HTTP GET request for this search.
     fn get_search(&self) -> reqwest_middleware::RequestBuilder {
         if self.is_search {
@@ -124,17 +132,21 @@ impl<R: DeserializeOwned, A: Access, Q: Serialize + Sized> ActualSearch<R, A, Q>
     }
 }
 
-impl<R: DeserializeOwned, A: Access, Q: Serialize + Sized> Search<R, A, Q> {
+impl<R: DeserializeOwned, A: Access> Search<R, A> {
     fn new(
         client: ClientWithMiddleware,
         base_url: CollectionUrl,
-        query: Q,
+        mut query: HashMap<&'static str, QueryValue>,
+        page_limit: Option<u32>,
         max_items: Option<usize>,
         is_search: bool,
     ) -> Self {
+        if let Some(limit) = page_limit {
+            query.insert("limit", QueryValue::U32(limit));
+        }
         let s = ActualSearch {
             client,
-            base_url: base_url.take(),
+            base_url,
             query,
             is_search,
             max_items,
@@ -143,15 +155,16 @@ impl<R: DeserializeOwned, A: Access, Q: Serialize + Sized> Search<R, A, Q> {
         Self::Search(s)
     }
 
-    /// Create a search query.
+    /// Create a search for `{base_url}search/`.
     #[allow(clippy::self_named_constructors)]
     pub(crate) fn search(
         client: ClientWithMiddleware,
         base_url: CollectionUrl,
-        query: Q,
+        query: HashMap<&'static str, QueryValue>,
+        page_limit: Option<u32>,
         max_items: Option<usize>,
     ) -> Self {
-        Self::new(client, base_url, query, max_items, true)
+        Self::new(client, base_url, query, page_limit, max_items, true)
     }
 
     /// Constructor for retrieving items from the given `base_url` itself
@@ -159,10 +172,17 @@ impl<R: DeserializeOwned, A: Access, Q: Serialize + Sized> Search<R, A, Q> {
     pub(crate) fn collection(
         client: ClientWithMiddleware,
         base_url: CollectionUrl,
-        query: Q,
+        page_limit: Option<u32>,
         max_items: Option<usize>,
     ) -> Self {
-        Self::new(client, base_url, query, max_items, false)
+        Self::new(
+            client,
+            base_url,
+            HashMap::with_capacity(0),
+            page_limit,
+            max_items,
+            false,
+        )
     }
 
     /// Get the count of items in this collection.
@@ -172,9 +192,7 @@ impl<R: DeserializeOwned, A: Access, Q: Serialize + Sized> Search<R, A, Q> {
             Self::Empty => Ok(0),
         }
     }
-}
 
-impl<R: DeserializeOwned, A: Access, Q: Serialize + Sized> Search<R, A, Q> {
     /// Get the first item from this collection.
     ///
     /// See also: [Search::get_only]

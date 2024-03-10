@@ -47,7 +47,7 @@ impl EitherClient {
     pub fn logged_in_ref(&self) -> Option<&ChrisClient> {
         match self {
             Self::LoggedIn(c) => Some(c),
-            _ => None
+            _ => None,
         }
     }
 }

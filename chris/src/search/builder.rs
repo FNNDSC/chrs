@@ -1,17 +1,13 @@
-use super::Search;
-use crate::types::CollectionUrl;
-use crate::{Access, RoAccess, RwAccess};
-use reqwest_middleware::ClientWithMiddleware;
-use serde::{de::DeserializeOwned, Serialize};
 use std::collections::HashMap;
 use std::marker::PhantomData;
 
-#[derive(Serialize, Clone)]
-#[serde(untagged)]
-pub enum QueryValue {
-    U32(u32),
-    String(String),
-}
+use reqwest_middleware::ClientWithMiddleware;
+use serde::de::DeserializeOwned;
+
+use crate::types::CollectionUrl;
+use crate::{Access, RoAccess, RwAccess};
+
+use super::{QueryValue, Search};
 
 /// A `SearchBuilder` builds a request for a search API, e.g. `api/v1/plugins/search/`,
 /// or a request to a collection API, e.g. `api/v1/plugins/`.
@@ -21,6 +17,7 @@ pub struct SearchBuilder<T: DeserializeOwned, A: Access> {
     pub(crate) url: CollectionUrl,
     query: HashMap<&'static str, QueryValue>,
     phantom: PhantomData<(A, T)>,
+    page_limit: Option<u32>,
     max_items: Option<usize>,
     is_search: bool,
 }
@@ -32,6 +29,7 @@ impl<T: DeserializeOwned> SearchBuilder<T, RwAccess> {
             client: self.client,
             url: self.url,
             query: self.query,
+            page_limit: self.page_limit,
             max_items: self.max_items,
             is_search: self.is_search,
             phantom: Default::default(),
@@ -47,6 +45,7 @@ impl<T: DeserializeOwned, A: Access> SearchBuilder<T, A> {
             url,
             query: Default::default(),
             phantom: Default::default(),
+            page_limit: None,
             max_items: None,
             is_search: true,
         }
@@ -57,19 +56,20 @@ impl<T: DeserializeOwned, A: Access> SearchBuilder<T, A> {
         Self {
             client,
             url,
-            query: Default::default(),
+            query: HashMap::with_capacity(0),
             phantom: Default::default(),
+            page_limit: None,
             max_items: None,
             is_search: false,
         }
     }
 
     /// Complete the search query
-    pub fn search(self) -> Search<T, A, HashMap<&'static str, QueryValue>> {
+    pub fn search(self) -> Search<T, A> {
         if self.is_search {
-            Search::search(self.client, self.url, self.query, self.max_items)
+            Search::search(self.client, self.url, self.query, self.page_limit, self.max_items)
         } else {
-            Search::collection(self.client, self.url, self.query, self.max_items)
+            Search::collection(self.client, self.url, self.page_limit, self.max_items)
         }
     }
 
@@ -78,18 +78,17 @@ impl<T: DeserializeOwned, A: Access> SearchBuilder<T, A> {
     ///
     /// See also: [Self::max_items]
     pub fn page_limit(self, limit: u32) -> Self {
-        self.add_u32("limit", limit)
+        Self {
+            page_limit: Some(limit),
+            ..self
+        }
     }
 
     /// Caps the number of items to produce.
     pub fn max_items(self, max_items: usize) -> Self {
         Self {
-            client: self.client,
-            url: self.url,
-            query: self.query,
-            phantom: Default::default(),
             max_items: Some(max_items),
-            is_search: self.is_search,
+            ..self
         }
     }
 
