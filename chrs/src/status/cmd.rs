@@ -18,7 +18,7 @@ pub async fn status(
         .get_client(given.as_ref().map(|g| g.as_arg_str()).as_slice())
         .await?;
     let given = given.or_else(|| old.map(|id| id.into())).ok_or_eyre("missing operand")?;
-    let (feed, plinst) = given.resolve_using(&client, old).await?;
+    let (feed, plinst) = given.into_andor(&client, old).await?;
     print_status(feed, plinst, ui, show_execshell).await
 }
 

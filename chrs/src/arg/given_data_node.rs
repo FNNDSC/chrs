@@ -98,7 +98,7 @@ impl GivenDataNode {
     }
 
     /// Get the CUBE object.
-    pub async fn resolve_using(
+    pub async fn into_andor(
         self,
         client: &EitherClient,
         old: Option<PluginInstanceId>,
@@ -147,6 +147,30 @@ impl GivenDataNode {
         }
     }
 
+    /// Get the CUBE object interpreted as a plugin instance.
+    pub async fn into_plinst_either(self, client: &EitherClient, old: Option<PluginInstanceId>) -> eyre::Result<PluginInstanceRo> {
+        if let Some(logged_in) = client.logged_in_ref() {
+            match self {
+                GivenDataNode::FeedId { id, .. } => {
+                    return get_plinst_of_feed(logged_in, id).await.map(|p| p.into());
+                }
+                GivenDataNode::FeedName(name) => {
+                    let feed_id = get_feedid_by_name(logged_in, name).await?;
+                    return get_plinst_of_feed(logged_in, feed_id)
+                        .await
+                        .map(|p| p.into());
+                }
+                _ => (),
+            }
+        };
+        match self {
+            GivenDataNode::FeedId { .. } => Err(eyre!(CANNOT_ANONYMOUSLY_SEARCH)),
+            GivenDataNode::FeedName(_) => Err(eyre!(CANNOT_ANONYMOUSLY_SEARCH)),
+            GivenDataNode::PluginInstanceOrPath(given) => given.get_using_either(client, old).await,
+            GivenDataNode::Ambiguous(given) => GivenPluginInstanceOrPath::from(given).get_using_either(client, old).await,
+        }
+    }
+
     /// Interpret this as a path.
     ///
     /// - Absolute paths are returns as themselves (duh)
@@ -159,7 +183,6 @@ impl GivenDataNode {
         old: Option<PluginInstanceId>,
     ) -> eyre::Result<String> {
         if let Some(logged_in) = client.logged_in_ref() {
-            // if logged in, this works similar to into_plinst_rw
             match self {
                 GivenDataNode::FeedId { id, .. } => {
                     return get_plinst_of_feed(logged_in, id).await.map(plinst_path);

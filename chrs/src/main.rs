@@ -2,7 +2,7 @@ use clap::{Parser, Subcommand};
 
 use chris::types::{CubeUrl, Username};
 
-use crate::arg::{GivenDataNode, GivenPluginInstanceOrPath};
+use crate::arg::GivenDataNode;
 use crate::cd::cd;
 use crate::credentials::Credentials;
 use crate::describe::{describe_runnable, DescribeArgs};
@@ -130,8 +130,7 @@ enum Commands {
     /// Show the logs of a plugin instance
     Logs {
         /// Plugin instance
-        #[clap(default_value_t)]
-        plugin_instance: GivenPluginInstanceOrPath,
+        plugin_instance: Option<GivenDataNode>,
     },
 
     /// Describe and get usage of a plugin or pipeline
