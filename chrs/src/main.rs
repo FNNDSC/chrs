@@ -1,8 +1,8 @@
-use clap::{builder::NonEmptyStringValueParser, Parser, Subcommand};
+use clap::{Parser, Subcommand};
 
-use crate::arg::{GivenDataNode, GivenPluginInstanceOrPath};
 use chris::types::{CubeUrl, Username};
 
+use crate::arg::{GivenDataNode, GivenPluginInstanceOrPath};
 use crate::cd::cd;
 use crate::credentials::Credentials;
 use crate::describe::{describe_runnable, DescribeArgs};
@@ -124,8 +124,7 @@ enum Commands {
         execshell: bool,
 
         /// Feed or plugin instance
-        #[clap(value_parser = NonEmptyStringValueParser::new())]
-        feed_or_plugin_instance: Option<String>,
+        feed_or_plugin_instance: Option<GivenDataNode>,
     },
 
     /// Show the logs of a plugin instance

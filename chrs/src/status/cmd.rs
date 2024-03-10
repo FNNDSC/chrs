@@ -11,21 +11,14 @@ use super::print_branch::print_branch_status;
 
 pub async fn status(
     credentials: Credentials,
-    feed_or_plugin_instance: Option<String>,
+    given: Option<GivenDataNode>,
     show_execshell: bool,
 ) -> Result<()> {
-    let (client, current_plinst, ui) = credentials
-        .get_client(feed_or_plugin_instance.as_ref().as_slice())
+    let (client, old, ui) = credentials
+        .get_client(given.as_ref().map(|g| g.as_arg_str()).as_slice())
         .await?;
-    let fopi = feed_or_plugin_instance
-        .or_else(|| {
-            current_plinst
-                .as_ref()
-                .map(|i| format!("plugininstance/{}", i.0))
-        })
-        .ok_or_eyre("missing operand")?;
-    let given = GivenDataNode::from(fopi);
-    let (feed, plinst) = given.resolve_using(&client, current_plinst).await?;
+    let given = given.or_else(|| old.map(|id| id.into())).ok_or_eyre("missing operand")?;
+    let (feed, plinst) = given.resolve_using(&client, old).await?;
     print_status(feed, plinst, ui, show_execshell).await
 }
 

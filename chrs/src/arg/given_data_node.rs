@@ -38,6 +38,13 @@ impl From<String> for GivenDataNode {
     }
 }
 
+impl From<PluginInstanceId> for GivenDataNode {
+    fn from(value: PluginInstanceId) -> Self {
+        let orig = format!("plugininstance/{}", value.0);
+        GivenDataNode::PluginInstanceOrPath(GivenPluginInstanceOrPath::Id(value, orig))
+    }
+}
+
 /// Handle parsing of a user-provided string which was split once on '/'.
 ///
 /// If the left part is "f" or "feed", it is identified as a feed.
