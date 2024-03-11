@@ -1,14 +1,13 @@
-use crate::arg::GivenPluginInstanceOrPath;
 use clap::Parser;
 use color_eyre::eyre::Result;
 use tokio::join;
-use tokio::sync::mpsc::unbounded_channel;
 
+use crate::arg::GivenPluginInstanceOrPath;
 use crate::credentials::Credentials;
 use crate::files::decoder::MaybeChrisPathHumanCoder;
 use crate::ls::options::WhatToPrint;
 
-use super::coder_channel::{loop_decoder, DecodeChannel};
+use super::coder_channel::DecodeChannel;
 use super::plain::ls_plain;
 
 #[derive(Parser)]
@@ -55,10 +54,7 @@ pub async fn ls(
 
     let ro_client = client.into_ro();
     let coder = MaybeChrisPathHumanCoder::new(&ro_client, !no_titles);
-    let (tx_fname, rx_fname) = unbounded_channel();
-    let (tx_decoded, rx_decoded) = unbounded_channel();
-    let decode_channel = DecodeChannel::new(tx_fname, rx_decoded);
-    let decoder_loop = loop_decoder(coder, rx_fname, tx_decoded);
+    let (decode_channel, decoder_loop) = DecodeChannel::create(coder);
 
     let (result, _) = if tree {
         todo!()

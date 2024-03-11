@@ -136,7 +136,8 @@ async fn download_many_files(
     args: DownloadArgs,
     count: u64,
 ) -> eyre::Result<u64> {
-    // let coder = MaybeChrisPathHumanCoder::new(ro_client, !args.no_titles);
+    let coder = MaybeChrisPathHumanCoder::new(ro_client, !args.no_titles);
+
     let (progress_tx, mut progress_rx) = unbounded_channel();
     let transfer_progress_loop = async {
         let mut transfer_progress = MultiFileTransferProgress::new(count, SIZE_128_MIB);
