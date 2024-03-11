@@ -56,7 +56,7 @@ pub struct DownloadArgs {
     #[clap(long, conflicts_with = "skip_existing")]
     clobber: bool,
 
-    /// Maximum number of concurrent HTTP requests
+    /// Maximum number of concurrent downloads
     #[clap(short = 'j', long, default_value_t = 4)]
     threads: usize,
 

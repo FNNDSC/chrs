@@ -17,6 +17,7 @@ use crate::ls::{ls, LsArgs};
 use crate::run::{run_command, RunArgs};
 use crate::search::{search_runnable, SearchArgs};
 use crate::status::cmd::status;
+use crate::upload::{upload, UploadArgs};
 use crate::whoami::whoami;
 
 mod arg;
@@ -37,6 +38,7 @@ mod search;
 mod shlex;
 mod status;
 pub mod unicode;
+mod upload;
 mod whoami;
 
 #[derive(Parser)]
@@ -138,6 +140,9 @@ enum Commands {
     /// Run a plugin or pipeline
     Run(RunArgs),
 
+    /// Upload files to ChRIS
+    Upload(UploadArgs),
+
     /// Download files from ChRIS
     Download(DownloadArgs),
     // /// Get detailed information about a ChRIS object
@@ -218,5 +223,6 @@ async fn main() -> color_eyre::eyre::Result<()> {
         Commands::Describe(args) => describe_runnable(credentials, args).await,
         Commands::Run(args) => run_command(credentials, args).await,
         Commands::Download(args) => download(credentials, args).await,
+        Commands::Upload(args) => upload(credentials, args).await,
     }
 }
