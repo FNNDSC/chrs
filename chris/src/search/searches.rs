@@ -1,6 +1,7 @@
-use super::query::QueryBuilder;
+use crate::{Access, FeedFileResponse, FeedResponse, PipelineResponse, PluginInstanceResponse, PluginResponse};
 use crate::types::{FeedId, PipelineId, PluginId, PluginInstanceId};
-use crate::{Access, BasicFileResponse, FeedResponse, PipelineResponse, PluginInstanceResponse, PluginResponse};
+
+use super::query::QueryBuilder;
 
 /// Plugin search query
 pub type PluginSearchBuilder<A> = QueryBuilder<PluginResponse, A>;
@@ -93,7 +94,7 @@ impl<A: Access> PipelineSearchBuilder<A> {
 }
 
 /// File search query. Only searches for files produced by plugin instances.
-pub type FilesSearchBuilder<A> = QueryBuilder<BasicFileResponse, A>;
+pub type FilesSearchBuilder<A> = QueryBuilder<FeedFileResponse, A>;
 
 impl <A: Access> FilesSearchBuilder<A> {
     /// Search for files by plugin instance ID

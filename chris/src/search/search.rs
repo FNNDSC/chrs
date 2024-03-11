@@ -56,6 +56,17 @@ impl<R: DeserializeOwned, A: Access> ActualSearch<R, A> {
         self
     }
 
+    /// See [Search::downgrade]
+    fn downgrade<T: DeserializeOwned>(self) -> ActualSearch<T, A> {
+        ActualSearch {
+            client: self.client,
+            base_url: self.base_url,
+            query: self.query,
+            phantom: Default::default(),
+            is_search: self.is_search,
+        }
+    }
+
     /// See [Search::get_count]
     async fn get_count(&self) -> Result<u32, CubeError> {
         let res = self.get_search().query(&LIMIT_ONE).send().await?;
@@ -171,6 +182,16 @@ impl<R: DeserializeOwned, A: Access> Search<R, A> {
         Self {
             actual: None,
             max_items: None
+        }
+    }
+
+    /// Convert the yield type.
+    ///
+    /// `T` _must_ be a subset of `R`.
+    pub(crate) fn downgrade<T: DeserializeOwned>(self) -> Search<T, A> {
+        Search {
+            actual: self.actual.map(|a| a.downgrade()),
+            max_items: self.max_items
         }
     }
 

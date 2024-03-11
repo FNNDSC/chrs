@@ -40,3 +40,7 @@ pub struct WorkflowId(pub u32);
 /// Compute resource ID
 #[derive(Copy, Clone, Shrinkwrap, Serialize, Deserialize, Debug, Hash, Eq, PartialEq)]
 pub struct ComputeResourceId(pub u32);
+
+/// Feed file ID
+#[derive(Copy, Clone, Shrinkwrap, Serialize, Deserialize, Debug, Hash, Eq, PartialEq)]
+pub struct FeedFileId(pub u32);
