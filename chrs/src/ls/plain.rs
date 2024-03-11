@@ -72,7 +72,7 @@ async fn ls_recursive(
     }
 
     if what_to_print.should_print_files() {
-        let iter_files = entry.iter_files(None);
+        let iter_files = entry.iter_files();
         let files_stream = iter_files.stream();
         pin_mut!(files_stream);
         while let Some(file_result) = files_stream.next().await {

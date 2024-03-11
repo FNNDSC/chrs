@@ -1,10 +1,9 @@
+use serde_with::serde_derive::Serialize;
+
+use crate::{Access, CubeFile, LazyLinkedModel, LinkedModel, NoteResponse, PluginInstanceResponse, RoAccess, RwAccess};
 use crate::errors::CubeError;
 use crate::models::data::FeedResponse;
-use crate::search::SearchBuilder;
-use crate::{
-    Access, LazyLinkedModel, LinkedModel, NoteResponse, PluginInstanceResponse, RoAccess, RwAccess,
-};
-use serde_with::serde_derive::Serialize;
+use crate::search::Search;
 
 /// ChRIS feed note.
 pub type Note<A> = LinkedModel<NoteResponse, A>;
@@ -21,8 +20,13 @@ impl<A: Access> Feed<A> {
     }
 
     /// Get the plugin instances of this feed.
-    pub fn get_plugin_instances(&self) -> FeedPluginInstances<A> {
+    pub fn get_plugin_instances(&self) -> Search<PluginInstanceResponse, A> {
         self.get_collection(&self.object.plugin_instances)
+    }
+
+    /// Get files of this feed.
+    pub fn files(&self) -> Search<CubeFile, A> {
+        self.get_collection(&self.object.files)
     }
 }
 
@@ -63,6 +67,3 @@ impl<'a> LazyFeedRw<'a> {
 struct Name<'a> {
     name: &'a str,
 }
-
-/// A query for the plugin instances of a feed.
-type FeedPluginInstances<'a, A> = SearchBuilder<PluginInstanceResponse, A>;

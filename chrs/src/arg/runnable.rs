@@ -168,7 +168,7 @@ async fn get_one_plugin_by_name<A: Access, C: BaseChrisClient<A> + Sync>(
     version: Option<String>,
 ) -> eyre::Result<LinkedModel<PluginResponse, A>> {
     let query = plugin_search_query(client, &name, version.as_deref());
-    let search = query.search();
+    let search = query.search().page_limit(1).max_items(1);
     if let Some(plugin) = search.get_first().await? {
         Ok(plugin)
     } else {
@@ -185,7 +185,7 @@ fn plugin_search_query<A: Access, C: BaseChrisClient<A> + Sync>(
     name: &str,
     version: Option<&str>,
 ) -> PluginSearchBuilder<A> {
-    let name_query = client.plugin().name_exact(name).page_limit(1).max_items(1);
+    let name_query = client.plugin().name_exact(name);
     if let Some(version) = version {
         name_query.version(version)
     } else {
@@ -207,14 +207,20 @@ async fn get_one_pipeline_by_name<A: Access, C: BaseChrisClient<A> + Sync>(
 ) -> eyre::Result<LinkedModel<PipelineResponse, A>> {
     // Pipeline search API does not have a `name_exact` field.
     // https://github.com/FNNDSC/ChRIS_ultron_backEnd/issues/539
-    let query = client.pipeline().name(&name).page_limit(2).max_items(2);
-    let search = query.search();
-    let results: Vec<_> = search.stream_connected().try_collect().await?;
-    if results.len() > 1 {
+    let pipelines: Vec<_> = client
+        .pipeline()
+        .name(&name)
+        .search()
+        .page_limit(2)
+        .max_items(2)
+        .stream_connected()
+        .try_collect()
+        .await?;
+    if pipelines.len() > 1 {
         let cmd = format!("chrs search {}", shlex_quote(&name));
         bail!("Multiple pipelines found, please be more specific. Try searching for pipelines by running `{}`, and then rerun this command but specify a pipeline/{}", cmd.bold(), "ID".bold().bright_green())
     };
-    if let Some(pipeline) = results.into_iter().next() {
+    if let Some(pipeline) = pipelines.into_iter().next() {
         Ok(pipeline)
     } else {
         bail!("Pipeline not found")

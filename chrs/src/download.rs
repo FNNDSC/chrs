@@ -1,8 +1,13 @@
-use crate::arg::GivenDataNode;
-use crate::credentials::Credentials;
 use camino::Utf8PathBuf;
 use clap::Parser;
 use color_eyre::eyre;
+use futures::TryStream;
+
+use chris::errors::CubeError;
+use chris::{CubeFile, EitherClient, RoAccess};
+
+use crate::arg::{FeedOrPluginInstance, GivenDataNode};
+use crate::credentials::Credentials;
 
 #[derive(Parser)]
 pub struct DownloadArgs {
@@ -43,7 +48,27 @@ pub struct DownloadArgs {
 
 pub async fn download(credentials: Credentials, args: DownloadArgs) -> eyre::Result<()> {
     let (client, old, _) = credentials.get_client([args.src.as_arg_str()]).await?;
-    let src_path = args.src.into_path(&client, old).await?;
+
+    let files = match &client {
+        EitherClient::LoggedIn(logged_in) => {
+            let path = args.src.into_path(&client, old).await?;
+            logged_in.files().fname(path).into_ro().search()
+        }
+        EitherClient::Anon(_) => {
+            todo!()
+            // match args.src.into_or(&client, old).await? {
+            //     FeedOrPluginInstance::Feed(f) => {}
+            //     FeedOrPluginInstance::PluginInstance(p) => {}
+            // }
+        }
+    };
 
     Ok(())
+}
+
+async fn download_files<S: TryStream<Ok = CubeFile, Error = CubeError>>(
+    stream: S,
+) -> eyre::Result<()> {
+    dbg!("i am going to start the download now!");
+    todo!()
 }

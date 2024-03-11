@@ -20,9 +20,7 @@ pub async fn clap_serialize_params<A: Access>(
     plugin: &Plugin<A>,
     args: &[String],
 ) -> eyre::Result<(HashMap<String, PluginParameterValue>, Option<GivenDataNode>)> {
-    let parameters = plugin.parameters();
-    let ps = parameters.search();
-    let parameter_info: Vec<_> = ps.stream().try_collect().await?;
+    let parameter_info: Vec<_> = plugin.parameters().stream().try_collect().await?;
     let command = clap_params(&plugin.object.selfexec, &parameter_info);
     parse_args_using(command, &parameter_info, args)
 }

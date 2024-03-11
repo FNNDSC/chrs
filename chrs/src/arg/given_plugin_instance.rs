@@ -268,13 +268,16 @@ async fn search_title_within_feed(
     old: PluginInstanceId,
 ) -> Result<Option<PluginInstanceRw>> {
     let old = chris.get_plugin_instance(old).await?;
-    let query = chris
+    let items: Vec<_> = chris
         .plugin_instances()
         .feed_id(old.object.feed_id)
         .title(title)
+        .search()
         .page_limit(10)
-        .max_items(10);
-    let items: Vec<_> = query.search().stream_connected().try_collect().await?;
+        .max_items(10)
+        .stream_connected()
+        .try_collect()
+        .await?;
     if items.len() > 1 {
         bail!(
             "Multiple plugin instances found. Please specify: {}",

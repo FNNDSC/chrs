@@ -1,11 +1,11 @@
 use serde::Serialize;
 
+use crate::{Access, ComputeResourceResponse, PluginInstanceRw};
 use crate::client::access::{RoAccess, RwAccess};
 use crate::errors::CubeError;
 use crate::models::data::{PluginParameter, PluginResponse};
 use crate::models::linked::LinkedModel;
-use crate::search::SearchBuilder;
-use crate::{Access, ComputeResourceResponse, PluginInstanceRw};
+use crate::search::Search;
 
 /// A ChRIS plugin.
 pub type Plugin<A> = LinkedModel<PluginResponse, A>;
@@ -21,7 +21,7 @@ impl PluginRw {
     ///
     /// Note: only allowed to call this if logged in.
     /// See https://github.com/FNNDSC/ChRIS_ultron_backEnd/issues/540
-    pub fn compute_resources(&self) -> SearchBuilder<ComputeResourceResponse, RwAccess> {
+    pub fn compute_resources(&self) -> Search<ComputeResourceResponse, RwAccess> {
         self.get_collection(&self.object.compute_resources)
     }
 
@@ -35,7 +35,7 @@ impl PluginRw {
 }
 
 impl<A: Access> Plugin<A> {
-    pub fn parameters(&self) -> SearchBuilder<PluginParameter, A> {
+    pub fn parameters(&self) -> Search<PluginParameter, A> {
         self.get_collection(&self.object.parameters)
     }
 }

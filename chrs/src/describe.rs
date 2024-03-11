@@ -95,15 +95,12 @@ async fn describe_plugin_rw(plugin: &PluginRw, ui: Option<UiUrl>) -> eyre::Resul
 }
 
 async fn get_parameters<A: Access>(plugin: &Plugin<A>) -> Result<Vec<PluginParameter>, CubeError> {
-    let parameters = plugin.parameters();
-    let parameter_search = parameters.search();
-    parameter_search.stream().try_collect().await
+    plugin.parameters().stream().try_collect().await
 }
 
 async fn compute_resources_of(plugin: &PluginRw) -> Result<String, CubeError> {
-    let cr = plugin.compute_resources();
-    let cr_search = cr.search();
-    cr_search
+    plugin
+        .compute_resources()
         .stream()
         .map_ok(|c| c.name)
         .try_collect::<Vec<_>>()
@@ -136,8 +133,7 @@ async fn describe_pipeline_ro<A: Access>(
 }
 
 async fn print_pipeline_workflow_counts(pipeline: &PipelineRw) -> eyre::Result<()> {
-    let workflows_search = pipeline.get_workflows();
-    let count = workflows_search.search().get_count().await?;
+    let count = pipeline.get_workflows().get_count().await?;
     if count == 1 {
         println!("Pipeline was used {} time", 1.bold().bright_cyan());
     } else {

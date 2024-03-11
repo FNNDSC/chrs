@@ -423,7 +423,6 @@ mod tests {
         );
         let actual: HashMap<_, _> = second_plinst
             .parameters()
-            .search()
             .stream()
             .map_ok(|p| (p.param_name, p.value))
             .try_collect()

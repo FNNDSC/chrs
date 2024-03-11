@@ -16,11 +16,9 @@ use std::marker::PhantomData;
 /// This is homologus to the Python implementation in aiochris:
 ///
 /// <https://github.com/FNNDSC/aiochris/blob/adaff5bbc1d4d886ec2ca8155d82d266fa81d093/chris/util/search.py>
-pub enum Search<R: DeserializeOwned, A: Access> {
-    /// A search to CUBE, possibly containing [0, n) items.
-    Search(ActualSearch<R, A>),
-    /// A search which cannot possibly contain items. It does not make requests to CUBE.
-    Empty,
+pub struct Search<R: DeserializeOwned, A: Access> {
+    actual: Option<ActualSearch<R, A>>,
+    max_items: Option<usize>
 }
 
 #[derive(Serialize, Clone)]
@@ -30,15 +28,12 @@ pub enum QueryValue {
     String(String),
 }
 
-/// The "some" variant of [Search].
-pub struct ActualSearch<R: DeserializeOwned, A: Access> {
+/// Implementation of [Search]
+struct ActualSearch<R: DeserializeOwned, A: Access> {
     client: ClientWithMiddleware,
     base_url: CollectionUrl,
     query: HashMap<&'static str, QueryValue>,
     phantom: PhantomData<(R, A)>,
-
-    /// Maximum number of items to produce
-    max_items: Option<usize>,
 
     /// Whether to append "search/" to the URL.
     is_search: bool,
@@ -54,6 +49,11 @@ impl<R: DeserializeOwned, A: Access> ActualSearch<R, A> {
             let url = self.base_url.as_str();
             self.client.get(url)
         }
+    }
+
+    fn page_limit(mut self, limit: u32) -> Self {
+        self.query.insert("limit", QueryValue::U32(limit));
+        self
     }
 
     /// See [Search::get_count]
@@ -98,7 +98,6 @@ impl<R: DeserializeOwned, A: Access> ActualSearch<R, A> {
 
     /// See [Search::stream]
     fn stream(&self) -> impl Stream<Item = Result<R, CubeError>> + '_ {
-        let mut count = 0;
         try_stream! {
             // retrieval of the first page works a little differently, since we
             // don't know what `next_url` is, we call client.get(...).query(...)
@@ -106,11 +105,7 @@ impl<R: DeserializeOwned, A: Access> ActualSearch<R, A> {
             let res = self.get_search().send().await?;
             let page: Paginated<R> = check(res).await?.json().await?;
             for item in page.results {
-                if count >= self.max_items.unwrap_or(usize::MAX) {
-                    return;
-                }
                 yield item;
-                count += 1;
             }
 
             let mut next_url = page.next;
@@ -120,11 +115,7 @@ impl<R: DeserializeOwned, A: Access> ActualSearch<R, A> {
                 let page: Paginated<R> = check(res).await?.json().await?;
 
                 for item in page.results {
-                if count >= self.max_items.unwrap_or(usize::MAX) {
-                        return;
-                    }
                     yield item;
-                    count += 1;
                 }
                 next_url = page.next;
             }
@@ -136,35 +127,29 @@ impl<R: DeserializeOwned, A: Access> Search<R, A> {
     fn new(
         client: ClientWithMiddleware,
         base_url: CollectionUrl,
-        mut query: HashMap<&'static str, QueryValue>,
-        page_limit: Option<u32>,
-        max_items: Option<usize>,
+        query: HashMap<&'static str, QueryValue>,
         is_search: bool,
     ) -> Self {
-        if let Some(limit) = page_limit {
-            query.insert("limit", QueryValue::U32(limit));
-        }
-        let s = ActualSearch {
+        let actual = ActualSearch {
             client,
             base_url,
             query,
             is_search,
-            max_items,
             phantom: Default::default(),
         };
-        Self::Search(s)
+        Self {
+            actual: Some(actual),
+            max_items: None
+        }
     }
 
-    /// Create a search for `{base_url}search/`.
-    #[allow(clippy::self_named_constructors)]
-    pub(crate) fn search(
+    /// Create a search for a search api, e.g. `{base_url}search/`.
+    pub(crate) fn with_query(
         client: ClientWithMiddleware,
         base_url: CollectionUrl,
         query: HashMap<&'static str, QueryValue>,
-        page_limit: Option<u32>,
-        max_items: Option<usize>,
     ) -> Self {
-        Self::new(client, base_url, query, page_limit, max_items, true)
+        Self::new(client, base_url, query, true)
     }
 
     /// Constructor for retrieving items from the given `base_url` itself
@@ -172,24 +157,50 @@ impl<R: DeserializeOwned, A: Access> Search<R, A> {
     pub(crate) fn collection(
         client: ClientWithMiddleware,
         base_url: CollectionUrl,
-        page_limit: Option<u32>,
-        max_items: Option<usize>,
     ) -> Self {
         Self::new(
             client,
             base_url,
             HashMap::with_capacity(0),
-            page_limit,
-            max_items,
             false,
         )
     }
 
+    /// Create an empty search
+    pub fn empty() -> Self {
+        Self {
+            actual: None,
+            max_items: None
+        }
+    }
+
+    /// Set the maximum number of items to retrieve per request.
+    /// (This value is for performance tuning.)
+    ///
+    /// See also: [Self::max_items]
+    pub fn page_limit(self, limit: u32) -> Self {
+        Self {
+            actual: self.actual.map(|a| a.page_limit(limit)),
+            ..self
+        }
+    }
+
+    /// Set the maximum number of items to yield.
+    ///
+    /// See also: [Self::page_limit]
+    pub fn max_items(self, max: usize) -> Self {
+        Self {
+            max_items: Some(max),
+            ..self
+        }
+    }
+
     /// Get the count of items in this collection.
     pub async fn get_count(&self) -> Result<u32, CubeError> {
-        match self {
-            Self::Search(s) => s.get_count().await,
-            Self::Empty => Ok(0),
+        if let Some(search) = &self.actual {
+            search.get_count().await
+        } else {
+            Ok(0)
         }
     }
 
@@ -197,9 +208,10 @@ impl<R: DeserializeOwned, A: Access> Search<R, A> {
     ///
     /// See also: [Search::get_only]
     pub async fn get_first(&self) -> Result<Option<LinkedModel<R, A>>, CubeError> {
-        match self {
-            Search::Search(s) => s.get_first().await,
-            Search::Empty => Ok(None),
+        if let Some(search) = &self.actual {
+            search.get_first().await
+        } else {
+            Ok(None)
         }
     }
 
@@ -209,9 +221,10 @@ impl<R: DeserializeOwned, A: Access> Search<R, A> {
     /// the collection has only one item, e.g. searching for plugins giving
     /// both `name` and `version`, or searching for anything giving `id`.
     pub async fn get_only(&self) -> Result<LinkedModel<R, A>, GetOnlyError> {
-        match self {
-            Search::Search(s) => s.get_only().await,
-            Search::Empty => Err(GetOnlyError::None),
+        if let Some(search) = &self.actual {
+            search.get_only().await
+        } else {
+            Err(GetOnlyError::None)
         }
     }
 
@@ -219,13 +232,16 @@ impl<R: DeserializeOwned, A: Access> Search<R, A> {
     /// i.e. HTTP GET requests are sent as-needed.
     pub fn stream(&self) -> impl Stream<Item = Result<R, CubeError>> + '_ {
         stream! {
-            match self {
-                Search::Search(s) => {
-                    for await item in s.stream() {
-                        yield item
+            let mut count = 0;
+            let max_count = self.max_items.unwrap_or(usize::MAX);
+            if let Some(search) = &self.actual {
+                for await item in search.stream() {
+                    if count >= max_count {
+                        return;
                     }
+                    yield item;
+                    count += 1;
                 }
-                Search::Empty => {}
             }
         }
     }
@@ -236,13 +252,10 @@ impl<R: DeserializeOwned, A: Access> Search<R, A> {
         &self,
     ) -> impl Stream<Item = Result<LinkedModel<R, A>, CubeError>> + '_ {
         try_stream! {
-            match self {
-                Search::Search(s) => {
-                    for await item in s.stream() {
-                        yield LinkedModel { client: s.client.clone(), object: item?, phantom: Default::default() }
-                    }
+            if let Some(search) = &self.actual {
+                for await item in search.stream() {
+                    yield LinkedModel { client: search.client.clone(), object: item?, phantom: Default::default() }
                 }
-                Search::Empty => {}
             }
         }
     }

@@ -1,8 +1,8 @@
-use crate::search::SearchBuilder;
 use crate::{
     Access, LazyFeed, LazyLinkedModel, LinkedModel, PluginInstanceParameterResponse,
     PluginInstanceResponse, PluginParameter, PluginResponse, RoAccess, RwAccess,
 };
+use crate::search::Search;
 
 pub type PluginInstance<A> = LinkedModel<PluginInstanceResponse, A>;
 pub type PluginInstanceRw = PluginInstance<RwAccess>;
@@ -15,7 +15,7 @@ impl<A: Access> LinkedModel<PluginInstanceResponse, A> {
     }
 
     /// Parameters of this plugin instance.
-    pub fn parameters(&self) -> SearchBuilder<PluginInstanceParameterResponse, A> {
+    pub fn parameters(&self) -> Search<PluginInstanceParameterResponse, A> {
         self.get_collection(&self.object.parameters)
     }
 

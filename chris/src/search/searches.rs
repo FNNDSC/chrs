@@ -1,9 +1,9 @@
-use super::builder::SearchBuilder;
+use super::query::QueryBuilder;
 use crate::types::{FeedId, PipelineId, PluginId, PluginInstanceId};
-use crate::{Access, FeedResponse, PipelineResponse, PluginInstanceResponse, PluginResponse};
+use crate::{Access, CubeFile, FeedResponse, PipelineResponse, PluginInstanceResponse, PluginResponse};
 
 /// Plugin search query
-pub type PluginSearchBuilder<A> = SearchBuilder<PluginResponse, A>;
+pub type PluginSearchBuilder<A> = QueryBuilder<PluginResponse, A>;
 
 impl<A: Access> PluginSearchBuilder<A> {
     /// Search for plugin by ID
@@ -33,7 +33,7 @@ impl<A: Access> PluginSearchBuilder<A> {
 }
 
 /// Plugin search query
-pub type FeedSearchBuilder<A> = SearchBuilder<FeedResponse, A>;
+pub type FeedSearchBuilder<A> = QueryBuilder<FeedResponse, A>;
 
 impl<A: Access> FeedSearchBuilder<A> {
     /// Search for feed by name
@@ -48,7 +48,7 @@ impl<A: Access> FeedSearchBuilder<A> {
 }
 
 /// Plugin instance search query
-pub type PluginInstanceSearchBuilder<A> = SearchBuilder<PluginInstanceResponse, A>;
+pub type PluginInstanceSearchBuilder<A> = QueryBuilder<PluginInstanceResponse, A>;
 
 impl<A: Access> PluginInstanceSearchBuilder<A> {
     /// Search for plugin instance by ID
@@ -73,7 +73,7 @@ impl<A: Access> PluginInstanceSearchBuilder<A> {
 }
 
 /// Pipeline search query
-pub type PipelineSearchBuilder<A> = SearchBuilder<PipelineResponse, A>;
+pub type PipelineSearchBuilder<A> = QueryBuilder<PipelineResponse, A>;
 
 impl<A: Access> PipelineSearchBuilder<A> {
     /// Search for pipeline by ID
@@ -89,5 +89,40 @@ impl<A: Access> PipelineSearchBuilder<A> {
     /// Search for pipeline by description
     pub fn description(self, description: impl Into<String>) -> Self {
         self.add_string("description", description)
+    }
+}
+
+/// File search query. Only searches for files produced by plugin instances.
+pub type FilesSearchBuilder<A> = QueryBuilder<CubeFile, A>;
+
+impl <A: Access> FilesSearchBuilder<A> {
+    /// Search for files by plugin instance ID
+    pub fn plugin_inst_id(self, plugin_inst_id: PluginInstanceId) -> Self {
+        self.add_u32("plugin_inst_id", plugin_inst_id.0)
+    }
+
+    /// Search for files by feed ID
+    pub fn feed_id(self, feed_id: FeedId) -> Self {
+        self.add_u32("feed_id", feed_id.0)
+    }
+
+    /// Search for files by fname (starts with)
+    pub fn fname(self, fname: impl Into<String>) -> Self {
+        self.add_string("fname", fname)
+    }
+
+    /// Search for files by fname (exact match)
+    pub fn fname_exact(self, fname_exact: impl Into<String>) -> Self {
+        self.add_string("fname_exact", fname_exact)
+    }
+
+    /// Search for files by fname (contains case-insensitive)
+    pub fn fname_icontains(self, fname_icontains: impl Into<String>) -> Self {
+        self.add_string("fname_icontains", fname_icontains)
+    }
+
+    /// Search for files by number of slashes in fname.
+    pub fn fname_nslashes(self, fname_nslashes: u32) -> Self {
+        self.add_u32("fname_nslashes", fname_nslashes)
     }
 }

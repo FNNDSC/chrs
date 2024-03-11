@@ -48,8 +48,8 @@ async fn test_filebrowser_download_file(chris_client: &AnonChrisClient) -> AnyRe
         .readdir("chrisui/feed_310/pl-dircopy_313/pl-unstack-folders_314/pl-mri-preview_875/data")
         .await?
         .expect("Filebrowser path not found");
-    let search = entry.iter_files(None);
-    let search_results = search.stream_connected().try_filter(|f| {
+    let iter_files = entry.iter_files();
+    let search = iter_files.stream_connected().try_filter(|f| {
         future::ready(
             f.object
                 .fname()
@@ -57,8 +57,8 @@ async fn test_filebrowser_download_file(chris_client: &AnonChrisClient) -> AnyRe
                 .ends_with("/fetal-template-22.txt"),
         )
     });
-    pin_mut!(search_results);
-    let file = search_results
+    pin_mut!(search);
+    let file = search
         .next()
         .await
         .expect("No files found in filebrowser path")?;
@@ -84,7 +84,7 @@ async fn test_get_plugin_parameters(chris_client: &AnonChrisClient) -> AnyResult
         .search()
         .get_only()
         .await?;
-    let params: Vec<_> = plugin.parameters().search().stream().try_collect().await?;
+    let params: Vec<_> = plugin.parameters().stream().try_collect().await?;
     let expected = HashSet::from(["--inputs", "--outputs", "--background", "--units-fallback"]);
     let actual = HashSet::from_iter(params.iter().map(|p| p.flag.as_str()));
     assert_eq!(expected, actual);
@@ -114,7 +114,6 @@ async fn test_get_feed(chris_client: &AnonChrisClient) -> AnyResult {
 
     let actual: HashSet<_> = feed
         .get_plugin_instances()
-        .search()
         .stream()
         .map_ok(|p| p.id)
         .try_collect()
@@ -140,7 +139,6 @@ async fn test_get_plugin_instance(chris_client: &AnonChrisClient) -> AnyResult {
 
     let actual: HashMap<_, _> = pi
         .parameters()
-        .search()
         .stream()
         .map_ok(|p| (p.param_name, p.value.to_string()))
         .try_collect()
@@ -165,8 +163,8 @@ async fn test_get_plugin_instance(chris_client: &AnonChrisClient) -> AnyResult {
 async fn test_search_max_items(chris_client: &AnonChrisClient, #[case] count: usize) -> AnyResult {
     let items: Vec<_> = chris_client
         .plugin()
-        .max_items(count)
         .search()
+        .max_items(count)
         .stream()
         .try_collect()
         .await?;

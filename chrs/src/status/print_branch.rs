@@ -89,10 +89,9 @@ fn title_of(plinst: &PluginInstanceRo, is_current: bool) -> impl Display {
 
 async fn cmd_of(plinst: &PluginInstanceRo, show_execshell: bool) -> Result<String, CubeError> {
     let plinst_parameters = plinst.parameters();
-    let plinst_parameters_search = plinst_parameters.search();
     let (plugin, flags): (PluginRo, Vec<_>) = try_join!(
         plinst.plugin().get(),
-        plinst_parameters_search
+        plinst_parameters
             .stream_connected()
             .try_filter_map(|p| async move {
                 p.plugin_parameter()
@@ -167,13 +166,12 @@ fn format_param(param: PluginParameter, value: PluginParameterValue) -> Option<S
 }
 
 async fn get_all_plugin_instances(feed: &FeedRo) -> Result<Vec<PluginInstanceRo>> {
-    let sb = feed.get_plugin_instances().page_limit(20).max_items(100);
-    let search = sb.search();
-    let count = search.get_count().await?;
+    let collection = feed.get_plugin_instances().page_limit(20).max_items(100);
+    let count = collection.get_count().await?;
     if count > 100 {
         bail!("Feed contains over 100 plugin instances.")
     }
-    search
+    collection
         .stream_connected()
         .try_collect()
         .await

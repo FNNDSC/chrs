@@ -115,11 +115,11 @@ impl FileBrowserEntry {
     }
 
     /// Iterate over files.
-    pub fn iter_files(&self, max_items: Option<usize>) -> Search<CubeFile, RoAccess> {
+    pub fn iter_files(&self) -> Search<CubeFile, RoAccess> {
         if let Some(url) = &self.files {
-            Search::collection(self.client.clone(), url.clone(), None, max_items)
+            Search::collection(self.client.clone(), url.clone())
         } else {
-            Search::Empty
+            Search::empty()
         }
     }
 }

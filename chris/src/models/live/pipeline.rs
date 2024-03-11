@@ -1,5 +1,5 @@
-use crate::search::SearchBuilder;
 use crate::{LinkedModel, PipelineResponse, RoAccess, RwAccess, WorkflowResponse};
+use crate::search::Search;
 
 /// A _ChRIS_ pipeline.
 pub type Pipeline<A> = LinkedModel<PipelineResponse, A>;
@@ -12,7 +12,7 @@ pub type PipelineRw = LinkedModel<PipelineResponse, RwAccess>;
 
 impl PipelineRw {
     /// Get workflows (instances) of this pipeline.
-    pub fn get_workflows(&self) -> SearchBuilder<WorkflowResponse, RwAccess> {
+    pub fn get_workflows(&self) -> Search<WorkflowResponse, RwAccess> {
         self.get_collection(&self.object.workflows)
     }
 }

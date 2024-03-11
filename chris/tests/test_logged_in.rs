@@ -122,7 +122,7 @@ async fn test_filebrowser_browse_uploads(
     let req = filebrowser.readdir(&sample_upload_path).await?;
     let entry = req.unwrap();
     assert!(entry.subfolders().contains(&"a_folder".to_string()));
-    let files: Vec<_> = entry.iter_files(None).stream().try_collect().await?;
+    let files: Vec<_> = entry.iter_files().stream().try_collect().await?;
     let mut found = files
         .into_iter()
         .filter(|f| f.fname().as_str().ends_with("logo_chris.png"));

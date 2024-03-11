@@ -2,10 +2,7 @@ use super::access::RoAccess;
 use super::base::fetch_id;
 use crate::errors::{check, CubeError, FileIOError};
 use crate::models::{BaseResponse, CubeLinks, FileUploadResponse};
-use crate::search::{
-    FeedSearchBuilder, PipelineSearchBuilder, PluginInstanceSearchBuilder, PluginSearchBuilder,
-    SearchBuilder, LIMIT_ZERO,
-};
+use crate::search::{FeedSearchBuilder, PipelineSearchBuilder, PluginInstanceSearchBuilder, PluginSearchBuilder, QueryBuilder, LIMIT_ZERO, FilesSearchBuilder};
 use crate::types::*;
 use crate::{
     Access, BaseChrisClient, FeedResponse, FileBrowser, LinkedModel, PluginInstanceResponse,
@@ -164,6 +161,11 @@ impl<A: Access> AuthedChrisClient<A> {
         self.query(&self.links.plugin_instances)
     }
 
+    /// Search for feed files
+    pub fn files(&self) -> FilesSearchBuilder<A> {
+        self.query(&self.links.files)
+    }
+
     // ==================================================
     //                 FILES UPLOAD
     // ==================================================
@@ -230,8 +232,8 @@ impl<A: Access> AuthedChrisClient<A> {
     //                 HELPER METHODS
     // ==================================================
 
-    fn query<T: DeserializeOwned>(&self, url: &CollectionUrl) -> SearchBuilder<T, A> {
-        SearchBuilder::query(self.client.clone(), url.clone())
+    fn query<T: DeserializeOwned>(&self, url: &CollectionUrl) -> QueryBuilder<T, A> {
+        QueryBuilder::query(self.client.clone(), url.clone())
     }
 }
 

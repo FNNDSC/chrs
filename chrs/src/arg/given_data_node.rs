@@ -103,7 +103,18 @@ impl GivenDataNode {
         }
     }
 
+    /// Returns `true` if this is [GivenDataNode::Ambiguous]
+    pub fn is_ambiguous(&self) -> bool {
+        match self {
+            GivenDataNode::Ambiguous(_) => true,
+            _ => false,
+        }
+    }
+
     /// Get the CUBE object.
+    ///
+    /// Unlike the other methods of [GivenDataNode], `into_or` *does* work for anonymous users.
+    /// However, it does not implement a solution for the ambiguous case.
     pub async fn into_or(
         self,
         client: &EitherClient,
@@ -153,6 +164,11 @@ impl GivenDataNode {
     }
 
     /// Get the CUBE object interpreted as a plugin instance.
+    ///
+    /// ## Limitations
+    ///
+    /// Does not work in some cases for anonymous users.
+    /// See https://github.com/FNNDSC/ChRIS_ultron_backEnd/issues/530
     pub async fn into_plinst_either(
         self,
         client: &EitherClient,
@@ -190,6 +206,11 @@ impl GivenDataNode {
     /// - Relative paths will be resolved relative to `old.output_dir`
     /// - Plugin instances will resolve to the parent of their output path (one level above `data/`)
     /// - Feeds will resolve to that of the output path of its most recent plugin instance
+    ///
+    /// ## Limitations
+    ///
+    /// Does not work in some cases for anonymous users.
+    /// See https://github.com/FNNDSC/ChRIS_ultron_backEnd/issues/530
     pub async fn into_path(
         self,
         client: &EitherClient,
@@ -240,9 +261,9 @@ async fn get_plinst_of_feed(
     client
         .plugin_instances()
         .feed_id(feed_id)
+        .search()
         .page_limit(1)
         .max_items(1)
-        .search()
         .get_first()
         .await?
         .ok_or_else(|| {
@@ -254,9 +275,16 @@ async fn get_plinst_of_feed(
 }
 
 async fn get_feedid_by_name(client: &ChrisClient, name: String) -> eyre::Result<FeedId> {
-    let query = client.feeds().name_exact(name).page_limit(2).max_items(2);
-    let search = query.search();
-    let items: Vec<_> = search.stream().map_ok(|f| f.id).try_collect().await?;
+    let items: Vec<_> = client
+        .feeds()
+        .name_exact(name)
+        .search()
+        .page_limit(2)
+        .max_items(2)
+        .stream()
+        .map_ok(|f| f.id)
+        .try_collect()
+        .await?;
     if items.len() > 1 {
         bail!("Multiple feeds found, please be more specific.\nHint: run `{}` and specify feed by feed/{}", "chrs list".bold(), "ID".bold().green())
     }
@@ -274,9 +302,9 @@ async fn get_feedro_by_name(client: &EitherClient, name: &str) -> color_eyre::Re
         EitherClient::Anon(c) => {
             c.public_feeds()
                 .name(name)
+                .search()
                 .page_limit(10)
                 .max_items(10)
-                .search()
                 .stream_connected()
                 .try_collect()
                 .await
@@ -285,9 +313,9 @@ async fn get_feedro_by_name(client: &EitherClient, name: &str) -> color_eyre::Re
             let private_feeds: Vec<_> = c
                 .feeds()
                 .name(name)
+                .search()
                 .page_limit(10)
                 .max_items(10)
-                .search()
                 .stream_connected()
                 .map_ok(|f| f.into())
                 .try_collect()
@@ -295,9 +323,9 @@ async fn get_feedro_by_name(client: &EitherClient, name: &str) -> color_eyre::Re
             if private_feeds.is_empty() {
                 c.public_feeds()
                     .name(name)
+                    .search()
                     .page_limit(10)
                     .max_items(10)
-                    .search()
                     .stream_connected()
                     .try_collect()
                     .await

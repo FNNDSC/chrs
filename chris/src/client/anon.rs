@@ -5,7 +5,7 @@ use serde::de::DeserializeOwned;
 use crate::errors::{check, CubeError};
 use crate::models::{BaseResponse, CubeLinks};
 use crate::search::{
-    FeedSearchBuilder, PipelineSearchBuilder, PluginSearchBuilder, SearchBuilder, LIMIT_ZERO,
+    FeedSearchBuilder, PipelineSearchBuilder, PluginSearchBuilder, QueryBuilder, LIMIT_ZERO,
 };
 use crate::types::*;
 use crate::{FeedResponse, LinkedModel, PluginInstanceResponse};
@@ -73,8 +73,8 @@ fn accept_json() -> HeaderMap {
 }
 
 impl AnonChrisClient {
-    fn query<T: DeserializeOwned>(&self, url: &CollectionUrl) -> SearchBuilder<T, RoAccess> {
-        SearchBuilder::query(self.client.clone(), url.clone())
+    fn query<T: DeserializeOwned>(&self, url: &CollectionUrl) -> QueryBuilder<T, RoAccess> {
+        QueryBuilder::query(self.client.clone(), url.clone())
     }
 }
 
