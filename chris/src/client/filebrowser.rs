@@ -2,7 +2,7 @@
 
 use crate::client::access::RoAccess;
 use crate::errors::{check, CubeError};
-use crate::models::CubeFile;
+use crate::models::BasicFileResponse;
 use crate::search::Search;
 use crate::types::*;
 use serde::Deserialize;
@@ -115,7 +115,7 @@ impl FileBrowserEntry {
     }
 
     /// Iterate over files.
-    pub fn iter_files(&self) -> Search<CubeFile, RoAccess> {
+    pub fn iter_files(&self) -> Search<BasicFileResponse, RoAccess> {
         if let Some(url) = &self.files {
             Search::collection(self.client.clone(), url.clone())
         } else {

@@ -1,6 +1,6 @@
 use serde_with::serde_derive::Serialize;
 
-use crate::{Access, CubeFile, LazyLinkedModel, LinkedModel, NoteResponse, PluginInstanceResponse, RoAccess, RwAccess};
+use crate::{Access, BasicFileResponse, LazyLinkedModel, LinkedModel, NoteResponse, PluginInstanceResponse, RoAccess, RwAccess};
 use crate::errors::CubeError;
 use crate::models::data::FeedResponse;
 use crate::search::Search;
@@ -25,7 +25,7 @@ impl<A: Access> Feed<A> {
     }
 
     /// Get files of this feed.
-    pub fn files(&self) -> Search<CubeFile, A> {
+    pub fn files(&self) -> Search<BasicFileResponse, A> {
         self.get_collection(&self.object.files)
     }
 }

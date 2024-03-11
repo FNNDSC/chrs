@@ -1,7 +1,4 @@
-use crate::{
-    Access, LazyFeed, LazyLinkedModel, LinkedModel, PluginInstanceParameterResponse,
-    PluginInstanceResponse, PluginParameter, PluginResponse, RoAccess, RwAccess,
-};
+use crate::{Access, BasicFileResponse, LazyFeed, LazyLinkedModel, LinkedModel, PluginInstanceParameterResponse, PluginInstanceResponse, PluginParameter, PluginResponse, RoAccess, RwAccess};
 use crate::search::Search;
 
 pub type PluginInstance<A> = LinkedModel<PluginInstanceResponse, A>;
@@ -22,6 +19,11 @@ impl<A: Access> LinkedModel<PluginInstanceResponse, A> {
     /// Plugin of this plugin instance.
     pub fn plugin(&self) -> LazyLinkedModel<PluginResponse, A> {
         self.get_lazy(&self.object.plugin)
+    }
+
+    /// Get files of this plugin instance.
+    pub fn files(&self) -> Search<BasicFileResponse, A> {
+        self.get_collection(&self.object.files)
     }
 
     /// Get the logs of this plugin instance.

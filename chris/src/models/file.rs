@@ -4,19 +4,19 @@ use serde::Deserialize;
 use time::OffsetDateTime;
 
 #[derive(Deserialize)]
-pub struct CubeFile {
+pub struct BasicFileResponse {
     file_resource: FileResourceUrl,
     fname: FileResourceFname,
     fsize: u64,
 }
 
-impl From<CubeFile> for FileResourceFname {
-    fn from(value: CubeFile) -> Self {
+impl From<BasicFileResponse> for FileResourceFname {
+    fn from(value: BasicFileResponse) -> Self {
         value.fname
     }
 }
 
-impl Downloadable for CubeFile {
+impl Downloadable for BasicFileResponse {
     fn file_resource_url(&self) -> &FileResourceUrl {
         &self.file_resource
     }

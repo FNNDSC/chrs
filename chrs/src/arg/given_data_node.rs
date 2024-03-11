@@ -115,6 +115,8 @@ impl GivenDataNode {
     ///
     /// Unlike the other methods of [GivenDataNode], `into_or` *does* work for anonymous users.
     /// However, it does not implement a solution for the ambiguous case.
+    ///
+    /// Fails if this is a path and the path is not a plugin instance path.
     pub async fn into_or(
         self,
         client: &EitherClient,
