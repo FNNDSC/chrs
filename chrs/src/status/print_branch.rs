@@ -176,5 +176,5 @@ async fn get_all_plugin_instances(feed: &FeedRo) -> Result<Vec<PluginInstanceRo>
         .try_collect()
         .await
         .map_err(eyre::Error::new)
-    // maybe a progress bar would be nice if count > 20
+    // maybe a file_transfer bar would be nice if count > 20
 }

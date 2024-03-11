@@ -3,7 +3,7 @@
 use crate::errors::{check, CubeError};
 use crate::models::LinkedModel;
 use crate::types::CollectionUrl;
-use crate::Access;
+use crate::{Access, RoAccess, RwAccess};
 use async_stream::{stream, try_stream};
 use futures::Stream;
 use reqwest_middleware::ClientWithMiddleware;
@@ -278,6 +278,29 @@ impl<R: DeserializeOwned, A: Access> Search<R, A> {
                     yield LinkedModel { client: search.client.clone(), object: item?, phantom: Default::default() }
                 }
             }
+        }
+    }
+}
+
+impl<R: DeserializeOwned> ActualSearch<R, RwAccess> {
+    fn into_ro(self) -> ActualSearch<R, RoAccess> {
+        ActualSearch {
+            client: self.client,
+            base_url: self.base_url,
+            query: self.query,
+            phantom: Default::default(),
+            is_search: self.is_search,
+        }
+    }
+}
+
+impl<R: DeserializeOwned> Search<R, RwAccess> {
+
+    /// Change yield type to generic of [RoAccess].
+    pub fn into_ro(self) -> Search<R, RoAccess> {
+        Search {
+            actual: self.actual.map(|a| a.into_ro()),
+            max_items: self.max_items,
         }
     }
 }

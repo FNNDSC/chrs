@@ -91,3 +91,9 @@ impl<A: Access> Search<FeedFileResponse, A> {
         self.downgrade()
     }
 }
+
+impl From<BasicFileResponse> for FileResourceFname {
+    fn from(value: BasicFileResponse) -> Self {
+        value.fname
+    }
+}

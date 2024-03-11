@@ -1,6 +1,6 @@
 use indicatif::{ProgressBar, ProgressDrawTarget, ProgressStyle};
 
-/// Create a progress bar with bytes units.
+/// Create a file_transfer bar with bytes units.
 pub fn progress_bar_bytes(len: u64) -> ProgressBar {
     let stderr = ProgressDrawTarget::stderr_with_hz(2);
     ProgressBar::with_draw_target(Some(len), stderr).with_style(bytes_style())

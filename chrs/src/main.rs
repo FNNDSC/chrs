@@ -25,13 +25,13 @@ mod credentials;
 mod describe;
 mod download;
 mod error_messages;
+mod file_transfer;
 mod files;
 mod list;
 mod login;
 mod logs;
 mod ls;
 mod plugin_clap;
-mod progress;
 mod run;
 mod search;
 mod shlex;
@@ -70,10 +70,6 @@ struct Cli {
     /// Number of times to retry HTTP requests
     #[clap(long)]
     retries: Option<u32>,
-
-    /// Maximum number of concurrent HTTP requests
-    #[clap(short = 'j', long, default_value_t = 4)]
-    threads: usize,
 
     #[clap(subcommand)]
     command: Commands,

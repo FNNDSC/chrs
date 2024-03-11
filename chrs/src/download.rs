@@ -4,17 +4,23 @@ use color_eyre::eyre;
 use color_eyre::eyre::{bail, Context};
 use fs_err::tokio::File;
 use futures::TryStreamExt;
-use futures::{TryFutureExt, TryStream};
-use indicatif::ProgressBar;
+use futures::{StreamExt, TryFutureExt, TryStream};
+use std::path::Path;
+use std::sync::Arc;
+use tokio::join;
+use tokio::sync::mpsc::{unbounded_channel, UnboundedSender};
 use tokio_util::io::StreamReader;
 
 use chris::search::Search;
 use chris::types::PluginInstanceId;
-use chris::{BasicFileResponse, Downloadable, EitherClient, RoAccess};
+use chris::{BasicFileResponse, Downloadable, EitherClient, LinkedModel, RoAccess, RoClient};
 
 use crate::arg::{FeedOrPluginInstance, GivenDataNode};
 use crate::credentials::Credentials;
-use crate::progress::progress_bar_bytes;
+use crate::file_transfer::{
+    progress_bar_bytes, FileTransferError, FileTransferEvent, MultiFileTransferProgress,
+};
+use crate::files::decoder::MaybeChrisPathHumanCoder;
 
 #[derive(Parser)]
 pub struct DownloadArgs {
@@ -46,6 +52,10 @@ pub struct DownloadArgs {
     #[clap(long, conflicts_with = "skip_existing")]
     clobber: bool,
 
+    /// Maximum number of concurrent HTTP requests
+    #[clap(short = 'j', long, default_value_t = 4)]
+    threads: usize,
+
     /// What to download.
     src: GivenDataNode,
 
@@ -56,7 +66,7 @@ pub struct DownloadArgs {
 pub async fn download(credentials: Credentials, args: DownloadArgs) -> eyre::Result<()> {
     let (client, old, _) = credentials.get_client([args.src.as_arg_str()]).await?;
     let files = get_files_search(&client, args.src.clone(), old).await?;
-    download_files(files, args).await
+    download_files(client, files, args).await
 }
 
 type Files = Search<BasicFileResponse, RoAccess>;
@@ -69,7 +79,7 @@ async fn get_files_search(
     match client {
         EitherClient::LoggedIn(logged_in) => {
             let path = given.into_path(&client, old).await?;
-            Ok(logged_in.files().fname(path).into_ro().search())
+            Ok(logged_in.files().fname(path).search().basic().into_ro())
         }
         EitherClient::Anon(_) => {
             let feed_or_plinst = given.into_or(&client, old).await
@@ -82,7 +92,11 @@ async fn get_files_search(
     }
 }
 
-async fn download_files(files: Files, args: DownloadArgs) -> eyre::Result<()> {
+async fn download_files(
+    client: EitherClient,
+    files: Files,
+    args: DownloadArgs,
+) -> eyre::Result<()> {
     let count = files.get_count().await?;
     if count == 0 {
         bail!("No files found")
@@ -90,11 +104,12 @@ async fn download_files(files: Files, args: DownloadArgs) -> eyre::Result<()> {
     if count == 1 {
         download_single_file(files, args).await
     } else {
-        download_many_files(files, args).await
+        let ro_client = client.into_ro();
+        download_many_files(&ro_client, files, args, count as u64).await
     }
 }
 
-/// Download one file, showing a progress bar.
+/// Download one file, showing a file_transfer bar.
 async fn download_single_file(files: Files, args: DownloadArgs) -> eyre::Result<()> {
     let only_file = files.get_only().await?;
     let dst = args
@@ -111,8 +126,74 @@ async fn download_single_file(files: Files, args: DownloadArgs) -> eyre::Result<
     Ok(())
 }
 
-async fn download_many_files(files: Files, args: DownloadArgs) -> eyre::Result<()> {
-    todo!()
+const SIZE_128_MIB: u64 = 134217728;
+
+async fn download_many_files(
+    ro_client: &RoClient,
+    files: Files,
+    args: DownloadArgs,
+    count: u64,
+) -> eyre::Result<()> {
+    // let coder = MaybeChrisPathHumanCoder::new(ro_client, !args.no_titles);
+    let (progress_tx, mut progress_rx) = unbounded_channel();
+    let transfer_progress_loop = async {
+        let mut transfer_progress = MultiFileTransferProgress::new(count, SIZE_128_MIB);
+        while let Some(event) = progress_rx.recv().await {
+            transfer_progress.update(event)
+        }
+    };
+    let download_loop = async move {
+        // I am wrapped in an async move to drop progress_tx after all transfers are complete
+        files
+            .stream_connected()
+            .enumerate()
+            .map(|(i, r)| r.map(|f| (i, f, progress_tx.clone())))
+            .map_err(FileTransferError::Cube)
+            .try_for_each_concurrent(args.threads, download_with_events)
+            .await
+    };
+    let (_, result) = join!(transfer_progress_loop, download_loop);
+    result.map_err(eyre::Error::new)
+}
+
+/// Download a single file while pushing events through a channel.
+async fn download_with_events(
+    (id, chris_file, ptx): (
+        usize,
+        LinkedModel<BasicFileResponse, RoAccess>,
+        UnboundedSender<FileTransferEvent>,
+    ),
+) -> Result<(), FileTransferError> {
+    let dst = chris_file.object.fname().as_str(); // TODO rename
+    let dst_path = Path::new(dst);
+    if let Some(parent_dirs) = dst_path.parent() {
+        fs_err::tokio::create_dir_all(parent_dirs).await?;
+    }
+    let mut file = File::create(dst_path).await?;
+
+    let stream = chris_file
+        .stream()
+        .await?
+        .map_ok(|chunk| {
+            ptx.send(FileTransferEvent::Chunk {
+                id,
+                delta: chunk.len() as u64,
+            })
+            .unwrap();
+            chunk
+        })
+        .map_err(|e| std::io::Error::new(std::io::ErrorKind::ConnectionAborted, e));
+    let mut reader = StreamReader::new(stream);
+    ptx.send(FileTransferEvent::Start {
+        id,
+        name: chris_file.object.basename().to_string(),
+        size: chris_file.object.fsize(),
+    })
+    .unwrap();
+    tokio::io::copy(&mut reader, &mut file)
+        .await
+        .map(|_| ptx.send(FileTransferEvent::Done(id)).unwrap())
+        .map_err(FileTransferError::IO)
 }
 
 //
