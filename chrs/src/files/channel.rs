@@ -1,15 +1,15 @@
-use std::future::Future;
 use crate::files::decoder::MaybeChrisPathHumanCoder;
+use std::future::Future;
 use tokio::sync::mpsc::{unbounded_channel, UnboundedReceiver, UnboundedSender};
 
 /// A channel for communicating with [MaybeChrisPathHumanCoder] in async contexts.
-pub struct DecodeChannel {
+pub struct CoderChannel {
     tx_fname: UnboundedSender<String>,
     rx_decoded: UnboundedReceiver<String>,
 }
 
-impl DecodeChannel {
-    pub fn create(coder: MaybeChrisPathHumanCoder) -> (Self, impl Future<Output=()> + '_) {
+impl CoderChannel {
+    pub fn create(coder: MaybeChrisPathHumanCoder) -> (Self, impl Future<Output = ()> + '_) {
         let (tx_fname, rx_fname) = unbounded_channel();
         let (tx_decoded, rx_decoded) = unbounded_channel();
         let decoder_channel = Self {

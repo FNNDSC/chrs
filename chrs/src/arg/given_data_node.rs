@@ -103,6 +103,19 @@ impl GivenDataNode {
         }
     }
 
+    /// Returns `true` if this is a path.
+    pub fn is_path(&self) -> bool {
+        if let GivenDataNode::PluginInstanceOrPath(p) = &self {
+            matches!(
+                p,
+                GivenPluginInstanceOrPath::AbsolutePath(_)
+                    | GivenPluginInstanceOrPath::RelativePath(_)
+            )
+        } else {
+            false
+        }
+    }
+
     // /// Returns `true` if this is [GivenDataNode::Ambiguous]
     // pub fn is_ambiguous(&self) -> bool {
     //     match self {

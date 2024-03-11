@@ -3,19 +3,18 @@ use color_eyre::eyre::{eyre, Result};
 use color_eyre::owo_colors::OwoColorize;
 use futures::{pin_mut, StreamExt};
 
-use chris::{FileBrowser, RoClient};
+use crate::files::CoderChannel;
 use chris::types::{FileBrowserPath, FileResourceFname};
+use chris::{FileBrowser, RoClient};
 
 use crate::ls::options::WhatToPrint;
-
-use super::coder_channel::DecodeChannel;
 
 pub async fn ls_plain(
     client: &RoClient,
     path: &str,
     level: u16,
     full: bool,
-    mut coder: DecodeChannel,
+    mut coder: CoderChannel,
     what_to_print: WhatToPrint,
 ) -> Result<()> {
     let relative_parent = if full {
@@ -53,7 +52,7 @@ async fn ls_recursive(
     path: FileBrowserPath,
     level: u16,
     relative_parent: &Option<String>,
-    coder: &mut DecodeChannel,
+    coder: &mut CoderChannel,
     what_to_print: WhatToPrint,
     mut was: WasPrinted,
 ) -> Result<WasPrinted> {
@@ -103,7 +102,7 @@ async fn ls_recursive(
 }
 
 async fn print_path(
-    coder: &mut DecodeChannel,
+    coder: &mut CoderChannel,
     fnamelike: String,
     relative_parent: &Option<String>,
     is_dir: bool,

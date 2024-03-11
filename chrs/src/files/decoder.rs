@@ -31,7 +31,7 @@ const FOLDER_SUBSTR_SUBSTITUTIONS: [(&str, &str); 1] = [("/", "!SLASH!")];
 
 /// Wrapper around [Option<ChrisPathHumanCoder>].
 #[derive(Default)]
-pub(crate) struct MaybeChrisPathHumanCoder<'a> {
+pub struct MaybeChrisPathHumanCoder<'a> {
     namer: Option<ChrisPathHumanCoder<'a>>,
 }
 

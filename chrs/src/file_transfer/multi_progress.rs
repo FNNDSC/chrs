@@ -18,7 +18,7 @@ pub struct MultiFileTransferProgress {
     overall_bar: ProgressBar,
     bars: HashMap<usize, ProgressBar>,
     size_threshold: u64,
-    total_size: u64
+    total_size: u64,
 }
 
 impl MultiFileTransferProgress {

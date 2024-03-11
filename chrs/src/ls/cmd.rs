@@ -4,10 +4,9 @@ use tokio::join;
 
 use crate::arg::GivenPluginInstanceOrPath;
 use crate::credentials::Credentials;
-use crate::files::decoder::MaybeChrisPathHumanCoder;
+use crate::files::{CoderChannel, MaybeChrisPathHumanCoder};
 use crate::ls::options::WhatToPrint;
 
-use super::coder_channel::DecodeChannel;
 use super::plain::ls_plain;
 
 #[derive(Parser)]
@@ -54,7 +53,7 @@ pub async fn ls(
 
     let ro_client = client.into_ro();
     let coder = MaybeChrisPathHumanCoder::new(&ro_client, !no_titles);
-    let (decode_channel, decoder_loop) = DecodeChannel::create(coder);
+    let (decode_channel, decoder_loop) = CoderChannel::create(coder);
 
     let (result, _) = if tree {
         todo!()
