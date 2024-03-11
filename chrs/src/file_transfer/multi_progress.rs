@@ -1,6 +1,7 @@
 use indicatif::{MultiProgress, ProgressBar, ProgressStyle};
 use std::collections::HashMap;
 
+/// File transfer event.
 #[derive(Debug)]
 pub enum FileTransferEvent {
     /// Start of a new transfer of size *N*
@@ -9,18 +10,19 @@ pub enum FileTransferEvent {
     Chunk { id: usize, delta: u64 },
     /// File transfer done
     Done(usize),
-    // /// A text message
-    // Println(String),
 }
 
+/// A [MultiProgress] wrapper for showing the upload or download progress of multiple files.
 pub struct MultiFileTransferProgress {
     multi_progress: MultiProgress,
     overall_bar: ProgressBar,
     bars: HashMap<usize, ProgressBar>,
     size_threshold: u64,
+    total_size: u64
 }
 
 impl MultiFileTransferProgress {
+    /// Create a new multi-progress bar.
     pub fn new(total_files: u64, size_threshold: u64) -> Self {
         let multi_progress = MultiProgress::new();
         let overall_bar =
@@ -30,9 +32,11 @@ impl MultiFileTransferProgress {
             overall_bar,
             bars: Default::default(),
             size_threshold,
+            total_size: 0,
         }
     }
 
+    /// Update this with an event.
     pub fn update(&mut self, event: FileTransferEvent) {
         match event {
             FileTransferEvent::Start { id, name, size } => self.add_file(id, name, size),
@@ -43,6 +47,7 @@ impl MultiFileTransferProgress {
     }
 
     fn add_file(&mut self, id: usize, name: String, size: u64) {
+        self.total_size += size;
         if size >= self.size_threshold {
             let bar = ProgressBar::new(size)
                 .with_style(file_style())
@@ -64,9 +69,10 @@ impl MultiFileTransferProgress {
         self.overall_bar.inc(1);
     }
 
-    // fn println(&self, msg: String) -> std::io::Result<()> {
-    //     self.multi_progress.println(msg)
-    // }
+    /// Get the total size of all (attempted) transfers.
+    pub fn total_size(&self) -> u64 {
+        self.total_size
+    }
 }
 
 fn overall_style() -> ProgressStyle {

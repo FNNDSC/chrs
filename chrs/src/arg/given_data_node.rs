@@ -103,13 +103,13 @@ impl GivenDataNode {
         }
     }
 
-    /// Returns `true` if this is [GivenDataNode::Ambiguous]
-    pub fn is_ambiguous(&self) -> bool {
-        match self {
-            GivenDataNode::Ambiguous(_) => true,
-            _ => false,
-        }
-    }
+    // /// Returns `true` if this is [GivenDataNode::Ambiguous]
+    // pub fn is_ambiguous(&self) -> bool {
+    //     match self {
+    //         GivenDataNode::Ambiguous(_) => true,
+    //         _ => false,
+    //     }
+    // }
 
     /// Get the CUBE object.
     ///

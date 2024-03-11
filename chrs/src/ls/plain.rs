@@ -1,11 +1,14 @@
-use super::coder_channel::DecodeChannel;
-use crate::ls::options::WhatToPrint;
 use async_recursion::async_recursion;
-use chris::types::{FileBrowserPath, FileResourceFname};
-use chris::{Downloadable, FileBrowser, RoClient};
 use color_eyre::eyre::{eyre, Result};
 use color_eyre::owo_colors::OwoColorize;
 use futures::{pin_mut, StreamExt};
+
+use chris::{FileBrowser, RoClient};
+use chris::types::{FileBrowserPath, FileResourceFname};
+
+use crate::ls::options::WhatToPrint;
+
+use super::coder_channel::DecodeChannel;
 
 pub async fn ls_plain(
     client: &RoClient,

@@ -4,9 +4,9 @@ use color_eyre::eyre;
 use color_eyre::eyre::{bail, Context};
 use fs_err::tokio::File;
 use futures::TryStreamExt;
-use futures::{StreamExt, TryFutureExt, TryStream};
+use futures::{StreamExt, TryFutureExt};
 use std::path::Path;
-use std::sync::Arc;
+use indicatif::HumanBytes;
 use tokio::join;
 use tokio::sync::mpsc::{unbounded_channel, UnboundedSender};
 use tokio_util::io::StreamReader;
@@ -66,7 +66,9 @@ pub struct DownloadArgs {
 pub async fn download(credentials: Credentials, args: DownloadArgs) -> eyre::Result<()> {
     let (client, old, _) = credentials.get_client([args.src.as_arg_str()]).await?;
     let files = get_files_search(&client, args.src.clone(), old).await?;
-    download_files(client, files, args).await
+    let size = download_files(client, files, args).await?;
+    eprintln!("Downloaded: {}", HumanBytes(size));
+    Ok(())
 }
 
 type Files = Search<BasicFileResponse, RoAccess>;
@@ -96,7 +98,7 @@ async fn download_files(
     client: EitherClient,
     files: Files,
     args: DownloadArgs,
-) -> eyre::Result<()> {
+) -> eyre::Result<u64> {
     let count = files.get_count().await?;
     if count == 0 {
         bail!("No files found")
@@ -110,7 +112,7 @@ async fn download_files(
 }
 
 /// Download one file, showing a file_transfer bar.
-async fn download_single_file(files: Files, args: DownloadArgs) -> eyre::Result<()> {
+async fn download_single_file(files: Files, args: DownloadArgs) -> eyre::Result<u64> {
     let only_file = files.get_only().await?;
     let dst = args
         .dst
@@ -123,7 +125,7 @@ async fn download_single_file(files: Files, args: DownloadArgs) -> eyre::Result<
     let mut reader = StreamReader::new(stream);
     let pb = progress_bar_bytes(only_file.object.fsize());
     tokio::io::copy(&mut reader, &mut pb.wrap_async_write(file)).await?;
-    Ok(())
+    Ok(only_file.object.fsize())
 }
 
 const SIZE_128_MIB: u64 = 134217728;
@@ -133,7 +135,7 @@ async fn download_many_files(
     files: Files,
     args: DownloadArgs,
     count: u64,
-) -> eyre::Result<()> {
+) -> eyre::Result<u64> {
     // let coder = MaybeChrisPathHumanCoder::new(ro_client, !args.no_titles);
     let (progress_tx, mut progress_rx) = unbounded_channel();
     let transfer_progress_loop = async {
@@ -141,6 +143,7 @@ async fn download_many_files(
         while let Some(event) = progress_rx.recv().await {
             transfer_progress.update(event)
         }
+        transfer_progress.total_size()
     };
     let download_loop = async move {
         // I am wrapped in an async move to drop progress_tx after all transfers are complete
@@ -152,8 +155,8 @@ async fn download_many_files(
             .try_for_each_concurrent(args.threads, download_with_events)
             .await
     };
-    let (_, result) = join!(transfer_progress_loop, download_loop);
-    result.map_err(eyre::Error::new)
+    let (total_size, result) = join!(transfer_progress_loop, download_loop);
+    result.map(|_| total_size).map_err(eyre::Error::new)
 }
 
 /// Download a single file while pushing events through a channel.
