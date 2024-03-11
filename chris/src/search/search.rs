@@ -18,7 +18,7 @@ use std::marker::PhantomData;
 /// <https://github.com/FNNDSC/aiochris/blob/adaff5bbc1d4d886ec2ca8155d82d266fa81d093/chris/util/search.py>
 pub struct Search<R: DeserializeOwned, A: Access> {
     actual: Option<ActualSearch<R, A>>,
-    max_items: Option<usize>
+    max_items: Option<usize>,
 }
 
 #[derive(Serialize, Clone)]
@@ -150,7 +150,7 @@ impl<R: DeserializeOwned, A: Access> Search<R, A> {
         };
         Self {
             actual: Some(actual),
-            max_items: None
+            max_items: None,
         }
     }
 
@@ -165,23 +165,15 @@ impl<R: DeserializeOwned, A: Access> Search<R, A> {
 
     /// Constructor for retrieving items from the given `base_url` itself
     /// (instead of `{base_url}search/`), without any query parameters.
-    pub(crate) fn collection(
-        client: ClientWithMiddleware,
-        base_url: CollectionUrl,
-    ) -> Self {
-        Self::new(
-            client,
-            base_url,
-            HashMap::with_capacity(0),
-            false,
-        )
+    pub(crate) fn collection(client: ClientWithMiddleware, base_url: CollectionUrl) -> Self {
+        Self::new(client, base_url, HashMap::with_capacity(0), false)
     }
 
     /// Create an empty search
     pub fn empty() -> Self {
         Self {
             actual: None,
-            max_items: None
+            max_items: None,
         }
     }
 
@@ -191,7 +183,7 @@ impl<R: DeserializeOwned, A: Access> Search<R, A> {
     pub(crate) fn downgrade<T: DeserializeOwned>(self) -> Search<T, A> {
         Search {
             actual: self.actual.map(|a| a.downgrade()),
-            max_items: self.max_items
+            max_items: self.max_items,
         }
     }
 
@@ -295,7 +287,6 @@ impl<R: DeserializeOwned> ActualSearch<R, RwAccess> {
 }
 
 impl<R: DeserializeOwned> Search<R, RwAccess> {
-
     /// Change yield type to generic of [RoAccess].
     pub fn into_ro(self) -> Search<R, RoAccess> {
         Search {

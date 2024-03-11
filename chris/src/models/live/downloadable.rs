@@ -2,16 +2,15 @@ use crate::client::access::Access;
 use crate::errors::{check, CubeError, FileIOError};
 use crate::models::linked::*;
 use crate::types::*;
+use crate::BasicFileResponse;
 use camino::Utf8Path;
 use fs_err::tokio::{File, OpenOptions};
 use futures::{Stream, TryStreamExt};
 use serde::de::DeserializeOwned;
 use tokio_util::io::StreamReader;
-use crate::BasicFileResponse;
 
 /// A basic downloadable CUBE file.
 pub type BasicFile<A> = LinkedModel<BasicFileResponse, A>;
-
 
 /// A CUBE resource which has `file_resource`, `fname`, and `fsize`.
 pub trait Downloadable {
@@ -22,9 +21,7 @@ pub trait Downloadable {
     /// Get the basename of [Self::fname]
     fn basename(&self) -> &str {
         let fname = self.fname().as_str();
-        fname.rsplit_once('/')
-            .map(|(_, r)| r)
-            .unwrap_or(fname)
+        fname.rsplit_once('/').map(|(_, r)| r).unwrap_or(fname)
     }
 }
 

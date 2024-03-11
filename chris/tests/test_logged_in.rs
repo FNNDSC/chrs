@@ -143,7 +143,7 @@ fn pl_mri10yr(chris_client: &ChrisClient) -> PluginRw {
 
 #[rstest]
 #[tokio::test(flavor = "multi_thread")]
-async fn test_count_and_lazy_feed_set_name(
+async fn test_count_and_lazy_setters(
     chris_client: &ChrisClient,
     pl_mri10yr: &PluginRw,
 ) -> AnyResult {
@@ -154,6 +154,11 @@ async fn test_count_and_lazy_feed_set_name(
     let changed_feed = lazy_feed.set_name(&feed_name).await.unwrap();
     assert_eq!(plinst.object.feed_id, changed_feed.object.id);
     assert_eq!(count_feeds_with_name(chris_client, &feed_name).await, 1);
+
+    let note_content: String = fake::faker::company::en::CatchPhase().fake();
+    let lazy_note = changed_feed.note();
+    let changed_note = lazy_note.set("Description", &note_content).await?;
+    assert_eq!(changed_note.object.content, note_content);
     Ok(())
 }
 

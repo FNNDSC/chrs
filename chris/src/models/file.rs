@@ -1,9 +1,9 @@
 use crate::models::Downloadable;
+use crate::search::Search;
 use crate::types::*;
+use crate::Access;
 use serde::Deserialize;
 use time::OffsetDateTime;
-use crate::Access;
-use crate::search::Search;
 
 /// The common data from any response object, and what comes back from the filebrowser API.
 #[derive(Deserialize)]
@@ -55,7 +55,6 @@ impl Downloadable for BasicFileResponse {
     }
 }
 
-
 impl Downloadable for FileUploadResponse {
     fn file_resource_url(&self) -> &FileResourceUrl {
         &self.file_resource
@@ -83,7 +82,6 @@ impl Downloadable for FeedFileResponse {
         self.fsize
     }
 }
-
 
 impl<A: Access> Search<FeedFileResponse, A> {
     /// Produce [BasicFileResponse] instead of [FeedFileResponse]

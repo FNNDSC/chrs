@@ -1,5 +1,9 @@
-use crate::{Access, BasicFileResponse, LazyFeed, LazyLinkedModel, LinkedModel, PluginInstanceParameterResponse, PluginInstanceResponse, PluginParameter, PluginResponse, RoAccess, RwAccess};
 use crate::search::Search;
+use crate::{
+    Access, BasicFileResponse, LazyFeed, LazyLinkedModel, LinkedModel,
+    PluginInstanceParameterResponse, PluginInstanceResponse, PluginParameter, PluginResponse,
+    RoAccess, RwAccess,
+};
 
 pub type PluginInstance<A> = LinkedModel<PluginInstanceResponse, A>;
 pub type PluginInstanceRw = PluginInstance<RwAccess>;

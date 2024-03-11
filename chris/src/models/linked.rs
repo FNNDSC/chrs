@@ -5,11 +5,11 @@ use std::marker::PhantomData;
 use serde::de::DeserializeOwned;
 use serde::Serialize;
 
-use crate::{RoAccess, RwAccess};
 use crate::client::access::Access;
 use crate::errors::{check, CubeError};
 use crate::search::Search;
 use crate::types::{CollectionUrl, ItemUrl};
+use crate::{RoAccess, RwAccess};
 
 /// A client to the subset of the *CUBE* API linked to by this object's generic type.
 /// In less fancy speak, [LinkedModel] is a thing which can get, create, modify, or delete
@@ -34,10 +34,7 @@ impl<T: DeserializeOwned, A: Access> LinkedModel<T, A> {
     }
 
     /// Get items in a collection
-    pub(crate) fn get_collection<R: DeserializeOwned>(
-        &self,
-        url: &CollectionUrl,
-    ) -> Search<R, A> {
+    pub(crate) fn get_collection<R: DeserializeOwned>(&self, url: &CollectionUrl) -> Search<R, A> {
         Search::collection(self.client.clone(), url.clone())
     }
 

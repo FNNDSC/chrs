@@ -1,5 +1,8 @@
-use crate::{Access, FeedFileResponse, FeedResponse, PipelineResponse, PluginInstanceResponse, PluginResponse};
 use crate::types::{FeedId, PipelineId, PluginId, PluginInstanceId};
+use crate::{
+    Access, FeedFileResponse, FeedResponse, PipelineResponse, PluginInstanceResponse,
+    PluginResponse,
+};
 
 use super::query::QueryBuilder;
 
@@ -96,7 +99,7 @@ impl<A: Access> PipelineSearchBuilder<A> {
 /// File search query. Only searches for files produced by plugin instances.
 pub type FilesSearchBuilder<A> = QueryBuilder<FeedFileResponse, A>;
 
-impl <A: Access> FilesSearchBuilder<A> {
+impl<A: Access> FilesSearchBuilder<A> {
     /// Search for files by plugin instance ID
     pub fn plugin_inst_id(self, plugin_inst_id: PluginInstanceId) -> Self {
         self.add_u32("plugin_inst_id", plugin_inst_id.0)

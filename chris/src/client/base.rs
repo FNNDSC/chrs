@@ -47,7 +47,13 @@ pub trait BaseChrisClient<A: Access> {
         &self,
         id: PluginId,
     ) -> Result<LinkedModel<PluginResponse, A>, GetOnlyError> {
-        self.plugin().id(id).search().page_limit(1).max_items(1).get_only().await
+        self.plugin()
+            .id(id)
+            .search()
+            .page_limit(1)
+            .max_items(1)
+            .get_only()
+            .await
     }
 
     /// Get a pipeline by ID
@@ -55,7 +61,13 @@ pub trait BaseChrisClient<A: Access> {
         &self,
         id: PipelineId,
     ) -> Result<LinkedModel<PipelineResponse, A>, GetOnlyError> {
-        self.pipeline().id(id).search().page_limit(1).max_items(1).get_only().await
+        self.pipeline()
+            .id(id)
+            .search()
+            .page_limit(1)
+            .max_items(1)
+            .get_only()
+            .await
     }
 }
 

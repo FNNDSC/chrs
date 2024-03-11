@@ -1,11 +1,11 @@
 use serde::Serialize;
 
-use crate::{Access, ComputeResourceResponse, PluginInstanceRw};
 use crate::client::access::{RoAccess, RwAccess};
 use crate::errors::CubeError;
 use crate::models::data::{PluginParameter, PluginResponse};
 use crate::models::linked::LinkedModel;
 use crate::search::Search;
+use crate::{Access, ComputeResourceResponse, PluginInstanceRw};
 
 /// A ChRIS plugin.
 pub type Plugin<A> = LinkedModel<PluginResponse, A>;

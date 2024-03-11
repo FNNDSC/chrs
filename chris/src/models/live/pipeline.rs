@@ -1,5 +1,5 @@
-use crate::{LinkedModel, PipelineResponse, RoAccess, RwAccess, WorkflowResponse};
 use crate::search::Search;
+use crate::{LinkedModel, PipelineResponse, RoAccess, RwAccess, WorkflowResponse};
 
 /// A _ChRIS_ pipeline.
 pub type Pipeline<A> = LinkedModel<PipelineResponse, A>;

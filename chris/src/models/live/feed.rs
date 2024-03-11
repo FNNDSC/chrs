@@ -1,9 +1,12 @@
 use serde_with::serde_derive::Serialize;
 
-use crate::{Access, BasicFileResponse, LazyLinkedModel, LinkedModel, NoteResponse, PluginInstanceResponse, RoAccess, RwAccess};
 use crate::errors::CubeError;
 use crate::models::data::FeedResponse;
 use crate::search::Search;
+use crate::{
+    Access, BasicFileResponse, LazyLinkedModel, LinkedModel, NoteResponse, PluginInstanceResponse,
+    RoAccess, RwAccess,
+};
 
 /// ChRIS feed note.
 pub type Note<A> = LinkedModel<NoteResponse, A>;
@@ -37,6 +40,36 @@ impl<A: Access> Note<A> {
     }
 }
 
+impl Note<RwAccess> {
+    /// Set the note
+    pub async fn set(
+        self,
+        title: impl AsRef<str>,
+        content: impl AsRef<str>,
+    ) -> Result<Note<RwAccess>, CubeError> {
+        let body = NoteRequest {
+            title: title.as_ref(),
+            content: content.as_ref(),
+        };
+        self.put(&self.object.url, &body).await
+    }
+}
+
+impl LazyNote<'_, RwAccess> {
+    /// Set the note
+    pub async fn set(
+        self,
+        title: impl AsRef<str>,
+        content: impl AsRef<str>,
+    ) -> Result<Note<RwAccess>, CubeError> {
+        let body = NoteRequest {
+            title: title.as_ref(),
+            content: content.as_ref(),
+        };
+        self.put(&body).await
+    }
+}
+
 /// A feed which you can edit.
 pub type FeedRw = LinkedModel<FeedResponse, RwAccess>;
 
@@ -66,4 +99,10 @@ impl<'a> LazyFeedRw<'a> {
 #[derive(Serialize)]
 struct Name<'a> {
     name: &'a str,
+}
+
+#[derive(Serialize)]
+struct NoteRequest<'a> {
+    title: &'a str,
+    content: &'a str,
 }
