@@ -5,6 +5,7 @@ use color_eyre::eyre::{bail, Context};
 use fs_err::tokio::File;
 use futures::TryStreamExt;
 use futures::{TryFutureExt, TryStream};
+use indicatif::ProgressBar;
 use tokio_util::io::StreamReader;
 
 use chris::search::Search;
@@ -99,19 +100,14 @@ async fn download_single_file(files: Files, args: DownloadArgs) -> eyre::Result<
     let dst = args
         .dst
         .unwrap_or_else(|| Utf8PathBuf::from(only_file.object.basename().to_string()));
-    let mut file = File::create(dst).await?;
-    let bar = progress_bar_bytes(only_file.object.fsize());
+    let file = File::create(dst).await?;
     let stream = only_file
         .stream()
         .await?
-        .map_ok(|bytes| {
-            bar.inc(bytes.len() as u64);
-            bytes
-        })
         .map_err(|e| std::io::Error::new(std::io::ErrorKind::ConnectionAborted, e));
     let mut reader = StreamReader::new(stream);
-    tokio::io::copy(&mut reader, &mut file).await?;
-    bar.finish();
+    let pb = progress_bar_bytes(only_file.object.fsize());
+    tokio::io::copy(&mut reader, &mut pb.wrap_async_write(file)).await?;
     Ok(())
 }
 
