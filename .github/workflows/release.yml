@@ -1,7 +1,9 @@
-# On tags, publish crates to crates.io
-# If chrs is to be published, build binaries for multiple platforms and
-# create a draft GitGub release.
-# chrs also gets published to PyPi.
+# Builds and publishes packages to:
+# - crates.io
+# - PyPI
+# - GitHub releases
+#   - cross-compiled binaries
+#   - .deb package for amd64
 
 name: Release
 
@@ -25,7 +27,6 @@ jobs:
   crate:
     runs-on: ubuntu-latest
     name: Publish to crates.io
-    if: false  # TODO REMOVE ME LATER WHEN READY
     steps:
       - name: Git checkout
         uses: actions/checkout@v4
@@ -94,6 +95,7 @@ jobs:
           token: ${{ secrets.GITHUB_TOKEN }}
           no-default-features: ${{ matrix.no-default-features == 'true' }}
 
+
   #################################################
   #                                               #
   #             BUILD DEBIAN PACKAGE              #
@@ -118,6 +120,7 @@ jobs:
           token: ${{ secrets.GITHUB_TOKEN }}
           files: target/debian/*.deb
           fail_on_unmatched_files: true
+
 
   #################################################
   #                                               #
@@ -207,8 +210,7 @@ jobs:
   maturin-release:
     name: Release to PyPI
     runs-on: ubuntu-latest
-    if: false  # TODO REMOVE
-#    if: startsWith( github.ref, 'refs/tags/v' )
+    if: startsWith( github.ref, 'refs/tags/v' )
     needs: [maturin-linux, maturin-windows, maturin-macos, maturin-sdist]
     steps:
       - uses: actions/download-artifact@v3
