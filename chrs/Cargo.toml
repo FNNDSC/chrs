@@ -8,6 +8,8 @@ edition = "2021"
 readme = "README.md"
 description = "CLI ChRIS client"
 repository = "https://github.com/FNNDSC/chrs"
+homepage = "https://chrisproject.org"
+documentation = "https://chrisproject.org/docs/chrs"
 license = "MIT"
 categories = ["command-line-utilities", "science"]
 
