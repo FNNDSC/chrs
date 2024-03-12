@@ -582,7 +582,7 @@ dependencies = [
 
 [[package]]
 name = "chrs"
-version = "0.3.0-a.2"
+version = "0.3.0-a.3"
 dependencies = [
  "aliri_braid",
  "async-recursion",
