@@ -113,7 +113,9 @@ jobs:
           target: ${{ matrix.target }}
           args: --release --strip --locked --out dist --manifest-path chrs/Cargo.toml
           sccache: 'true'
-          manylinux: auto
+          # manylinux cannot be auto
+          # # https://github.com/PyO3/maturin-action/issues/222
+          manylinux: manylinux_2_28
       - name: Upload wheels
         uses: actions/upload-artifact@v3
         with:
