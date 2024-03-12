@@ -77,7 +77,7 @@ pub async fn download(credentials: Credentials, args: DownloadArgs) -> eyre::Res
         .or_else(|| old.map(|id| id.into()))
         .ok_or_else(|| eyre!("Missing operand"))?;
     let (files, dst, rel) = get_files_search(&client, src, old, args.dst.clone()).await?;
-    let size = download_files(client, files, args, dst, dbg!(rel)).await?;
+    let size = download_files(client, files, args, dst, rel).await?;
     eprintln!("Downloaded: {}", HumanBytes(size));
     Ok(())
 }

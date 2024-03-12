@@ -66,6 +66,7 @@ async fn upload_logged_in(
 ) -> eyre::Result<()> {
     let threads = args.threads;
     let input_paths = args.paths.clone();
+    let title = args.feed.clone();
     let get_cube_info = async {
         let (current_feed, previous_id) =
             find_existing_feed(&client, old, args.feed.as_deref()).await?;
@@ -82,10 +83,19 @@ async fn upload_logged_in(
     let plinsts = run_plugins(plugins, previous_id, upload_path).await?;
 
     let feed = if let Some(feed) = current_feed {
+        // added to an already existing feed
         Some(feed)
     } else if let Some(plinst) = plinsts.last() {
-        Some(plinst.feed().get().await?)
+        // created a new feed, need to set feed name
+        let feed = plinst.feed().get().await?;
+        let named_feed = if let Some(title) = title {
+            feed.set_name(&title).await?
+        } else {
+            feed
+        };
+        Some(named_feed)
     } else {
+        // nothing happened
         None
     };
     if let Some(feed) = feed {
