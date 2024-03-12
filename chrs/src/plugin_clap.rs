@@ -19,7 +19,7 @@ pub const CHRS_INCOMING: &str = "chrs-incoming-cfb8a325-fbfc-4467-b7d1-4975d1a24
 pub async fn clap_serialize_params<A: Access>(
     plugin: &Plugin<A>,
     args: &[String],
-) -> eyre::Result<(HashMap<String, PluginParameterValue>, Option<GivenDataNode>)> {
+) -> eyre::Result<(HashMap<String, PluginParameterValue>, Vec<GivenDataNode>)> {
     let parameter_info: Vec<_> = plugin.parameters().stream().try_collect().await?;
     let command = clap_params(&plugin.object.selfexec, &parameter_info);
     parse_args_using(command, &parameter_info, args)
@@ -31,7 +31,7 @@ pub fn clap_params(selfexec: &str, parameter_info: &[PluginParameter]) -> Comman
         .help("Plugin instance or feed to use as input for this plugin")
         .value_parser(NonEmptyStringValueParser::new())
         .value_name("incoming")
-        .action(ArgAction::Set);
+        .action(ArgAction::Append);
     Command::new(selfexec.to_string())
         .no_binary_name(true)
         .disable_help_flag(true)
@@ -43,15 +43,16 @@ fn parse_args_using(
     command: Command,
     parameter_info: &[PluginParameter],
     args: &[String],
-) -> eyre::Result<(HashMap<String, PluginParameterValue>, Option<GivenDataNode>)> {
+) -> eyre::Result<(HashMap<String, PluginParameterValue>, Vec<GivenDataNode>)> {
     let matches = command.try_get_matches_from(args)?;
     let parsed_params = parameter_info
         .iter()
         .filter_map(|p| get_param_from_matches(p, &matches))
         .collect();
     let incoming = matches
-        .get_one::<String>(CHRS_INCOMING)
-        .map(|s| s.to_string().into());
+        .get_many::<String>(CHRS_INCOMING)
+        .map(|values| values.map(|s| s.to_string().into()).collect())
+        .unwrap_or(Vec::with_capacity(0));
     Ok((parsed_params, incoming))
 }
 

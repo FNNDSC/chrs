@@ -2,16 +2,19 @@ use std::collections::HashMap;
 use std::path::PathBuf;
 
 use clap::Parser;
-use color_eyre::eyre::eyre;
+use color_eyre::eyre::{eyre, WrapErr};
 use color_eyre::owo_colors::OwoColorize;
 use color_eyre::{eyre, eyre::bail};
+use futures::{StreamExt, TryStreamExt};
+use itertools::Itertools;
 
 use chris::errors::CubeError;
 use chris::types::{
     ComputeResourceName, CubeUrl, PluginInstanceId, PluginParameterValue, Username,
 };
 use chris::{
-    BaseChrisClient, ChrisClient, EitherClient, PluginInstanceResponse, PluginInstanceRw, PluginRw,
+    BaseChrisClient, ChrisClient, EitherClient, FeedRw, PipelineRw, PluginInstanceResponse,
+    PluginInstanceRw, PluginRw,
 };
 
 use crate::arg::{GivenDataNode, GivenRunnable, Runnable};
@@ -66,6 +69,10 @@ pub struct RunArgs {
     #[clap(required = true)]
     plugin_or_pipeline: GivenRunnable,
 
+    /// Maximum number of concurrent HTTP requests
+    #[clap(short = 'j', long, default_value_t = 4)]
+    threads: usize,
+
     /// Parameters
     parameters: Vec<String>,
 }
@@ -100,21 +107,26 @@ async fn run(
         .clone()
         .resolve_using(client)
         .await?;
-    match runnable {
-        Runnable::Plugin(p) => run_plugin(client, p, old, ui, args).await,
-        Runnable::Pipeline(_p) => todo!(),
+    let plinst = match runnable {
+        Runnable::Plugin(p) => run_plugin(client, p, old, args).await,
+        Runnable::Pipeline(p) => todo!(),
+    }?;
+    if let (Some(ui), Some(plinst)) = (ui, plinst.as_ref()) {
+        let feed = plinst.feed().get().await?;
+        let feed_ui_url = ui.feed_url_of(&feed.object);
+        println!("{}", feed_ui_url);
     }
+    Ok(plinst.map(|p| p.object.id))
 }
 
 async fn run_plugin(
     client: &ChrisClient,
     plugin: PluginRw,
     old: Option<PluginInstanceId>,
-    ui: Option<UiUrl>,
     args: RunArgs,
-) -> eyre::Result<Option<PluginInstanceId>> {
+) -> eyre::Result<Option<PluginInstanceRw>> {
     let (params, incoming) = clap_serialize_params(&plugin, &args.parameters).await?;
-    let previous = get_input(client, old, incoming).await?;
+    let previous = get_input(client, old, incoming, args.threads).await?;
     let previous_id = previous.as_ref().map(|previous| previous.object.id.0);
     if !args.force {
         check_title(client, previous.as_ref(), args.title.as_deref()).await?;
@@ -123,14 +135,18 @@ async fn run_plugin(
         println!("Input: plugininstance/{:?}", previous_id);
         Ok(None)
     } else {
-        let created = create_plugin_instance(&plugin, params, previous_id, args).await?;
-        if let Some(ui) = ui {
-            let feed = created.feed().get().await?;
-            println!("{}", ui.feed_url_of(&feed.object));
-        }
-        Ok(Some(created.object.id))
+        create_plugin_instance(&plugin, params, previous_id, args)
+            .await
+            .map(Some)
     }
 }
+
+// async fn run_pipeline(
+//     client: &ChrisClient,
+//     pipeline: PipelineRw,
+//     old: Option<PluginInstanceId>,
+//     args: RunArgs,
+// ) -> eyre::Result<Option<PluginInstanceRw>> {}
 
 /// Create a plugin instance. If the plugin is a fs-type plugin, then the created feed name
 /// is set to the plugin instance's title.
@@ -267,12 +283,21 @@ async fn feed_name_is_not_unique(client: &ChrisClient, name: &str) -> Result<boo
     search.get_count().await.map(|count| count > 0)
 }
 
+/// Picks a plugin instance to use as the input.
+///
+/// - If `given` is of length one: get it as a plugin instance.
+/// - If `given` has length > 1: run `pl-topologicalcopy` and return that
+/// - If `given` has length = 0: get `old` and return that
 async fn get_input(
     client: &ChrisClient,
     old: Option<PluginInstanceId>,
-    given: Option<GivenDataNode>,
+    given: Vec<GivenDataNode>,
+    threads: usize,
 ) -> eyre::Result<Option<PluginInstanceRw>> {
-    if let Some(feed_or_plinst) = given {
+    if given.len() > 1 {
+        return topologicalcopy(client, old, given, threads).await.map(Some);
+    }
+    if let Some(feed_or_plinst) = given.into_iter().next() {
         feed_or_plinst.into_plinst_rw(client, old).await.map(Some)
     } else if let Some(id) = old {
         client
@@ -285,11 +310,76 @@ async fn get_input(
     }
 }
 
+/// Run `pl-topologicalcopy`
+async fn topologicalcopy(
+    client: &ChrisClient,
+    old: Option<PluginInstanceId>,
+    given: Vec<GivenDataNode>,
+    threads: usize,
+) -> eyre::Result<PluginInstanceRw> {
+    let previous_ids: Vec<_> = futures::stream::iter(given)
+        .map(|p| async move { p.into_plinst_rw(client, old).await.map(|p| p.object) })
+        .map(Ok::<_, eyre::Error>)
+        .try_buffer_unordered(threads)
+        .try_collect()
+        .await?;
+    let topologicalcopy = client
+        .plugin()
+        .name_exact("pl-topologicalcopy")
+        .version("1.0.2")
+        .search()
+        .get_only()
+        .await
+        .wrap_err("pl-topologicalcopy@1.0.2 not found")?;
+    let params = TopologicalCopyParameters::new(&previous_ids);
+    let created = topologicalcopy.create_instance(&params).await?;
+    Ok(created)
+}
+
+#[derive(serde::Serialize)]
+struct TopologicalCopyParameters {
+    previous_id: PluginInstanceId,
+    plugininstances: String,
+    title: String,
+}
+
+impl TopologicalCopyParameters {
+    fn new(previous: &[PluginInstanceResponse]) -> Self {
+        let title = format!(
+            "Merge of: {}",
+            previous
+                .iter()
+                .map(quoted_title_of_plinst_response)
+                .join(" ")
+        );
+        // CUBE does not allow plugin instance titles to be longer than 100 characters.
+        let title = if title.len() > 100 {
+            format!("{}...", &title[..97])
+        } else {
+            title
+        };
+        Self {
+            previous_id: previous.first().unwrap().id,
+            plugininstances: previous.iter().map(|p| p.id.0.to_string()).join(","),
+            title,
+        }
+    }
+}
+
+fn quoted_title_of_plinst_response(p: &PluginInstanceResponse) -> String {
+    if p.title.is_empty() {
+        format!("{}#{}", p.plugin_name, p.id.0)
+    } else {
+        format!("\"{}\"", p.title)
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use fake::Fake;
     use futures::TryStreamExt;
     use rstest::*;
+    use std::collections::HashSet;
     use tempfile::TempDir;
 
     use chris::Account;
@@ -519,6 +609,67 @@ mod tests {
             fifth_plinst.object.previous_id, fourth_plinst.object.previous_id,
             "Specifying previous as \"..\" should create sibling plugin instance"
         );
+
+        let sixth_title = uuid_name("sixth title");
+        run_command(
+            credentials.clone(),
+            create_args(
+                Some(sixth_title.clone()),
+                "pl-simpledsapp@2.0.2",
+                &[
+                    "--dummyInt",
+                    "789",
+                    &third_plinst.object.title,
+                    &fourth_plinst.object.title,
+                    &fifth_plinst.object.title,
+                ],
+            ),
+        )
+        .await
+        .unwrap();
+        let sixth_plinst = client
+            .plugin_instances()
+            .title(&sixth_title)
+            .search()
+            .get_only()
+            .await
+            .unwrap();
+        let topologicalcopy = client.plugin_instances()
+            .feed_id(sixth_plinst.object.feed_id)
+            .plugin_name("pl-topologicalcopy")
+            .search()
+            .get_only()
+            .await
+            .expect("Should run pl-topologicalcopy because mutiple previous plugin instances were specified.");
+        assert_eq!(
+            topologicalcopy.object.previous_id,
+            fifth_plinst.object.previous_id,
+        );
+        assert_eq!(
+            sixth_plinst.object.previous_id.unwrap(),
+            topologicalcopy.object.id
+        );
+        let topo_params: HashMap<_, _> = topologicalcopy
+            .parameters()
+            .stream()
+            .map_ok(|p| (p.param_name, p.value))
+            .try_collect()
+            .await
+            .unwrap();
+        let joined_ids_csv = topo_params
+            .get("plugininstances")
+            .expect("pl-topologicalcopy must be run with the --plugininstances parameter")
+            .to_string();
+        let joined_ids: HashSet<_> = joined_ids_csv.split(',').map(|s| s.to_string()).collect();
+        let expected: HashSet<_> = [
+            third_plinst.object.id,
+            fourth_plinst.object.id,
+            fifth_plinst.object.id,
+        ]
+        .into_iter()
+        .map(|id| id.0.to_string())
+        .collect();
+        assert_eq!(joined_ids, expected);
     }
 
     fn uuid_name(name: &str) -> String {
@@ -541,6 +692,7 @@ mod tests {
             force: false,
             dry_run: false,
             plugin_or_pipeline: GivenRunnable::try_from(plugin.to_string()).unwrap(),
+            threads: 4,
             parameters: args.into_iter().map(|s| s.to_string()).collect(),
         }
     }
@@ -562,6 +714,7 @@ mod tests {
             force: false,
             dry_run: false,
             plugin_or_pipeline: GivenRunnable::try_from(plugin.to_string()).unwrap(),
+            threads: 4,
             parameters: args.into_iter().map(|s| s.to_string()).collect(),
         }
     }

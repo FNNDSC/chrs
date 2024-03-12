@@ -74,6 +74,21 @@ impl<A: Access> PluginInstanceSearchBuilder<A> {
     pub fn feed_id(self, feed_id: FeedId) -> Self {
         self.add_u32("feed_id", feed_id.0)
     }
+
+    /// Search for plugin instance by plugin_name
+    pub fn plugin_name(self, plugin_name: impl Into<String>) -> Self {
+        self.add_string("plugin_name", plugin_name)
+    }
+
+    /// Search for plugin instance by plugin_name_exact
+    pub fn plugin_name_exact(self, plugin_name_exact: impl Into<String>) -> Self {
+        self.add_string("plugin_name_exact", plugin_name_exact)
+    }
+
+    /// Search for plugin instance by plugin_version
+    pub fn plugin_version(self, plugin_version: impl Into<String>) -> Self {
+        self.add_string("plugin_version", plugin_version)
+    }
 }
 
 /// Pipeline search query
