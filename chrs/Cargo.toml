@@ -1,6 +1,6 @@
 [package]
 name = "chrs"
-version = "0.3.0-a.1"
+version = "0.3.0-a.2"
 authors = ["Jennings Zhang <jennings.zhang@childrens.harvard.edu>", "FNNDSC <dev@babyMRI.org>"]
 
 edition = "2021"
