@@ -129,7 +129,7 @@ async fn run_plugin(
         check_title(client, previous.as_ref(), args.title.as_deref()).await?;
     }
     if args.dry_run {
-        println!("Input: plugininstance/{:?}", previous_id);
+        eprintln!("Input: plugininstance/{:?}", previous_id);
         Ok(None)
     } else {
         create_plugin_instance(&plugin, params, previous_id, args)

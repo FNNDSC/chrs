@@ -81,32 +81,29 @@ async fn upload_logged_in(
     let upload_path = upload_all(&client, files, threads).await?;
     let plinsts = run_plugins(plugins, previous_id, upload_path).await?;
 
-    if let Some(plinst) = plinsts.first() {
+    let feed = if let Some(feed) = current_feed {
+        Some(feed)
+    } else if let Some(plinst) = plinsts.last() {
+        Some(plinst.feed().get().await?)
+    } else {
+        None
+    };
+    if let Some(feed) = feed {
+        if let Some(note) = args.note {
+            feed.note().set("Description", note).await?;
+        }
+        if let Some(ui) = ui {
+            eprintln!("{}", ui.feed_url_of(&feed.object))
+        }
+    }
+    if let Some(plinst) = plinsts.last() {
         crate::login::set_cd(
             client.url(),
             client.username(),
             plinst.object.id,
             config_path,
         )?;
-    }
-
-    let feed = if let Some(feed) = current_feed {
-        Some(feed)
-    } else if let Some(plinst) = plinsts.into_iter().next() {
-        Some(plinst.feed().get().await?)
-    } else {
-        None
-    };
-
-    if let Some(feed) = feed {
-        if let Some(note) = args.note {
-            feed.note().set("Description", note).await?;
-        }
-        if let Some(ui) = ui {
-            println!("{}", ui.feed_url_of(&feed.object))
-        } else {
-            println!("feed/{}", feed.object.name)
-        }
+        println!("plugininstance/{}", plinst.object.id.0)
     }
     Ok(())
 }
@@ -264,10 +261,16 @@ async fn find_existing_feed(
     if let Some(name) = name {
         if let Some(feed) = get_feed_by_name(client, name).await? {
             let plinst_id = get_plinst_of_feed(client, &feed).await?;
-            return Ok((Some(feed), Some(plinst_id)));
+            // Will add to specified feed
+            Ok((Some(feed), Some(plinst_id)))
+        } else {
+            // Will create a new feed
+            Ok((None, None))
         }
+    } else {
+        // Will add to current feed
+        Ok((None, old))
     }
-    Ok((None, old))
 }
 
 async fn get_feed_by_name(client: &ChrisClient, name: &str) -> eyre::Result<Option<FeedRw>> {
