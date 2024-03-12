@@ -114,7 +114,7 @@ jobs:
         with:
           target: ${{ matrix.target }}
           args: --release --strip --locked --out dist --manifest-path chrs/Cargo.toml
-          # sscache seems to be broken
+          # sscache seems to be broken. https://github.com/PyO3/maturin-action/issues/249
           # sccache: 'true'
           # manylinux cannot be auto
           # https://github.com/PyO3/maturin-action/issues/222
@@ -179,7 +179,7 @@ jobs:
           path: dist
 
   maturin-release:
-    name: Release
+    name: Release to PyPI
     runs-on: ubuntu-latest
     if: startsWith( github.ref, 'refs/tags/v' )
     needs: [maturin-linux, maturin-windows, maturin-macos, maturin-sdist]
