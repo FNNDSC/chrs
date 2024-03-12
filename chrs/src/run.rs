@@ -377,6 +377,7 @@ fn quoted_title_of_plinst_response(p: &PluginInstanceResponse) -> String {
 #[cfg(test)]
 mod tests {
     use std::collections::HashSet;
+    use std::path::PathBuf;
 
     use fake::Fake;
     use futures::TryStreamExt;
@@ -384,8 +385,10 @@ mod tests {
     use tempfile::TempDir;
 
     use chris::Account;
+    use chris::types::{CubeUrl, Username};
 
     use crate::credentials::NO_ARGS;
+    use crate::login::state::ChrsSessions;
     use crate::login::store::{SavedCubeState, StoredToken};
 
     use super::*;
