@@ -1,3 +1,5 @@
+use std::path::PathBuf;
+
 use async_walkdir::WalkDir;
 use camino::{Utf8Path, Utf8PathBuf};
 use clap::{builder::NonEmptyStringValueParser, Parser};
@@ -46,9 +48,10 @@ pub struct UploadArgs {
 
 /// `chrs upload` command
 pub async fn upload(credentials: Credentials, args: UploadArgs) -> eyre::Result<()> {
+    let config_path = credentials.config_path.clone();
     let (client, old, ui) = credentials.get_client(NO_ARGS).await?;
     if let Some(client) = client.logged_in() {
-        upload_logged_in(client, old, ui, args).await
+        upload_logged_in(client, old, ui, args, config_path).await
     } else {
         bail!("You must be logged in to upload files.")
     }
@@ -59,6 +62,7 @@ async fn upload_logged_in(
     old: Option<PluginInstanceId>,
     ui: Option<UiUrl>,
     args: UploadArgs,
+    config_path: Option<PathBuf>,
 ) -> eyre::Result<()> {
     let threads = args.threads;
     let input_paths = args.paths.clone();
@@ -76,6 +80,16 @@ async fn upload_logged_in(
 
     let upload_path = upload_all(&client, files, threads).await?;
     let plinsts = run_plugins(plugins, previous_id, upload_path).await?;
+
+    if let Some(plinst) = plinsts.first() {
+        crate::login::set_cd(
+            client.url(),
+            client.username(),
+            plinst.object.id,
+            config_path,
+        )?;
+    }
+
     let feed = if let Some(feed) = current_feed {
         Some(feed)
     } else if let Some(plinst) = plinsts.into_iter().next() {

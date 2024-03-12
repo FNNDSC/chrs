@@ -1,5 +1,4 @@
 use std::collections::HashMap;
-use std::path::PathBuf;
 
 use clap::Parser;
 use color_eyre::eyre::{eyre, OptionExt, WrapErr};
@@ -9,9 +8,7 @@ use futures::{StreamExt, TryStreamExt};
 use itertools::Itertools;
 
 use chris::errors::CubeError;
-use chris::types::{
-    ComputeResourceName, CubeUrl, PluginInstanceId, PluginParameterValue, Username,
-};
+use chris::types::{ComputeResourceName, PluginInstanceId, PluginParameterValue};
 use chris::{
     BaseChrisClient, ChrisClient, EitherClient, PipelineRw, PluginInstanceResponse,
     PluginInstanceRw, PluginRw,
@@ -19,7 +16,6 @@ use chris::{
 
 use crate::arg::{GivenDataNode, GivenRunnable, Runnable};
 use crate::credentials::Credentials;
-use crate::login::state::ChrsSessions;
 use crate::login::UiUrl;
 use crate::plugin_clap::clap_serialize_params;
 
@@ -91,7 +87,7 @@ pub async fn run_command(credentials: Credentials, args: RunArgs) -> eyre::Resul
         ))
     }?;
     if let Some(id) = run(&client, old, ui, args).await? {
-        set_cd(client.url(), client.username(), id, credentials.config_path)?;
+        crate::login::set_cd(client.url(), client.username(), id, credentials.config_path)?;
         println!("plugininstance/{}", id.0);
     }
     Ok(())
@@ -264,19 +260,6 @@ async fn check_title(
             "You can bypass this check using --force".dimmed()
         )
     };
-    Ok(())
-}
-
-fn set_cd(
-    cube_url: &CubeUrl,
-    username: &Username,
-    id: PluginInstanceId,
-    config_path: Option<PathBuf>,
-) -> eyre::Result<()> {
-    let mut sessions = ChrsSessions::load(config_path.as_deref())?;
-    if sessions.set_plugin_instance(cube_url, username, id) {
-        sessions.save(config_path.as_deref())?;
-    }
     Ok(())
 }
 
