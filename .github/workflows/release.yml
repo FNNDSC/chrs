@@ -25,6 +25,7 @@ jobs:
   crate:
     runs-on: ubuntu-latest
     name: Publish to crates.io
+    if: false  # TODO REMOVE ME LATER WHEN READY
     steps:
       - name: Git checkout
         uses: actions/checkout@v4
@@ -96,6 +97,9 @@ jobs:
   #                                               #
   #################################################
 
+  # MUST USE actions/upload-artifact@v3 and actions/download-artifact@v3
+  # https://github.com/actions/upload-artifact/issues/478
+
   maturin-linux:
     runs-on: ubuntu-latest
     strategy:
@@ -111,7 +115,7 @@ jobs:
           sccache: 'true'
           manylinux: auto
       - name: Upload wheels
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v3
         with:
           name: wheels
           path: dist
@@ -130,7 +134,7 @@ jobs:
           args: --release --strip --locked --out dist --manifest-path chrs/Cargo.toml
           sccache: 'true'
       - name: Upload wheels
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v3
         with:
           name: wheels
           path: dist
@@ -149,7 +153,7 @@ jobs:
           args: --release --strip --locked --out dist --manifest-path chrs/Cargo.toml
           sccache: 'true'
       - name: Upload wheels
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v3
         with:
           name: wheels
           path: dist
@@ -164,7 +168,7 @@ jobs:
           command: sdist
           args: --out dist --manifest-path chrs/Cargo.toml
       - name: Upload sdist
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v3
         with:
           name: wheels
           path: dist
@@ -175,7 +179,7 @@ jobs:
     if: startsWith( github.ref, 'refs/tags/v' )
     needs: [maturin-linux, maturin-windows, maturin-macos, maturin-sdist]
     steps:
-      - uses: actions/download-artifact@v4
+      - uses: actions/download-artifact@v3
         with:
           name: wheels
       - name: Publish to PyPI
