@@ -335,7 +335,10 @@ struct DiscoveredFile {
 impl DiscoveredFile {
     fn to_relative(&self) -> String {
         if self.path == self.src {
-            self.path.file_name().unwrap_or(self.path.as_str()).to_string()
+            self.path
+                .file_name()
+                .unwrap_or(self.path.as_str())
+                .to_string()
         } else {
             pathdiff::diff_utf8_paths(&self.path, &self.src)
                 .map(|p| p.to_string())
@@ -449,10 +452,14 @@ mod tests {
     #[case("a/b", "a/b", "b")]
     #[case("a", "a/b", "b")]
     #[case("a", "a/b/c", "b/c")]
-    fn test_discovered_file_to_relative(#[case] src: &str, #[case] path: &str, #[case] expected: &str) {
+    fn test_discovered_file_to_relative(
+        #[case] src: &str,
+        #[case] path: &str,
+        #[case] expected: &str,
+    ) {
         let discovered = DiscoveredFile {
             path: Utf8PathBuf::from(path),
-            src: Utf8PathBuf::from(src)
+            src: Utf8PathBuf::from(src),
         };
         let actual = discovered.to_relative();
         assert_eq!(&actual, expected);

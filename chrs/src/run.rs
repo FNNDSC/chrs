@@ -1,4 +1,6 @@
+use std::borrow::Cow;
 use std::collections::HashMap;
+use std::fmt::Display;
 
 use clap::Parser;
 use color_eyre::eyre::{eyre, OptionExt, WrapErr};
@@ -6,6 +8,7 @@ use color_eyre::owo_colors::OwoColorize;
 use color_eyre::{eyre, eyre::bail};
 use futures::{StreamExt, TryStreamExt};
 use itertools::Itertools;
+use tokio::try_join;
 
 use chris::errors::CubeError;
 use chris::types::{ComputeResourceName, PluginInstanceId, PluginParameterValue};
@@ -99,11 +102,13 @@ async fn run(
     ui: Option<UiUrl>,
     args: RunArgs,
 ) -> eyre::Result<Option<PluginInstanceId>> {
-    let runnable = args
-        .plugin_or_pipeline
-        .clone()
-        .resolve_using(client)
-        .await?;
+    let (title_is_unique, runnable) = try_join!(
+        check_title(client, old, args.title.as_deref(), args.force),
+        args.plugin_or_pipeline.clone().resolve_using(client)
+    )?;
+    if let Some(error) = title_is_unique {
+        bail!("{}", error);
+    }
     let plinst = match runnable {
         Runnable::Plugin(p) => run_plugin(client, p, old, args).await,
         Runnable::Pipeline(p) => run_pipeline(client, p, old, args).await,
@@ -125,9 +130,6 @@ async fn run_plugin(
     let (params, incoming) = clap_serialize_params(&plugin, &args.parameters).await?;
     let previous = get_input(client, old, incoming, args.threads).await?;
     let previous_id = previous.as_ref().map(|previous| previous.object.id.0);
-    if !args.force {
-        check_title(client, previous.as_ref(), args.title.as_deref()).await?;
-    }
     if args.dry_run {
         eprintln!("Input: plugininstance/{:?}", previous_id);
         Ok(None)
@@ -148,9 +150,6 @@ async fn run_pipeline(
     let prev = get_input(client, old, inputs, args.threads)
         .await?
         .ok_or_eyre("Missing operand")?;
-    if !args.force {
-        check_title(client, Some(&prev), args.title.as_deref()).await?;
-    }
     let workflow = pipeline
         .create_workflow(prev.object.id, args.title.as_deref())
         .await?;
@@ -229,46 +228,55 @@ fn serialize_optional_resources(
     optional_resources.into_iter().flatten()
 }
 
-/// Raise error if:
-///
-/// - title is None
-/// - if has previous, title is not unique in the feed
-/// - if no previous, title is not a unique feed name
 async fn check_title(
     client: &ChrisClient,
-    previous: Option<&PluginInstanceRw>,
+    old: Option<PluginInstanceId>,
     title: Option<&str>,
-) -> eyre::Result<()> {
+    force: bool,
+) -> eyre::Result<Option<TitleUniqueness>> {
+    if force {
+        return Ok(None);
+    }
     if let Some(title) = title {
-        if let Some(plinst) = previous {
-            if title_is_not_unique(client, &plinst.object, title).await? {
-                bail!(
-                    "Title is not unique within the feed. {}",
-                    "You can bypass this check using --force".dimmed()
-                );
+        if let Some(id) = old {
+            if title_is_not_unique(client, id, title).await? {
+                return Ok(Some(TitleUniqueness::NotUniqueWithinFeed));
             }
         } else if feed_name_is_not_unique(client, title).await? {
-            bail!(
-                "Title is not a unique feed name. {}",
-                "You can bypass this check using --force".dimmed()
-            );
+            return Ok(Some(TitleUniqueness::NotUniqueFeedName));
         }
     } else {
-        bail!(
-            "Please provide a value for {}. {}",
-            "--title".bold(),
-            "You can bypass this check using --force".dimmed()
-        )
+        return Ok(Some(TitleUniqueness::NoTitle));
     };
-    Ok(())
+    Ok(None)
+}
+
+enum TitleUniqueness {
+    NotUniqueWithinFeed,
+    NotUniqueFeedName,
+    NoTitle,
+}
+
+impl Display for TitleUniqueness {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        let hint = "You can bypass this check using --force";
+        let msg = match self {
+            TitleUniqueness::NotUniqueWithinFeed => {
+                Cow::Borrowed("Title is not unique within feed.")
+            }
+            TitleUniqueness::NotUniqueFeedName => Cow::Borrowed("Title is not a unique feed name."),
+            TitleUniqueness::NoTitle => Cow::Owned(format!("A {} is required.", "--title".bold())),
+        };
+        write!(f, "{} {}", msg, hint.dimmed())
+    }
 }
 
 async fn title_is_not_unique(
     client: &ChrisClient,
-    plinst: &PluginInstanceResponse,
+    plinst: PluginInstanceId,
     title: &str,
 ) -> Result<bool, CubeError> {
-    let feed_id = plinst.feed_id;
+    let feed_id = client.get_plugin_instance(plinst).await?.object.feed_id;
     let query = client
         .plugin_instances()
         .feed_id(feed_id)
@@ -384,8 +392,8 @@ mod tests {
     use rstest::*;
     use tempfile::TempDir;
 
-    use chris::Account;
     use chris::types::{CubeUrl, Username};
+    use chris::Account;
 
     use crate::credentials::NO_ARGS;
     use crate::login::state::ChrsSessions;
@@ -454,7 +462,9 @@ mod tests {
         )
         .await
         {
-            assert!(error.to_string().contains("Please provide a value for"))
+            assert!(error
+                .to_string()
+                .contains(TitleUniqueness::NoTitle.to_string().as_str()))
         } else {
             panic!("Expected an error to happen because no title was given.")
         }
@@ -542,7 +552,7 @@ mod tests {
         if let Err(error) = third_run_fail {
             assert!(error
                 .to_string()
-                .contains("Title is not unique within the feed."));
+                .contains(TitleUniqueness::NotUniqueWithinFeed.to_string().as_str()));
         } else {
             panic!("Expected an error message about non-unique plugin instance title.");
         }
