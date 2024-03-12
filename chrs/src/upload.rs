@@ -1,19 +1,20 @@
 use async_walkdir::WalkDir;
-use camino::Utf8PathBuf;
+use camino::{Utf8Path, Utf8PathBuf};
 use clap::{builder::NonEmptyStringValueParser, Parser};
 use color_eyre::eyre;
 use color_eyre::eyre::{bail, eyre, WrapErr};
 use color_eyre::owo_colors::OwoColorize;
 use futures::{StreamExt, TryFutureExt, TryStreamExt};
 use itertools::Itertools;
-use tokio::try_join;
+use tokio::sync::mpsc::{unbounded_channel, UnboundedSender};
+use tokio::{join, try_join};
 use tokio_util::codec::{BytesCodec, FramedRead};
 
-use chris::{BaseChrisClient, ChrisClient, FeedRw, PluginInstanceRw, PluginRw};
 use chris::types::{PluginInstanceId, PluginType};
+use chris::{BaseChrisClient, ChrisClient, FeedRw, PluginInstanceRw, PluginRw};
 
 use crate::credentials::{Credentials, NO_ARGS};
-use crate::file_transfer::progress_bar_bytes;
+use crate::file_transfer::{progress_bar_bytes, FileTransferEvent, MultiFileTransferProgress};
 use crate::login::UiUrl;
 use crate::shlex::shlex_quote;
 
@@ -96,7 +97,11 @@ async fn upload_logged_in(
     Ok(())
 }
 
-async fn run_plugins(plugins: Vec<PluginRw>, mut previous_id: Option<PluginInstanceId>, upload_path: String) -> eyre::Result<Vec<PluginInstanceRw>> {
+async fn run_plugins(
+    plugins: Vec<PluginRw>,
+    mut previous_id: Option<PluginInstanceId>,
+    upload_path: String,
+) -> eyre::Result<Vec<PluginInstanceRw>> {
     let mut plinsts = Vec::with_capacity(plugins.len());
     for plugin in plugins {
         let (title, dir) = if matches!(plugin.object.plugin_type, PluginType::Fs | PluginType::Ts) {
@@ -104,9 +109,12 @@ async fn run_plugins(plugins: Vec<PluginRw>, mut previous_id: Option<PluginInsta
         } else {
             (None, None)
         };
-        let params = PluginParameters { title, dir, previous_id };
-        dbg!(&plugin.object.name);
-        let plinst = plugin.create_instance(dbg!(&params)).await?;
+        let params = PluginParameters {
+            title,
+            dir,
+            previous_id,
+        };
+        let plinst = plugin.create_instance(&params).await?;
         previous_id = Some(plinst.object.id);
         plinsts.push(plinst);
     }
@@ -120,17 +128,17 @@ struct PluginParameters<'a> {
     #[serde(skip_serializing_if = "Option::is_none")]
     dir: Option<&'a str>,
     #[serde(skip_serializing_if = "Option::is_none")]
-    previous_id: Option<PluginInstanceId>
+    previous_id: Option<PluginInstanceId>,
 }
 
 async fn upload_all(
     client: &ChrisClient,
-    files: Vec<Utf8PathBuf>,
+    files: Vec<DiscoveredFile>,
     threads: usize,
 ) -> eyre::Result<String> {
     let base = create_upload_root_for(client);
     if files.len() == 1 {
-        upload_single(client, files.into_iter().next().unwrap(), &base).await?;
+        upload_single(client, files.into_iter().next().unwrap().path, &base).await?;
     } else {
         upload_multiple(client, files, &base, threads).await?;
     }
@@ -154,11 +162,72 @@ async fn upload_single(client: &ChrisClient, file: Utf8PathBuf, base: &str) -> e
 /// Upload multiple files with progress bars.
 async fn upload_multiple(
     client: &ChrisClient,
-    files: Vec<Utf8PathBuf>,
+    files: Vec<DiscoveredFile>,
     base: &str,
     threads: usize,
 ) -> eyre::Result<()> {
-    todo!()
+    let (tx, mut rx) = unbounded_channel();
+    let total = files.len() as u64;
+    let transfer_progress_loop = async {
+        let mut transfer_progress =
+            MultiFileTransferProgress::new(total, crate::file_transfer::SIZE_128_MIB);
+        while let Some(event) = rx.recv().await {
+            transfer_progress.update(event)
+        }
+    };
+    let upload_loop = async move {
+        // I am wrapped in an async move to drop tx after all transfers are complete
+        futures::stream::iter(files)
+            .enumerate()
+            .map(Ok::<_, chris::errors::FileIOError>)
+            .try_for_each_concurrent(threads, |(i, file)| {
+                upload_with_events(client, base, file, i, tx.clone())
+            })
+            .await
+    };
+    let (_, result) = join!(transfer_progress_loop, upload_loop);
+    result.map_err(eyre::Error::new)
+}
+
+async fn upload_with_events(
+    client: &ChrisClient,
+    base: &str,
+    file: DiscoveredFile,
+    id: usize,
+    tx: UnboundedSender<FileTransferEvent>,
+) -> Result<(), chris::errors::FileIOError> {
+    let file_name = file
+        .path
+        .file_name()
+        .unwrap_or(file.path.as_str())
+        .to_string();
+    let rel = pathdiff::diff_utf8_paths(&file.path, &file.src)
+        .map(|p| p.to_string())
+        .unwrap_or_else(|| file.path.to_string());
+    let upload_name = format!("{}/{}", base, rel);
+    let content_length = fs_err::tokio::metadata(&file.path).await?.len();
+    let open_file = fs_err::tokio::File::open(&file.path).await?;
+    let chunk_tx = tx.clone();
+    let stream = FramedRead::new(open_file, BytesCodec::new()).map_ok(move |chunk| {
+        chunk_tx
+            .send(FileTransferEvent::Chunk {
+                id,
+                delta: chunk.len() as u64,
+            })
+            .unwrap();
+        chunk
+    });
+    tx.send(FileTransferEvent::Start {
+        id,
+        name: file_name.to_string(),
+        size: content_length,
+    })
+    .unwrap();
+    client
+        .upload_stream(stream, file_name, upload_name, content_length)
+        .await?;
+    tx.send(FileTransferEvent::Done(id)).unwrap();
+    Ok(())
 }
 
 fn create_upload_root_for(client: &ChrisClient) -> String {
@@ -230,8 +299,16 @@ async fn get_plinst_of_feed(client: &ChrisClient, feed: &FeedRw) -> eyre::Result
         .ok_or_else(|| eyre!("Feed does not contain plugin instances. This is a CUBE bug."))
 }
 
+/// A file to be uploaded.
+struct DiscoveredFile {
+    /// The path to the file
+    path: Utf8PathBuf,
+    /// Positional argument path which this file was discovered under
+    src: Utf8PathBuf,
+}
+
 /// Collect all files in a set of paths.
-async fn discover_files(paths: Vec<Utf8PathBuf>) -> Result<Vec<Utf8PathBuf>, std::io::Error> {
+async fn discover_files(paths: Vec<Utf8PathBuf>) -> Result<Vec<DiscoveredFile>, std::io::Error> {
     let either_file_or_dir: Vec<(std::fs::Metadata, Utf8PathBuf)> = futures::stream::iter(paths)
         .map(|p| async move { fs_err::tokio::metadata(&p).await.map(|m| (m, p)) })
         .map(Ok::<_, std::io::Error>)
@@ -242,26 +319,31 @@ async fn discover_files(paths: Vec<Utf8PathBuf>) -> Result<Vec<Utf8PathBuf>, std
         .iter()
         .filter_map(|(m, p)| if m.is_dir() { Some(p) } else { None });
     let mut subdir_files = futures::stream::iter(dirs)
-        .flat_map_unordered(None, WalkDir::new)
+        .flat_map_unordered(None, |src| {
+            WalkDir::new(src).map_ok(|entry| (src.as_path(), entry))
+        })
         .try_fold(vec![], file_entries_reducer)
         .await?;
-    let files = either_file_or_dir.into_iter().filter_map(
-        |(m, p)| {
-            if m.is_file() {
-                Some(p)
+    let files = either_file_or_dir
+        .into_iter()
+        .filter_map(|(metadata, path)| {
+            if metadata.is_file() {
+                Some(DiscoveredFile {
+                    src: path.clone(),
+                    path,
+                })
             } else {
                 None
             }
-        },
-    );
+        });
     subdir_files.extend(files);
     Ok(subdir_files)
 }
 
 async fn file_entries_reducer(
-    mut all_files: Vec<Utf8PathBuf>,
-    entry: async_walkdir::DirEntry,
-) -> Result<Vec<Utf8PathBuf>, std::io::Error> {
+    mut all_files: Vec<DiscoveredFile>,
+    (src, entry): (&Utf8Path, async_walkdir::DirEntry),
+) -> Result<Vec<DiscoveredFile>, std::io::Error> {
     let file_type = entry.file_type().await?;
     let path = Utf8PathBuf::from_path_buf(entry.path()).map_err(|_| {
         std::io::Error::new(
@@ -270,7 +352,10 @@ async fn file_entries_reducer(
         )
     })?;
     if file_type.is_file() {
-        all_files.push(path);
+        all_files.push(DiscoveredFile {
+            src: src.to_path_buf(),
+            path,
+        });
     }
     Ok(all_files)
 }

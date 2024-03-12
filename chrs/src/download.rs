@@ -225,8 +225,6 @@ async fn open(path: impl AsRef<Path>, args: &DownloadArgs) -> std::io::Result<Fi
     }
 }
 
-const SIZE_128_MIB: u64 = 134217728;
-
 async fn download_many_files(
     ro_client: &RoClient,
     files: Files,
@@ -243,7 +241,8 @@ async fn download_many_files(
 
     let (progress_tx, mut progress_rx) = unbounded_channel();
     let transfer_progress_loop = async {
-        let mut transfer_progress = MultiFileTransferProgress::new(count, SIZE_128_MIB);
+        let mut transfer_progress =
+            MultiFileTransferProgress::new(count, crate::file_transfer::SIZE_128_MIB);
         while let Some(event) = progress_rx.recv().await {
             transfer_progress.update(event)
         }
