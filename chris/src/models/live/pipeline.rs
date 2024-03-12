@@ -1,7 +1,10 @@
-use crate::search::Search;
-use crate::{LinkedModel, PipelineResponse, RoAccess, RwAccess, WorkflowResponse};
 use crate::errors::CubeError;
+use crate::search::Search;
 use crate::types::PluginInstanceId;
+use crate::{
+    Access, LinkedModel, PipelineResponse, PluginInstanceResponse, RoAccess, RwAccess,
+    WorkflowResponse,
+};
 
 /// A _ChRIS_ pipeline.
 pub type Pipeline<A> = LinkedModel<PipelineResponse, A>;
@@ -19,10 +22,14 @@ impl PipelineRw {
     }
 
     /// Run this pipeline.
-    pub async fn create_workflow(&self, prev: PluginInstanceId, title: Option<&str>) -> Result<LinkedModel<WorkflowResponse, RwAccess>, CubeError> {
+    pub async fn create_workflow(
+        &self,
+        prev: PluginInstanceId,
+        title: Option<&str>,
+    ) -> Result<LinkedModel<WorkflowResponse, RwAccess>, CubeError> {
         let body = CreateWorkflow {
             previous_plugin_inst_id: prev,
-            title
+            title,
         };
         self.post(&self.object.workflows, &body).await
     }
@@ -33,4 +40,13 @@ struct CreateWorkflow<'a> {
     previous_plugin_inst_id: PluginInstanceId,
     title: Option<&'a str>,
     // nodes_info: idk
+}
+
+pub type Workflow<A> = LinkedModel<WorkflowResponse, A>;
+
+impl<A: Access> Workflow<A> {
+    /// Get plugin instance of this workflow.
+    pub fn plugin_instances(&self) -> Search<PluginInstanceResponse, A> {
+        self.get_collection(&self.object.plugin_instances)
+    }
 }

@@ -1,7 +1,7 @@
-use crate::types::{FeedId, PipelineId, PluginId, PluginInstanceId};
+use crate::types::{FeedId, PipelineId, PluginId, PluginInstanceId, Username, WorkflowId};
 use crate::{
     Access, FeedFileResponse, FeedResponse, PipelineResponse, PluginInstanceResponse,
-    PluginResponse,
+    PluginResponse, WorkflowResponse,
 };
 
 use super::query::QueryBuilder;
@@ -89,6 +89,11 @@ impl<A: Access> PluginInstanceSearchBuilder<A> {
     pub fn plugin_version(self, plugin_version: impl Into<String>) -> Self {
         self.add_string("plugin_version", plugin_version)
     }
+
+    /// Search for plugin instance by workflow_id
+    pub fn workflow_id(self, workflow_id: WorkflowId) -> Self {
+        self.add_u32("workflow_id", workflow_id.0)
+    }
 }
 
 /// Pipeline search query
@@ -143,5 +148,30 @@ impl<A: Access> FilesSearchBuilder<A> {
     /// Search for files by number of slashes in fname.
     pub fn fname_nslashes(self, fname_nslashes: u32) -> Self {
         self.add_u32("fname_nslashes", fname_nslashes)
+    }
+}
+
+/// Workflow search query
+pub type WorkflowSearchBuilder<A> = QueryBuilder<WorkflowResponse, A>;
+
+impl<A: Access> WorkflowSearchBuilder<A> {
+    /// Search for workflow by ID
+    pub fn id(self, id: WorkflowId) -> Self {
+        self.add_u32("id", id.0)
+    }
+
+    /// Search for workflow by title
+    pub fn title(self, title: impl Into<String>) -> Self {
+        self.add_string("title", title)
+    }
+
+    /// Search for workflow by pipeline name
+    pub fn pipeline_name(self, pipeline_name: impl Into<String>) -> Self {
+        self.add_string("pipeline_name", pipeline_name)
+    }
+
+    /// Search for workflow by owner_username
+    pub fn owner_username(self, owner_username: &Username) -> Self {
+        self.add_string("owner_username", owner_username.as_str())
     }
 }

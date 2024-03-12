@@ -2,7 +2,7 @@ use std::collections::HashMap;
 use std::path::PathBuf;
 
 use clap::Parser;
-use color_eyre::eyre::{eyre, WrapErr};
+use color_eyre::eyre::{eyre, OptionExt, WrapErr};
 use color_eyre::owo_colors::OwoColorize;
 use color_eyre::{eyre, eyre::bail};
 use futures::{StreamExt, TryStreamExt};
@@ -13,7 +13,7 @@ use chris::types::{
     ComputeResourceName, CubeUrl, PluginInstanceId, PluginParameterValue, Username,
 };
 use chris::{
-    BaseChrisClient, ChrisClient, EitherClient, FeedRw, PipelineRw, PluginInstanceResponse,
+    BaseChrisClient, ChrisClient, EitherClient, PipelineRw, PluginInstanceResponse,
     PluginInstanceRw, PluginRw,
 };
 
@@ -73,7 +73,7 @@ pub struct RunArgs {
     #[clap(short = 'j', long, default_value_t = 4)]
     threads: usize,
 
-    /// Parameters
+    /// Plugin parameters and/or plugin/pipeline inputs
     parameters: Vec<String>,
 }
 
@@ -90,8 +90,9 @@ pub async fn run_command(credentials: Credentials, args: RunArgs) -> eyre::Resul
             "chrs login".bold()
         ))
     }?;
-    if let Some(id) = run(&client, dbg!(old), ui, args).await? {
+    if let Some(id) = run(&client, old, ui, args).await? {
         set_cd(client.url(), client.username(), id, credentials.config_path)?;
+        println!("plugininstance/{}", id.0);
     }
     Ok(())
 }
@@ -109,12 +110,12 @@ async fn run(
         .await?;
     let plinst = match runnable {
         Runnable::Plugin(p) => run_plugin(client, p, old, args).await,
-        Runnable::Pipeline(p) => todo!(),
+        Runnable::Pipeline(p) => run_pipeline(client, p, old, args).await,
     }?;
     if let (Some(ui), Some(plinst)) = (ui, plinst.as_ref()) {
         let feed = plinst.feed().get().await?;
         let feed_ui_url = ui.feed_url_of(&feed.object);
-        println!("{}", feed_ui_url);
+        eprintln!("{}", feed_ui_url);
     }
     Ok(plinst.map(|p| p.object.id))
 }
@@ -141,12 +142,29 @@ async fn run_plugin(
     }
 }
 
-// async fn run_pipeline(
-//     client: &ChrisClient,
-//     pipeline: PipelineRw,
-//     old: Option<PluginInstanceId>,
-//     args: RunArgs,
-// ) -> eyre::Result<Option<PluginInstanceRw>> {}
+async fn run_pipeline(
+    client: &ChrisClient,
+    pipeline: PipelineRw,
+    old: Option<PluginInstanceId>,
+    args: RunArgs,
+) -> eyre::Result<Option<PluginInstanceRw>> {
+    let inputs: Vec<GivenDataNode> = args.parameters.into_iter().map(|p| p.into()).collect();
+    let prev = get_input(client, old, inputs, args.threads)
+        .await?
+        .ok_or_eyre("Missing operand")?;
+    if !args.force {
+        check_title(client, Some(&prev), args.title.as_deref()).await?;
+    }
+    let workflow = pipeline
+        .create_workflow(prev.object.id, args.title.as_deref())
+        .await?;
+    // get the "last" plugin instance created by the workflow. Assumes CUBE returns the plugin instances in order.
+    workflow
+        .plugin_instances()
+        .get_first()
+        .await
+        .map_err(eyre::Error::new)
+}
 
 /// Create a plugin instance. If the plugin is a fs-type plugin, then the created feed name
 /// is set to the plugin instance's title.
@@ -256,8 +274,7 @@ fn set_cd(
     config_path: Option<PathBuf>,
 ) -> eyre::Result<()> {
     let mut sessions = ChrsSessions::load(config_path.as_deref())?;
-    dbg!(&sessions.sessions);
-    if dbg!(sessions.set_plugin_instance(cube_url, username, id)) {
+    if sessions.set_plugin_instance(cube_url, username, id) {
         sessions.save(config_path.as_deref())?;
     }
     Ok(())
@@ -376,10 +393,11 @@ fn quoted_title_of_plinst_response(p: &PluginInstanceResponse) -> String {
 
 #[cfg(test)]
 mod tests {
+    use std::collections::HashSet;
+
     use fake::Fake;
     use futures::TryStreamExt;
     use rstest::*;
-    use std::collections::HashSet;
     use tempfile::TempDir;
 
     use chris::Account;
@@ -670,6 +688,35 @@ mod tests {
         .map(|id| id.0.to_string())
         .collect();
         assert_eq!(joined_ids, expected);
+
+        let pipeline_name = "A pipeline to unstack directories and do nothing";
+        let seventh_title = uuid_name("seventh title");
+        run_command(
+            credentials.clone(),
+            create_args(Some(seventh_title.clone()), pipeline_name, &[]),
+        )
+        .await
+        .unwrap();
+        let workflow_instance = client
+            .workflows()
+            .pipeline_name(pipeline_name)
+            .owner_username(client.username())
+            .search()
+            .get_only()
+            .await
+            .expect("Test user account should have created exactly one workflow.");
+        let workflow_plinst_count = client
+            .plugin_instances()
+            .feed_id(sixth_plinst.object.feed_id)
+            .workflow_id(workflow_instance.object.id)
+            .search()
+            .get_count()
+            .await
+            .unwrap();
+        assert_eq!(
+            workflow_plinst_count, 2,
+            "Workflow should have created 2 plugin instances in the current feed."
+        );
     }
 
     fn uuid_name(name: &str) -> String {
@@ -680,7 +727,7 @@ mod tests {
         )
     }
 
-    fn create_args(title: Option<String>, plugin: &str, args: &[&str]) -> RunArgs {
+    fn create_args(title: Option<String>, plugin_or_pipeline: &str, args: &[&str]) -> RunArgs {
         RunArgs {
             cpu: None,
             cpu_limit: None,
@@ -691,7 +738,7 @@ mod tests {
             title,
             force: false,
             dry_run: false,
-            plugin_or_pipeline: GivenRunnable::try_from(plugin.to_string()).unwrap(),
+            plugin_or_pipeline: GivenRunnable::try_from(plugin_or_pipeline.to_string()).unwrap(),
             threads: 4,
             parameters: args.into_iter().map(|s| s.to_string()).collect(),
         }
