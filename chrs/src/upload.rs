@@ -212,9 +212,7 @@ async fn upload_with_events(
         .file_name()
         .unwrap_or(file.path.as_str())
         .to_string();
-    let rel = pathdiff::diff_utf8_paths(&file.path, &file.src)
-        .map(|p| p.to_string())
-        .unwrap_or_else(|| file.path.to_string());
+    let rel = file.to_relative();
     let upload_name = format!("{}/{}", base, rel);
     let content_length = fs_err::tokio::metadata(&file.path).await?.len();
     let open_file = fs_err::tokio::File::open(&file.path).await?;
@@ -324,6 +322,18 @@ struct DiscoveredFile {
     src: Utf8PathBuf,
 }
 
+impl DiscoveredFile {
+    fn to_relative(&self) -> String {
+        if self.path == self.src {
+            self.path.file_name().unwrap_or(self.path.as_str()).to_string()
+        } else {
+            pathdiff::diff_utf8_paths(&self.path, &self.src)
+                .map(|p| p.to_string())
+                .unwrap_or_else(|| self.path.to_string())
+        }
+    }
+}
+
 /// Collect all files in a set of paths.
 async fn discover_files(paths: Vec<Utf8PathBuf>) -> Result<Vec<DiscoveredFile>, std::io::Error> {
     let either_file_or_dir: Vec<(std::fs::Metadata, Utf8PathBuf)> = futures::stream::iter(paths)
@@ -417,4 +427,24 @@ async fn find_plugins(
         plugins.push(second_plugin);
     }
     Ok(plugins)
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use rstest::*;
+
+    #[rstest]
+    #[case("a", "a", "a")]
+    #[case("a/b", "a/b", "b")]
+    #[case("a", "a/b", "b")]
+    #[case("a", "a/b/c", "b/c")]
+    fn test_discovered_file_to_relative(#[case] src: &str, #[case] path: &str, #[case] expected: &str) {
+        let discovered = DiscoveredFile {
+            path: Utf8PathBuf::from(path),
+            src: Utf8PathBuf::from(src)
+        };
+        let actual = discovered.to_relative();
+        assert_eq!(&actual, expected);
+    }
 }
