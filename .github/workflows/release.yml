@@ -92,6 +92,9 @@ jobs:
         with:
           bin: chrs
           target: ${{ matrix.target }}
+          # default archive name supported by cargo-binstall
+          # https://github.com/cargo-bins/cargo-binstall/blob/cf2473129b56806bdcbe07a6dd1b61ca33fc6c23/SUPPORT.md#defaults
+          archive: $bin-$target-$tag
           token: ${{ secrets.GITHUB_TOKEN }}
           no-default-features: ${{ matrix.no-default-features == 'true' }}
 
