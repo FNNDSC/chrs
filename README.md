@@ -1,7 +1,7 @@
 # _ChRIS_ Client (Rust)
 
 [![MIT License](https://img.shields.io/github/license/FNNDSC/chrs)](https://github.com/FNNDSC/chrs/blob/master/LICENSE)
-[![Test](https://github.com/FNNDSC/chrs/actions/workflows/test.yml/badge.svg)](https://github.com/FNNDSC/chrs/actions/workflows/test.yml)
+[![Test chrs (bin)](https://github.com/FNNDSC/chrs/actions/workflows/test-chrs.yml/badge.svg)](https://github.com/FNNDSC/chrs/actions/workflows/test-chrs.yml)
 [![codecov](https://codecov.io/gh/FNNDSC/chrs/branch/master/graph/badge.svg?token=UOYL5NPYIP)](https://codecov.io/gh/FNNDSC/chrs)
 
 This workspace provides:
