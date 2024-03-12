@@ -1,4 +1,3 @@
-use std::os::unix::prelude::MetadataExt;
 use std::path::Path;
 use std::sync::Arc;
 
@@ -197,7 +196,7 @@ async fn download_single_file(
     let only_file = files.get_only().await?;
     let existing_metadata = fs_err::tokio::metadata(&dst).await;
     if let Ok(metadata) = existing_metadata {
-        if args.skip_existing && metadata.size() == only_file.object.fsize() {
+        if args.skip_existing && metadata.len() == only_file.object.fsize() {
             return Ok(0);
         }
     }
