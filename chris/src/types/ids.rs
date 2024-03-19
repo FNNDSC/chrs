@@ -44,3 +44,7 @@ pub struct ComputeResourceId(pub u32);
 /// Feed file ID
 #[derive(Copy, Clone, Shrinkwrap, Serialize, Deserialize, Debug, Hash, Eq, PartialEq)]
 pub struct FeedFileId(pub u32);
+
+/// PACSFile ID
+#[derive(Copy, Clone, Shrinkwrap, Serialize, Deserialize, Debug, Hash, Eq, PartialEq)]
+pub struct PacsFileId(pub u32);

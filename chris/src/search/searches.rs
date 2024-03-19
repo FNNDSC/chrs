@@ -1,7 +1,9 @@
-use crate::types::{FeedId, PipelineId, PluginId, PluginInstanceId, Username, WorkflowId};
+use crate::types::{
+    FeedId, PacsFileId, PipelineId, PluginId, PluginInstanceId, Username, WorkflowId,
+};
 use crate::{
-    Access, FeedFileResponse, FeedResponse, PipelineResponse, PluginInstanceResponse,
-    PluginResponse, WorkflowResponse,
+    Access, FeedFileResponse, FeedResponse, PacsFileResponse, PipelineResponse,
+    PluginInstanceResponse, PluginResponse, WorkflowResponse,
 };
 
 use super::query::QueryBuilder;
@@ -173,5 +175,82 @@ impl<A: Access> WorkflowSearchBuilder<A> {
     /// Search for workflow by owner_username
     pub fn owner_username(self, owner_username: &Username) -> Self {
         self.add_string("owner_username", owner_username.as_str())
+    }
+}
+
+/// PACSFiles search query
+pub type PacsFilesSearchBuilder<A> = QueryBuilder<PacsFileResponse, A>;
+
+impl<A: Access> PacsFilesSearchBuilder<A> {
+    /// Search for PACSFile by ID
+    pub fn id(self, id: PacsFileId) -> Self {
+        self.add_u32("id", id.0)
+    }
+    pub fn fname(self, fname: impl Into<String>) -> Self {
+        self.add_string("fname", fname)
+    }
+    pub fn fname_exact(self, fname_exact: impl Into<String>) -> Self {
+        self.add_string("fname_exact", fname_exact)
+    }
+    pub fn fname_icontains(self, fname_icontains: impl Into<String>) -> Self {
+        self.add_string("fname_icontains", fname_icontains)
+    }
+    pub fn fname_icontains_topdir_unique(
+        self,
+        fname_icontains_topdir_unique: impl Into<String>,
+    ) -> Self {
+        self.add_string(
+            "fname_icontains_topdir_unique",
+            fname_icontains_topdir_unique,
+        )
+    }
+    pub fn fname_nslashes(self, fname_nslashes: u32) -> Self {
+        self.add_u32("fname_nslashes", fname_nslashes)
+    }
+    pub fn patient_id(self, patient_id: impl Into<String>) -> Self {
+        self.add_string("PatientID", patient_id)
+    }
+    pub fn patient_name(self, patient_name: impl Into<String>) -> Self {
+        self.add_string("PatientName", patient_name)
+    }
+    pub fn patient_sex(self, patient_sex: impl Into<String>) -> Self {
+        self.add_string("PatientSex", patient_sex)
+    }
+    pub fn patient_age(self, age_in_days: u32) -> Self {
+        // maybe accept duration instead?
+        self.add_u32("PatientAge", age_in_days)
+    }
+    pub fn min_patient_age(self, age_in_days: u32) -> Self {
+        self.add_u32("min_PatientAge", age_in_days)
+    }
+    pub fn max_patient_age(self, age_in_days: u32) -> Self {
+        self.add_u32("max_PatientAge", age_in_days)
+    }
+    pub fn patient_birth_date(self, patient_birth_date: impl Into<String>) -> Self {
+        self.add_string("PatientBirthDate", patient_birth_date)
+    }
+    pub fn study_date(self, study_date: impl Into<String>) -> Self {
+        self.add_string("StudyDate", study_date)
+    }
+    pub fn accession_number(self, accession_number: impl Into<String>) -> Self {
+        self.add_string("AccessionNumber", accession_number)
+    }
+    pub fn protocol_name(self, protocol_name: impl Into<String>) -> Self {
+        self.add_string("ProtocolName", protocol_name)
+    }
+    pub fn study_instance_uid(self, study_instance_uid: impl Into<String>) -> Self {
+        self.add_string("StudyInstanceUID", study_instance_uid)
+    }
+    pub fn study_description(self, study_description: impl Into<String>) -> Self {
+        self.add_string("StudyDescription", study_description)
+    }
+    pub fn series_instance_uid(self, series_instance_uid: impl Into<String>) -> Self {
+        self.add_string("SeriesInstanceUID", series_instance_uid)
+    }
+    pub fn series_description(self, series_description: impl Into<String>) -> Self {
+        self.add_string("SeriesDescription", series_description)
+    }
+    pub fn pacs_identifier(self, pacs_identifier: impl Into<String>) -> Self {
+        self.add_string("pacs_identifier", pacs_identifier)
     }
 }

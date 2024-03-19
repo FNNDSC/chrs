@@ -166,8 +166,14 @@ impl<A: Access> AuthedChrisClient<A> {
         self.query(&self.links.files)
     }
 
+    /// Search for workflows
     pub fn workflows(&self) -> WorkflowSearchBuilder<A> {
         self.query(&self.links.workflows)
+    }
+
+    /// Search for PACSFiles
+    pub fn pacsfiles(&self) -> PacsFilesSearchBuilder<A> {
+        self.query(&self.links.pacsfiles)
     }
 
     // ==================================================
