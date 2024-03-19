@@ -162,7 +162,7 @@ async fn test_count_and_lazy_setters(
     Ok(())
 }
 
-async fn count_feeds_with_name(client: &ChrisClient, name: &str) -> u32 {
+async fn count_feeds_with_name(client: &ChrisClient, name: &str) -> usize {
     client
         .feeds()
         .name_exact(name)

@@ -68,7 +68,7 @@ impl<R: DeserializeOwned, A: Access> ActualSearch<R, A> {
     }
 
     /// See [Search::get_count]
-    async fn get_count(&self) -> Result<u32, CubeError> {
+    async fn get_count(&self) -> Result<usize, CubeError> {
         let res = self.get_search().query(&LIMIT_ONE).send().await?;
         let data: HasCount = check(res).await?.json().await?;
         Ok(data.count)
@@ -209,7 +209,7 @@ impl<R: DeserializeOwned, A: Access> Search<R, A> {
     }
 
     /// Get the count of items in this collection.
-    pub async fn get_count(&self) -> Result<u32, CubeError> {
+    pub async fn get_count(&self) -> Result<usize, CubeError> {
         if let Some(search) = &self.actual {
             search.get_count().await
         } else {
@@ -349,5 +349,5 @@ pub(crate) const LIMIT_ONE: PaginationQuery = PaginationQuery {
 /// A HTTP JSON response which has a count field.
 #[derive(Deserialize)]
 struct HasCount {
-    count: u32,
+    count: usize,
 }
