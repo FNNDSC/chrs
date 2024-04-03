@@ -86,7 +86,7 @@ impl CubeState {
                         format!(
                             "Could not save token to keyring. Please try again with: `{}`",
                             format!(
-                                "chrs login --cube={} --username={} --token={}",
+                                "chrs login --cube={} --username={} --token={} --no-keyring",
                                 &self.cube, &self.username, token
                             )
                             .bold()
