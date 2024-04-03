@@ -86,15 +86,17 @@ impl CubeState {
                     entry
                         .set_password(token)
                         .wrap_err("Could not save token to keyring.")
-                        .suggestion(format!(
-                            "Try using the {} option. \n\n\t{}",
-                            "--no-keyring".bold(),
+                        .with_suggestion(|| {
                             format!(
-                                "chrs login --cube={} --username={} --token={} --no-keyring",
-                                &self.cube, &self.username, token
+                                "Try using the {} option. \n\n\t{}",
+                                "--no-keyring".bold(),
+                                format!(
+                                    "chrs login --cube={} --username={} --token={} --no-keyring",
+                                    &self.cube, &self.username, token
+                                )
+                                .bold()
                             )
-                            .bold()
-                        ))?;
+                        })?;
                     StoredToken::Keyring
                 }
             }

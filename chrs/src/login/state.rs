@@ -2,6 +2,7 @@ use crate::login::store::{Backend, CubeState, SavedCubeState};
 use chris::types::{CubeUrl, PluginInstanceId, Username};
 use color_eyre::eyre::{Result, WrapErr};
 use color_eyre::owo_colors::OwoColorize;
+use color_eyre::Section;
 use serde::{Deserialize, Serialize};
 use std::path::Path;
 
@@ -113,7 +114,14 @@ impl ChrsSessions {
         } else {
             confy::load(APP_NAME, None)
         };
-        result.wrap_err_with(|| format!("Could not load config file. If chrs was upgraded from an old version, please run `{}`", "rm -rf ~/.config/chrs".bold()))
+        result
+            .wrap_err("Could not load config file. ")
+            .with_suggestion(|| {
+                format!(
+                    "If chrs was upgraded from an old version, please run `{}`",
+                    "rm -rf ~/.config/chrs".bold()
+                )
+            })
     }
 
     /// Write config to file.

@@ -1,6 +1,6 @@
-use color_eyre::eyre;
 use color_eyre::eyre::{eyre, Context};
 use color_eyre::owo_colors::OwoColorize;
+use color_eyre::{eyre, Section};
 use reqwest_middleware::Middleware;
 use reqwest_retry::{
     policies::ExponentialBackoff, RetryTransientMiddleware, Retryable, RetryableStrategy,
@@ -194,16 +194,19 @@ async fn get_authed_client(
             .connect()
             .await
     };
-    result.map(EitherClient::LoggedIn).wrap_err_with(|| {
-        format!(
-            "Could not log in. The saved token might have expired, please run {}",
+    result
+        .map(EitherClient::LoggedIn)
+        .wrap_err("Could not log in. The authorization token might have expired.")
+        .with_suggestion(|| {
             format!(
-                "chrs logout --cube \"{}\" --username \"{}\"",
-                &cube_url, &username
+                "Try logging out.\n\n\t{}",
+                format!(
+                    "chrs logout --cube \"{}\" --username \"{}\"",
+                    &cube_url, &username
+                )
+                .bold()
             )
-            .bold()
-        )
-    })
+        })
 }
 
 fn handle_error(error: chris::reqwest::Error, url: &CubeUrl) -> eyre::Error {
