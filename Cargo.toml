@@ -12,3 +12,6 @@ members = [
 strip = "symbols"
 lto = "fat"
 codegen-units = 1
+
+[profile.dev.package.backtrace]
+opt-level = 3

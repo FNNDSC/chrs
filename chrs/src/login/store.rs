@@ -6,6 +6,7 @@ use crate::login::ui::UiUrl;
 use chris::types::{CubeUrl, PluginInstanceId, Username};
 use color_eyre::eyre::{Result, WrapErr};
 use color_eyre::owo_colors::OwoColorize;
+use color_eyre::Section;
 use serde::{Deserialize, Serialize};
 
 /// Supported mechanisms for storing secrets.
@@ -82,16 +83,18 @@ impl CubeState {
                 Backend::ClearText => StoredToken::Text(token.to_string()),
                 Backend::Keyring => {
                     let entry = keyring::Entry::new(service, &self.to_keyring_username())?;
-                    entry.set_password(token).wrap_err_with(|| {
-                        format!(
-                            "Could not save token to keyring. Please try again with: `{}`",
+                    entry
+                        .set_password(token)
+                        .wrap_err("Could not save token to keyring.")
+                        .suggestion(format!(
+                            "Try using the {} option. \n\n\t{}",
+                            "--no-keyring".bold(),
                             format!(
                                 "chrs login --cube={} --username={} --token={} --no-keyring",
                                 &self.cube, &self.username, token
                             )
                             .bold()
-                        )
-                    })?;
+                        ))?;
                     StoredToken::Keyring
                 }
             }

@@ -182,7 +182,14 @@ enum Commands {
 
 #[tokio::main]
 async fn main() -> color_eyre::eyre::Result<()> {
+    #[cfg(debug_assertions)]
     color_eyre::install()?;
+    #[cfg(not(debug_assertions))]
+    color_eyre::config::HookBuilder::default()
+        // .issue_url(concat!(env!("CARGO_PKG_REPOSITORY"), "/issues/new"))
+        // .add_issue_metadata("version", env!("CARGO_PKG_VERSION"))
+        .display_location_section(false)
+        .install()?;
 
     let args: Cli = Cli::parse();
     let credentials = Credentials {
