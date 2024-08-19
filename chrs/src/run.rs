@@ -328,7 +328,7 @@ async fn topologicalcopy(
     let previous_ids: Vec<_> = futures::stream::iter(given)
         .map(|p| async move { p.into_plinst_rw(client, old).await.map(|p| p.object) })
         .map(Ok::<_, eyre::Error>)
-        .try_buffer_unordered(threads)
+        .try_buffered(threads)
         .try_collect()
         .await?;
     let topologicalcopy = client
