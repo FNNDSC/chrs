@@ -325,7 +325,7 @@ async fn topologicalcopy(
     given: Vec<GivenDataNode>,
     threads: usize,
 ) -> eyre::Result<PluginInstanceRw> {
-    let previous_ids: Vec<_> = futures::stream::iter(given)
+    let previous: Vec<_> = futures::stream::iter(given)
         .map(|p| async move { p.into_plinst_rw(client, old).await.map(|p| p.object) })
         .map(Ok::<_, eyre::Error>)
         .try_buffered(threads)
@@ -339,7 +339,7 @@ async fn topologicalcopy(
         .get_only()
         .await
         .wrap_err("pl-topologicalcopy@1.0.2 not found")?;
-    let params = TopologicalCopyParameters::new(&previous_ids);
+    let params = TopologicalCopyParameters::new(&previous);
     let created = topologicalcopy.create_instance(&params).await?;
     Ok(created)
 }
