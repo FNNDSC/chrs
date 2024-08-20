@@ -8,7 +8,7 @@ use crate::{
 use async_trait::async_trait;
 
 /// Either an anonymous client or a logged in user. A shoddy workaround for combining how enums
-/// work and how [AccessRw] and [AccessRo] could be represented using an enum.
+/// work and how [crate::RwAccess] and [RoAccess] could be represented using an enum.
 pub enum EitherClient {
     Anon(AnonChrisClient),
     LoggedIn(ChrisClient),

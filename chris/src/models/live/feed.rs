@@ -41,7 +41,7 @@ impl<A: Access> Note<A> {
 }
 
 impl Note<RwAccess> {
-    /// Set the note
+    /// Set the note.
     pub async fn set(
         self,
         title: impl AsRef<str>,
@@ -56,7 +56,7 @@ impl Note<RwAccess> {
 }
 
 impl LazyNote<'_, RwAccess> {
-    /// Set the note
+    /// Set the note.
     pub async fn set(
         self,
         title: impl AsRef<str>,

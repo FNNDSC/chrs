@@ -20,7 +20,7 @@ impl PluginRw {
     /// Get compute resource this plugin can run on.
     ///
     /// Note: only allowed to call this if logged in.
-    /// See https://github.com/FNNDSC/ChRIS_ultron_backEnd/issues/540
+    /// See <https://github.com/FNNDSC/ChRIS_ultron_backEnd/issues/540>
     pub fn compute_resources(&self) -> Search<ComputeResourceResponse, RwAccess> {
         self.get_collection(&self.object.compute_resources)
     }

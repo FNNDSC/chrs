@@ -98,6 +98,7 @@ pub struct PluginResponse {
     pub compute_resources: CollectionUrl,
 }
 
+/// _CUBE_ feed data.
 #[derive(Deserialize)]
 pub struct FeedResponse {
     pub url: ItemUrl,
@@ -207,7 +208,7 @@ impl PluginInstanceResponse {
     }
 }
 
-/// See https://github.com/FNNDSC/ChRIS_ultron_backEnd/blob/01b2928f65738d4266d210d80dc02eba3e530b20/chris_backend/plugininstances/services/manager.py#L862-L885
+/// See <https://github.com/FNNDSC/ChRIS_ultron_backEnd/blob/01b2928f65738d4266d210d80dc02eba3e530b20/chris_backend/plugininstances/services/manager.py#L862-L885>
 #[derive(Deserialize, Debug)]
 #[serde(rename_all = "camelCase")]
 pub struct PluginInstanceSummary {
@@ -285,6 +286,7 @@ pub struct WorkflowResponse {
     pub plugin_instances: CollectionUrl,
 }
 
+/// _CUBE_ compute resource data.
 #[derive(Debug, Deserialize)]
 pub struct ComputeResourceResponse {
     pub url: ItemUrl,

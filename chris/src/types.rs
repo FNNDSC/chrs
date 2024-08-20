@@ -1,3 +1,5 @@
+//! _ChRIS_ related type definitions.
+
 mod cube_url;
 mod enums;
 mod ids;

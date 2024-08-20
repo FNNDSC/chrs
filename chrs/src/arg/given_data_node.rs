@@ -183,7 +183,7 @@ impl GivenDataNode {
     /// ## Limitations
     ///
     /// Does not work in some cases for anonymous users.
-    /// See https://github.com/FNNDSC/ChRIS_ultron_backEnd/issues/530
+    /// See <https://github.com/FNNDSC/ChRIS_ultron_backEnd/issues/530>
     pub async fn into_plinst_either(
         self,
         client: &EitherClient,
@@ -225,7 +225,7 @@ impl GivenDataNode {
     /// ## Limitations
     ///
     /// Does not work in some cases for anonymous users.
-    /// See https://github.com/FNNDSC/ChRIS_ultron_backEnd/issues/530
+    /// See <https://github.com/FNNDSC/ChRIS_ultron_backEnd/issues/530>
     pub async fn into_path(
         self,
         client: &EitherClient,
@@ -311,7 +311,7 @@ async fn get_feedid_by_name(client: &ChrisClient, name: String) -> eyre::Result<
 /// In the case of anonymous access, it's trivial.
 ///
 /// For authenticated client, it is necessary to search both public feeds and private feeds separately.
-/// See https://github.com/FNNDSC/ChRIS_ultron_backEnd/issues/530
+/// See <https://github.com/FNNDSC/ChRIS_ultron_backEnd/issues/530>
 async fn get_feedro_by_name(client: &EitherClient, name: &str) -> color_eyre::Result<FeedRo> {
     let feeds: Vec<_> = match client {
         EitherClient::Anon(c) => {

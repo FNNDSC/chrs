@@ -124,7 +124,7 @@ async fn cmd_of(plinst: &PluginInstanceRo, show_execshell: bool) -> Result<Strin
 }
 
 /// Somewhat equivalent to
-/// https://github.com/FNNDSC/ChRIS_ultron_backEnd/blob/01b2928f65738d4266d210d80dc02eba3e530b20/chris_backend/plugininstances/services/manager.py#L399-L405
+/// <https://github.com/FNNDSC/ChRIS_ultron_backEnd/blob/01b2928f65738d4266d210d80dc02eba3e530b20/chris_backend/plugininstances/services/manager.py#L399-L405>
 fn format_param(param: PluginParameter, value: PluginParameterValue) -> Option<String> {
     match param.action {
         PluginParameterAction::Store => Some(format!(

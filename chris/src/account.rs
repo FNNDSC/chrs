@@ -34,7 +34,7 @@ struct CreateUserData<'a> {
 }
 
 /// CUBE username and password struct.
-/// [Account] is a builder for [ChrisClient].
+/// [Account] is a builder for [crate::ChrisClient].
 pub struct Account<'a> {
     pub client: reqwest::Client,
     pub url: &'a CubeUrl,

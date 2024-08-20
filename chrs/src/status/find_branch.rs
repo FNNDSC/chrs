@@ -2,7 +2,7 @@ use chris::types::PluginType;
 use chris::{PluginInstanceResponse, PluginInstanceRo};
 
 /// For a feed like this:
-/// ```
+/// ```text
 ///                 1
 ///               /  \
 ///              2    3

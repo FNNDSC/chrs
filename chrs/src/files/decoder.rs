@@ -29,7 +29,7 @@ use url::Url;
 
 const FOLDER_SUBSTR_SUBSTITUTIONS: [(&str, &str); 1] = [("/", "!SLASH!")];
 
-/// Wrapper around [Option<ChrisPathHumanCoder>].
+/// Wrapper around [`Option<ChrisPathHumanCoder>`].
 #[derive(Default)]
 pub struct MaybeChrisPathHumanCoder<'a> {
     namer: Option<ChrisPathHumanCoder<'a>>,

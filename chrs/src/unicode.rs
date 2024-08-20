@@ -1,6 +1,6 @@
-//! Unicode symbols
+//! Unicode symbols.
 //!
-//! https://en.wikipedia.org/wiki/Geometric_Shapes_(Unicode_block)
+//! See <https://en.wikipedia.org/wiki/Geometric_Shapes_(Unicode_block)>
 
 pub const WHITE_CIRCLE: &str = "\u{25CB}";
 pub const DOTTED_CIRCLE: &str = "\u{25CC}";

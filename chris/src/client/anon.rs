@@ -15,7 +15,7 @@ use super::base::fetch_id;
 use super::base::BaseChrisClient;
 use super::filebrowser::FileBrowser;
 
-/// Anonymous ChRIS client.
+/// Anonymous _ChRIS_ client.
 pub struct AnonChrisClient {
     client: reqwest_middleware::ClientWithMiddleware,
     url: CubeUrl,

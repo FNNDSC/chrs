@@ -1,5 +1,4 @@
 //! Errors for this crate.
-//! About anyhow: see https://github.com/TrueLayer/reqwest-middleware/issues/119
 
 use reqwest::StatusCode;
 
@@ -31,6 +30,8 @@ pub enum CubeError {
     Raw(#[from] reqwest::Error),
 
     /// Error from reqwest middleware function.
+    ///
+    /// Note about anyhow: see <https://github.com/TrueLayer/reqwest-middleware/issues/119>
     #[error(transparent)]
     Middleware(anyhow::Error),
 }

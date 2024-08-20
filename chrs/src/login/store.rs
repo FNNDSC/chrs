@@ -1,6 +1,6 @@
 //! Abstraction over token storage using keyring or in plaintext configuration file.
 //! When saved to keyring, the token is identified by a string in the form
-//! "<CUBEUsername>@<CUBEAddress>"
+//! "{username}@{CUBEAddress}"
 
 use crate::login::ui::UiUrl;
 use chris::types::{CubeUrl, PluginInstanceId, Username};

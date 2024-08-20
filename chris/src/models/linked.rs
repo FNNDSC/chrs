@@ -94,6 +94,7 @@ pub struct LazyLinkedModel<'a, T: DeserializeOwned, A: Access> {
 }
 
 impl<T: DeserializeOwned, A: Access> LazyLinkedModel<'_, T, A> {
+    /// Get the object's data.
     pub async fn get(self) -> Result<LinkedModel<T, A>, CubeError> {
         let res = self.client.get(self.url.as_str()).send().await?;
         let data = check(res).await?.json().await?;
@@ -104,7 +105,7 @@ impl<T: DeserializeOwned, A: Access> LazyLinkedModel<'_, T, A> {
         })
     }
 
-    /// HTTP put request
+    /// Send a HTTP put request.
     pub(crate) async fn put<S: Serialize + ?Sized>(
         &self,
         data: &S,
@@ -121,8 +122,3 @@ impl<T: DeserializeOwned, A: Access> LazyLinkedModel<'_, T, A> {
 
 // Future work:
 // LinkedModel should have a get method too, which "refreshes" its data.
-// struct LinkedModel<T: DeserializeOwned + HasUrl>
-//
-// trait HasUrl {
-//     pub fn url() -> reqwest::IntoUrl
-// }

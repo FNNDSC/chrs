@@ -16,7 +16,7 @@ categories = ["command-line-utilities", "science"]
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [dependencies]
-chris = { path = "../chris", version = "0.5.0-a.1", features = ["rustls"], default-features = false }
+chris = { path = "../chris", version = "0.5.0-a.2", features = ["rustls"], default-features = false }
 clap = { version = "4.1.1", features = ["derive", "string"] }
 keyring = "2.3.2"
 thiserror = "1.0.30"

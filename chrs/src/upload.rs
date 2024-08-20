@@ -302,7 +302,7 @@ async fn get_feed_by_name(client: &ChrisClient, name: &str) -> eyre::Result<Opti
 }
 
 /// Try to get the root plugin instance of a feed. However, since we can't get this from the API
-/// directly (see https://github.com/FNNDSC/ChRIS_ultron_backEnd/issues/541), instead we will:
+/// directly (see <https://github.com/FNNDSC/ChRIS_ultron_backEnd/issues/541>), instead we will:
 ///
 /// 1. get the most recent 20 plugin instances.
 /// 2. If the root is found in the 20 plugin instances, then return it.
